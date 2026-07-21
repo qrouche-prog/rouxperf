@@ -34,13 +34,16 @@ SQL du projet Supabase (pas de CLI Supabase utilisée pour l'instant).
 
 ## Où en est le projet
 
-**M1 (en cours)** : scaffold + auth de base (signup/login/reset/update
-password, garde `RequireAuth`, table `profiles`). Reste à faire pour clore
-M1 : créer le repo GitHub, le projet Supabase, le projet Vercel, et
-vérifier le parcours de bout en bout (voir `PLAN.md` § Vérification).
+**M1 terminé** : scaffold + auth de base (signup/login/reset/update
+password, garde `RequireAuth`, table `profiles`). Déployé sur Vercel
+(`https://rouxperf.vercel.app`, `vercel.json` avec rewrite SPA pour les
+routes client) et connecté à Supabase (Site URL / Redirect URLs configurés
+dans Authentication → URL Configuration). Parcours de bout en bout vérifié :
+signup → confirmation email → login → `/dashboard`.
 
-Jalons suivants : onboarding (M2), génération IA du programme (M3), suivi
-de progression (M4), polish + DNS (M5).
+Prochain jalon : **M2** — onboarding (mesures, objectifs, profil
+d'entraînement) + garde `RequireOnboarding`. Puis génération IA du
+programme (M3), suivi de progression (M4), polish + DNS `rouxperf.ch` (M5).
 
 ## Documents utiles
 - `PLAN.md` — plan de référence complet (schéma, décisions produit, ordre
