@@ -6,15 +6,31 @@ const AuthContext = createContext(undefined)
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [profile, setProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(true)
+
+  async function refreshProfile(userId) {
+    if (!userId) {
+      setProfile(null)
+      setProfileLoading(false)
+      return
+    }
+    setProfileLoading(true)
+    const { data } = await supabase.from('profiles').select('*').eq('user_id', userId).single()
+    setProfile(data ?? null)
+    setProfileLoading(false)
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setLoading(false)
+      refreshProfile(data.session?.user?.id)
     })
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
+      refreshProfile(newSession?.user?.id)
     })
 
     return () => subscription.subscription.unsubscribe()
@@ -24,6 +40,9 @@ export function AuthProvider({ children }) {
     session,
     user: session?.user ?? null,
     loading,
+    profile,
+    profileLoading,
+    refreshProfile: () => refreshProfile(session?.user?.id),
     signUp: (email, password) => supabase.auth.signUp({ email, password }),
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
     signOut: () => supabase.auth.signOut(),

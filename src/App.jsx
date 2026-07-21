@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import RequireAuth from './components/RequireAuth'
+import RequireOnboarding from './components/RequireOnboarding'
 import HomePage from './routes/HomePage'
 import LoginPage from './routes/LoginPage'
 import SignupPage from './routes/SignupPage'
 import ResetPasswordPage from './routes/ResetPasswordPage'
 import UpdatePasswordPage from './routes/UpdatePasswordPage'
+import OnboardingPage from './routes/OnboardingPage'
 import DashboardPage from './routes/DashboardPage'
 
 export default function App() {
@@ -19,10 +21,20 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/update-password" element={<UpdatePasswordPage />} />
           <Route
+            path="/onboarding/:step"
+            element={
+              <RequireAuth>
+                <OnboardingPage />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="/dashboard"
             element={
               <RequireAuth>
-                <DashboardPage />
+                <RequireOnboarding>
+                  <DashboardPage />
+                </RequireOnboarding>
               </RequireAuth>
             }
           />
