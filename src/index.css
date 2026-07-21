@@ -1,0 +1,39 @@
+:root {
+  color-scheme: light dark;
+  font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+label {
+  font-size: 0.9em;
+}
+
+input {
+  font: inherit;
+  padding: 8px;
+}
+
+button {
+  font: inherit;
+  padding: 10px;
+  cursor: pointer;
+}
+
+[role='alert'] {
+  color: #c0392b;
+}
