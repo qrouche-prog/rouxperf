@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import BodyFatGuide from './help/BodyFatGuide'
+import MeasurementFieldHelp from './help/MeasurementFieldHelp'
 
 export default function MeasurementsStep({ onNext, onBack }) {
   const { user } = useAuth()
@@ -61,7 +63,10 @@ export default function MeasurementsStep({ onNext, onBack }) {
         required
       />
 
-      <label htmlFor="bodyFatPct">Masse grasse (%, optionnel)</label>
+      <div className="field-label-row">
+        <label htmlFor="bodyFatPct">Masse grasse (%, optionnel)</label>
+        <BodyFatGuide />
+      </div>
       <input
         id="bodyFatPct"
         type="number"
@@ -72,19 +77,34 @@ export default function MeasurementsStep({ onNext, onBack }) {
         onChange={(e) => setBodyFatPct(e.target.value)}
       />
 
-      <label htmlFor="waistCm">Tour de taille (cm, optionnel)</label>
+      <div className="field-label-row">
+        <label htmlFor="waistCm">Tour de taille (cm, optionnel)</label>
+        <MeasurementFieldHelp type="waist" />
+      </div>
       <input id="waistCm" type="number" step="0.1" value={waistCm} onChange={(e) => setWaistCm(e.target.value)} />
 
-      <label htmlFor="hipsCm">Tour de hanches (cm, optionnel)</label>
+      <div className="field-label-row">
+        <label htmlFor="hipsCm">Tour de hanches (cm, optionnel)</label>
+        <MeasurementFieldHelp type="hips" />
+      </div>
       <input id="hipsCm" type="number" step="0.1" value={hipsCm} onChange={(e) => setHipsCm(e.target.value)} />
 
-      <label htmlFor="chestCm">Tour de poitrine (cm, optionnel)</label>
+      <div className="field-label-row">
+        <label htmlFor="chestCm">Tour de poitrine (cm, optionnel)</label>
+        <MeasurementFieldHelp type="chest" />
+      </div>
       <input id="chestCm" type="number" step="0.1" value={chestCm} onChange={(e) => setChestCm(e.target.value)} />
 
-      <label htmlFor="armCm">Tour de bras (cm, optionnel)</label>
+      <div className="field-label-row">
+        <label htmlFor="armCm">Tour de bras (cm, optionnel)</label>
+        <MeasurementFieldHelp type="arm" />
+      </div>
       <input id="armCm" type="number" step="0.1" value={armCm} onChange={(e) => setArmCm(e.target.value)} />
 
-      <label htmlFor="thighCm">Tour de cuisse (cm, optionnel)</label>
+      <div className="field-label-row">
+        <label htmlFor="thighCm">Tour de cuisse (cm, optionnel)</label>
+        <MeasurementFieldHelp type="thigh" />
+      </div>
       <input id="thighCm" type="number" step="0.1" value={thighCm} onChange={(e) => setThighCm(e.target.value)} />
 
       {error && <p role="alert">{error}</p>}

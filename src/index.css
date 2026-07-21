@@ -37,3 +37,80 @@ button {
 [role='alert'] {
   color: #c0392b;
 }
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.field-label-row label {
+  margin: 0;
+}
+
+.help-bubble {
+  position: relative;
+  display: inline-flex;
+}
+
+.help-bubble-trigger {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: none;
+  font-size: 0.75em;
+  line-height: 1;
+}
+
+.help-bubble-panel {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 0.85em;
+  text-align: left;
+}
+
+.help-bubble-panel ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.help-bubble-panel .help-tip {
+  margin: 0;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.measurement-help-content {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.body-fat-guide table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+.body-fat-guide td {
+  padding: 3px 6px 3px 0;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.body-fat-guide h4 {
+  margin: 10px 0 4px;
+}
