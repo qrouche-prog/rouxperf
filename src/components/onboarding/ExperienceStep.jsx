@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import ExperienceLevelGuide from './help/ExperienceLevelGuide'
 
 export default function ExperienceStep({ onNext, onBack }) {
   const { user } = useAuth()
@@ -41,7 +42,10 @@ export default function ExperienceStep({ onNext, onBack }) {
     <form onSubmit={handleSubmit}>
       <h2>Ton expérience sportive</h2>
 
-      <label htmlFor="experienceLevel">Niveau</label>
+      <div className="field-label-row">
+        <label htmlFor="experienceLevel">Niveau</label>
+        <ExperienceLevelGuide />
+      </div>
       <select
         id="experienceLevel"
         value={experienceLevel}
