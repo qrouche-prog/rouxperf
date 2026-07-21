@@ -9,6 +9,7 @@ import ResetPasswordPage from './routes/ResetPasswordPage'
 import UpdatePasswordPage from './routes/UpdatePasswordPage'
 import OnboardingPage from './routes/OnboardingPage'
 import DashboardPage from './routes/DashboardPage'
+import ProgramPage from './routes/ProgramPage'
 
 export default function App() {
   return (
@@ -34,6 +35,16 @@ export default function App() {
               <RequireAuth>
                 <RequireOnboarding>
                   <DashboardPage />
+                </RequireOnboarding>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/program"
+            element={
+              <RequireAuth>
+                <RequireOnboarding>
+                  <ProgramPage />
                 </RequireOnboarding>
               </RequireAuth>
             }

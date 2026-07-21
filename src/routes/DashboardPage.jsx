@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function DashboardPage() {
@@ -14,7 +14,9 @@ export default function DashboardPage() {
     <main>
       <h1>Tableau de bord</h1>
       <p>Connecté en tant que {user?.email}.</p>
-      <p>L'onboarding et le programme d'entraînement arrivent dans une prochaine étape.</p>
+      <p>
+        <Link to="/program">Voir mon programme</Link>
+      </p>
       <button onClick={handleSignOut}>Se déconnecter</button>
     </main>
   )
