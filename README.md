@@ -11,8 +11,10 @@ documenté dans `PLAN.md`.
 - React + Vite + `react-router-dom`
 - Supabase (Postgres + Auth), via `@supabase/supabase-js`
 - Génération de programme : Claude API (`@anthropic-ai/sdk`), appelée
-  uniquement depuis une fonction serveur Vercel (`api/generate-program.js`,
-  à venir en M3) — jamais depuis le navigateur.
+  uniquement depuis une fonction serveur Vercel (`api/generate-program.js`)
+  — jamais depuis le navigateur. Sortie structurée (JSON Schema avec
+  `exercise_id` contraint par `enum`) pour garantir que le modèle ne
+  référence que des exercices réels.
 - `recharts` pour les graphiques de progression (M4)
 
 ## Démarrer
@@ -41,9 +43,18 @@ routes client) et connecté à Supabase (Site URL / Redirect URLs configurés
 dans Authentication → URL Configuration). Parcours de bout en bout vérifié :
 signup → confirmation email → login → `/dashboard`.
 
-Prochain jalon : **M2** — onboarding (mesures, objectifs, profil
-d'entraînement) + garde `RequireOnboarding`. Puis génération IA du
-programme (M3), suivi de progression (M4), polish + DNS `rouxperf.ch` (M5).
+**M2 terminé** : wizard d'onboarding (infos, mesures avec bulles d'aide
+illustrées, objectifs, expérience, préférences) avec sauvegarde progressive
+à chaque étape, garde `RequireOnboarding`.
+
+**M3 terminé** : bibliothèque de ~29 exercices (`exercises`, seedée),
+génération de programme par IA (`api/generate-program.js`, Claude Opus 4.8,
+sortie structurée), page `/program`. Un flag `MOCK_PROGRAM_GENERATION=true`
+permet de tester tout le pipeline sans crédit API (utile tant que le compte
+Anthropic n'est pas encore facturé) — à retirer pour la vraie génération.
+
+Prochain jalon : **M4** — logging des séances + mesures dans le temps, page
+`/progress` avec graphiques. Puis polish + DNS `rouxperf.ch` (M5).
 
 ## Documents utiles
 - `PLAN.md` — plan de référence complet (schéma, décisions produit, ordre
