@@ -70,6 +70,33 @@ function programSchema(exerciseIds) {
   }
 }
 
+function buildMockProgram(availableExercises, trainingProfile) {
+  const daysPerWeek = trainingProfile.days_per_week ?? 3
+  const exercisesPerDay = Math.min(4, availableExercises.length)
+  const weeks = []
+
+  for (let weekNumber = 1; weekNumber <= WEEKS_COUNT; weekNumber += 1) {
+    const days = []
+    for (let dayNumber = 1; dayNumber <= daysPerWeek; dayNumber += 1) {
+      const exercises = []
+      for (let i = 0; i < exercisesPerDay; i += 1) {
+        const exercise = availableExercises[(dayNumber - 1 + i) % availableExercises.length]
+        exercises.push({
+          exercise_id: exercise.id,
+          sets: 3,
+          reps: '8-12',
+          rest_seconds: 90,
+          notes: `Programme d'exemple (mode mock, semaine ${weekNumber}) — pas de vraie génération IA.`,
+        })
+      }
+      days.push({ day_number: dayNumber, name: `Séance ${dayNumber}`, exercises })
+    }
+    weeks.push({ week_number: weekNumber, days })
+  }
+
+  return { weeks }
+}
+
 function validateProgramStructure(structure, validExerciseIds) {
   if (!structure || !Array.isArray(structure.weeks) || structure.weeks.length === 0) {
     return 'aucune semaine générée'
@@ -197,46 +224,52 @@ ${JSON.stringify(
   2
 )}`
 
-  let response
-  try {
-    const stream = anthropic.messages.stream({
-      model: 'claude-opus-4-8',
-      max_tokens: 16000,
-      thinking: { type: 'adaptive' },
-      output_config: {
-        effort: 'medium',
-        format: { type: 'json_schema', schema: programSchema(exerciseIds) },
-      },
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    })
-    response = await stream.finalMessage()
-  } catch (err) {
-    res.status(502).json({ error: 'Échec de la génération du programme.', detail: err.message })
-    return
-  }
-
-  if (response.stop_reason === 'refusal') {
-    res.status(422).json({ error: "Le modèle n'a pas pu générer de programme pour ce profil." })
-    return
-  }
-  if (response.stop_reason === 'max_tokens') {
-    res.status(502).json({ error: 'La génération a été tronquée, réessaie.' })
-    return
-  }
-
-  const textBlock = response.content.find((block) => block.type === 'text')
-  if (!textBlock) {
-    res.status(502).json({ error: 'Réponse du modèle invalide.' })
-    return
-  }
-
   let structure
-  try {
-    structure = JSON.parse(textBlock.text)
-  } catch {
-    res.status(502).json({ error: 'Réponse du modèle mal formée.' })
-    return
+
+  if (process.env.MOCK_PROGRAM_GENERATION === 'true') {
+    // Bypasses the paid Anthropic call for local/staging testing without API credits.
+    structure = buildMockProgram(availableExercises, trainingProfile)
+  } else {
+    let response
+    try {
+      const stream = anthropic.messages.stream({
+        model: 'claude-opus-4-8',
+        max_tokens: 16000,
+        thinking: { type: 'adaptive' },
+        output_config: {
+          effort: 'medium',
+          format: { type: 'json_schema', schema: programSchema(exerciseIds) },
+        },
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      })
+      response = await stream.finalMessage()
+    } catch (err) {
+      res.status(502).json({ error: 'Échec de la génération du programme.', detail: err.message })
+      return
+    }
+
+    if (response.stop_reason === 'refusal') {
+      res.status(422).json({ error: "Le modèle n'a pas pu générer de programme pour ce profil." })
+      return
+    }
+    if (response.stop_reason === 'max_tokens') {
+      res.status(502).json({ error: 'La génération a été tronquée, réessaie.' })
+      return
+    }
+
+    const textBlock = response.content.find((block) => block.type === 'text')
+    if (!textBlock) {
+      res.status(502).json({ error: 'Réponse du modèle invalide.' })
+      return
+    }
+
+    try {
+      structure = JSON.parse(textBlock.text)
+    } catch {
+      res.status(502).json({ error: 'Réponse du modèle mal formée.' })
+      return
+    }
   }
 
   const validationError = validateProgramStructure(structure, new Set(exerciseIds))
