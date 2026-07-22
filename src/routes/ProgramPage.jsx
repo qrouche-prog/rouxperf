@@ -68,7 +68,8 @@ export default function ProgramPage() {
     <main>
       <h1>Ton programme</h1>
       <p>
-        Semaine {program.current_week} — <Link to="/dashboard">Tableau de bord</Link>
+        Semaine {program.current_week} — <Link to="/dashboard">Tableau de bord</Link> ·{' '}
+        <Link to="/progress">Ma progression</Link>
       </p>
 
       {program.structure.weeks.map((week) => (

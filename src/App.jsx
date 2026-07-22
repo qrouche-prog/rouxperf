@@ -10,6 +10,7 @@ import UpdatePasswordPage from './routes/UpdatePasswordPage'
 import OnboardingPage from './routes/OnboardingPage'
 import DashboardPage from './routes/DashboardPage'
 import ProgramPage from './routes/ProgramPage'
+import ProgressPage from './routes/ProgressPage'
 
 export default function App() {
   return (
@@ -45,6 +46,16 @@ export default function App() {
               <RequireAuth>
                 <RequireOnboarding>
                   <ProgramPage />
+                </RequireOnboarding>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/progress"
+            element={
+              <RequireAuth>
+                <RequireOnboarding>
+                  <ProgressPage />
                 </RequireOnboarding>
               </RequireAuth>
             }

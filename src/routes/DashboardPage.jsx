@@ -15,7 +15,7 @@ export default function DashboardPage() {
       <h1>Tableau de bord</h1>
       <p>Connecté en tant que {user?.email}.</p>
       <p>
-        <Link to="/program">Voir mon programme</Link>
+        <Link to="/program">Voir mon programme</Link> · <Link to="/progress">Ma progression</Link>
       </p>
       <button onClick={handleSignOut}>Se déconnecter</button>
     </main>
