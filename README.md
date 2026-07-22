@@ -53,8 +53,15 @@ sortie structurée), page `/program`. Un flag `MOCK_PROGRAM_GENERATION=true`
 permet de tester tout le pipeline sans crédit API (utile tant que le compte
 Anthropic n'est pas encore facturé) — à retirer pour la vraie génération.
 
-Prochain jalon : **M4** — logging des séances + mesures dans le temps, page
-`/progress` avec graphiques. Puis polish + DNS `rouxperf.ch` (M5).
+**M4 terminé** : `workout_logs`/`workout_log_sets` (RLS, `week_number`/
+`day_number` pointent dans `user_programs.structure` plutôt qu'une FK
+relationnelle), page `/progress` — graphique de tendance par mesure
+(`recharts`, palette et specs du skill `dataviz`, theme-aware via variables
+CSS), formulaire d'ajout de mesure, formulaire de logging de séance par jour
+du programme actif.
+
+Prochain jalon : **M5** — polish (mobile, gestion des erreurs/coûts API,
+`/settings`), audit RLS complet, DNS `rouxperf.ch` chez Infomaniak → Vercel.
 
 ## Documents utiles
 - `PLAN.md` — plan de référence complet (schéma, décisions produit, ordre
