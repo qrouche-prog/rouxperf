@@ -12,11 +12,20 @@ export default function DashboardPage() {
 
   return (
     <main>
+      <p className="eyebrow">{user?.email}</p>
       <h1>Tableau de bord</h1>
-      <p>Connecté en tant que {user?.email}.</p>
-      <p>
-        <Link to="/program">Voir mon programme</Link> · <Link to="/progress">Ma progression</Link>
-      </p>
+
+      <div className="dashboard-links">
+        <Link to="/program" className="card dashboard-link">
+          <h3>Ton programme</h3>
+          <p>Semaines, jours, exercices — ce que tu dois faire aujourd'hui.</p>
+        </Link>
+        <Link to="/progress" className="card dashboard-link">
+          <h3>Ta progression</h3>
+          <p>Mesures dans le temps, séances loggées.</p>
+        </Link>
+      </div>
+
       <button onClick={handleSignOut}>Se déconnecter</button>
     </main>
   )

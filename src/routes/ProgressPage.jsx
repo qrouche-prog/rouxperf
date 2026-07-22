@@ -70,43 +70,51 @@ export default function ProgressPage() {
 
   return (
     <main>
-      <h1>Ta progression</h1>
-      <p>
+      <nav className="crumbs">
         <Link to="/dashboard">Tableau de bord</Link> · <Link to="/program">Programme</Link>
-      </p>
+      </nav>
+      <h1>Ta progression</h1>
 
-      <label htmlFor="measurementField">Mesure affichée</label>
-      <select id="measurementField" value={selectedField} onChange={(e) => setSelectedField(e.target.value)}>
-        {MEASUREMENT_FIELDS.map((field) => (
-          <option key={field.value} value={field.value}>
-            {field.label}
-          </option>
-        ))}
-      </select>
+      <div className="card">
+        <label htmlFor="measurementField">Mesure affichée</label>
+        <select id="measurementField" value={selectedField} onChange={(e) => setSelectedField(e.target.value)}>
+          {MEASUREMENT_FIELDS.map((field) => (
+            <option key={field.value} value={field.value}>
+              {field.label}
+            </option>
+          ))}
+        </select>
 
-      <MeasurementChart
-        data={measurements}
-        field={selectedField}
-        label={MEASUREMENT_FIELDS.find((field) => field.value === selectedField)?.label ?? selectedField}
-      />
+        <MeasurementChart
+          data={measurements}
+          field={selectedField}
+          label={MEASUREMENT_FIELDS.find((field) => field.value === selectedField)?.label ?? selectedField}
+        />
+      </div>
 
-      <AddMeasurementForm onAdded={loadMeasurements} />
+      <div className="card">
+        <AddMeasurementForm onAdded={loadMeasurements} />
+      </div>
 
-      {program ? (
-        <LogWorkoutForm program={program} exercisesById={exercisesById} onLogged={loadWorkoutLogs} />
-      ) : (
-        <p>Pas de programme actif pour l'instant.</p>
-      )}
+      <div className="card">
+        {program ? (
+          <LogWorkoutForm program={program} exercisesById={exercisesById} onLogged={loadWorkoutLogs} />
+        ) : (
+          <p>Pas de programme actif pour l'instant.</p>
+        )}
+      </div>
 
       <h2>Séances récentes</h2>
       {workoutLogs.length === 0 ? (
         <p>Aucune séance loggée pour l'instant.</p>
       ) : (
-        <ul>
+        <ul className="workout-log-list">
           {workoutLogs.map((log) => (
             <li key={log.id}>
-              {new Date(log.performed_at).toLocaleDateString('fr-CH')} — Semaine {log.week_number}, Jour{' '}
-              {log.day_number}
+              <span className="eyebrow">{new Date(log.performed_at).toLocaleDateString('fr-CH')}</span>
+              <span>
+                Semaine {log.week_number}, jour {log.day_number}
+              </span>
             </li>
           ))}
         </ul>

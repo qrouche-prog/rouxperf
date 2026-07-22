@@ -7,6 +7,7 @@ import GoalsStep from '../components/onboarding/GoalsStep'
 import ExperienceStep from '../components/onboarding/ExperienceStep'
 import PreferencesStep from '../components/onboarding/PreferencesStep'
 import GenerationStep from '../components/onboarding/GenerationStep'
+import Tally from '../components/Tally'
 
 const STEP_COMPONENTS = {
   infos: PersonalInfoStep,
@@ -41,9 +42,12 @@ export default function OnboardingPage() {
 
   return (
     <main>
-      <p>
-        Étape {index + 1} / {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[index].label}
-      </p>
+      <div className="onboarding-progress">
+        <Tally count={index + 1} />
+        <span className="eyebrow">
+          / {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[index].label}
+        </span>
+      </div>
       <StepComponent onNext={() => goToStep(1)} onBack={() => goToStep(-1)} />
     </main>
   )

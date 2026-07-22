@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import Tally from '../components/Tally'
 
 export default function ProgramPage() {
   const { user } = useAuth()
@@ -66,28 +67,33 @@ export default function ProgramPage() {
 
   return (
     <main>
+      <nav className="crumbs">
+        <Link to="/dashboard">Tableau de bord</Link> · <Link to="/progress">Ma progression</Link>
+      </nav>
       <h1>Ton programme</h1>
-      <p>
-        Semaine {program.current_week} — <Link to="/dashboard">Tableau de bord</Link> ·{' '}
-        <Link to="/progress">Ma progression</Link>
-      </p>
+      <p className="eyebrow">Semaine {program.current_week}</p>
 
       {program.structure.weeks.map((week) => (
-        <section key={week.week_number}>
+        <section key={week.week_number} className="card">
           <h2>Semaine {week.week_number}</h2>
           {week.days.map((day) => (
-            <div key={day.day_number}>
+            <div key={day.day_number} className="program-day">
               <h3>
                 Jour {day.day_number} — {day.name}
               </h3>
-              <ul>
+              <ul className="exercise-list">
                 {day.exercises.map((exercise, index) => {
                   const details = exercisesById[exercise.exercise_id]
                   return (
-                    <li key={`${day.day_number}-${index}`}>
-                      <strong>{details?.name ?? 'Exercice'}</strong> — {exercise.sets} x {exercise.reps}, repos{' '}
-                      {exercise.rest_seconds}s
-                      {exercise.notes && <p>{exercise.notes}</p>}
+                    <li key={`${day.day_number}-${index}`} className="exercise-row">
+                      <div className="exercise-row-header">
+                        <strong>{details?.name ?? 'Exercice'}</strong>
+                        <Tally count={exercise.sets} />
+                      </div>
+                      <p className="exercise-meta">
+                        {exercise.reps} reps · repos {exercise.rest_seconds}s
+                      </p>
+                      {exercise.notes && <p className="exercise-notes">{exercise.notes}</p>}
                     </li>
                   )
                 })}
