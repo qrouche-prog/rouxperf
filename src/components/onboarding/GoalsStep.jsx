@@ -29,6 +29,19 @@ export default function GoalsStep({ onNext, onBack }) {
     }
 
     setStatus('loading')
+
+    const { error: deactivateError } = await supabase
+      .from('goals')
+      .update({ is_active: false })
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+
+    if (deactivateError) {
+      setStatus('idle')
+      setError(deactivateError.message)
+      return
+    }
+
     const { error: insertError } = await supabase.from('goals').insert({
       user_id: user.id,
       goal_type: goalType,
