@@ -1,4 +1,5 @@
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import LogoMark from './Logo'
 
 const LINKS = [
@@ -9,6 +10,14 @@ const LINKS = [
 ]
 
 export default function TopNav() {
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/', { replace: true })
+  }
+
   return (
     <header className="top-nav">
       <Link to="/dashboard" className="top-nav-brand">
@@ -26,6 +35,22 @@ export default function TopNav() {
           </NavLink>
         ))}
       </nav>
+      <div className="top-nav-account">
+        {user ? (
+          <button type="button" className="top-nav-link" onClick={handleSignOut}>
+            Se déconnecter
+          </button>
+        ) : (
+          <>
+            <Link to="/login" className="top-nav-link">
+              Se connecter
+            </Link>
+            <Link to="/signup" className="top-nav-link">
+              S'inscrire
+            </Link>
+          </>
+        )}
+      </div>
     </header>
   )
 }

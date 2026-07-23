@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Icon from '../components/onboarding/icons/Icon'
@@ -38,8 +38,8 @@ function getCurrentWeekDates() {
 }
 
 export default function DashboardPage() {
-  const { user, signOut } = useAuth()
-  const navigate = useNavigate()
+  const { user, profile } = useAuth()
+  const [greeting, setGreeting] = useState('')
   const [program, setProgram] = useState(null)
   const [trainingProfile, setTrainingProfile] = useState(null)
   const [goal, setGoal] = useState(null)
@@ -109,12 +109,20 @@ export default function DashboardPage() {
     load()
   }, [user.id])
 
-  async function handleSignOut() {
-    await signOut()
-    navigate('/', { replace: true })
-  }
+  useEffect(() => {
+    if (!user) return
+    const key = `rouxperf-welcomed-${user.id}`
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, '1')
+      setGreeting('Bienvenue')
+    } else {
+      setGreeting(Math.random() < 0.5 ? 'Bonjour' : 'Content de te revoir')
+    }
+  }, [user])
 
   if (status === 'loading') return null
+
+  const firstName = profile?.full_name?.trim().split(' ')[0] || null
 
   const totalWeeks = program?.structure?.weeks?.length ?? null
   const weekDates = getCurrentWeekDates()
@@ -144,7 +152,11 @@ export default function DashboardPage() {
   return (
     <main>
       <TopNav />
-      <p className="eyebrow">{user?.email}</p>
+      <p className="eyebrow">
+        {greeting}
+        {firstName ? `, ${firstName}` : ''}
+        {greeting === 'Bienvenue' ? ' !' : ''}
+      </p>
       <h1>Tableau de bord</h1>
 
       <div className="day-strip">
@@ -265,8 +277,6 @@ export default function DashboardPage() {
           <p>Modifie tes infos, ton objectif et tes préférences.</p>
         </Link>
       </div>
-
-      <button onClick={handleSignOut}>Se déconnecter</button>
 
       <div className="bottom-nav-spacer" />
       <BottomNav />

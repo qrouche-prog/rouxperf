@@ -1200,18 +1200,35 @@ a.btn-primary {
 }
 
 .top-nav-links {
-  display: flex;
+  display: none;
   gap: 18px;
 }
 
+@media (min-width: 640px) {
+  .top-nav-links {
+    display: flex;
+  }
+}
+
 .top-nav-link {
+  background: none;
+  border: none;
+  padding: 0;
   color: var(--iron);
   text-decoration: none;
+  font: inherit;
   font-size: 0.85rem;
+  cursor: pointer;
 }
 
 .top-nav-link-active {
   color: var(--flame-2);
+}
+
+.top-nav-account {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .bottom-nav {

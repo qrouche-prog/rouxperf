@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import MeasurementChart from '../components/progress/MeasurementChart'
 import AddMeasurementForm from '../components/progress/AddMeasurementForm'
-import LogWorkoutForm from '../components/progress/LogWorkoutForm'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
@@ -20,8 +19,6 @@ const MEASUREMENT_FIELDS = [
 export default function ProgressPage() {
   const { user } = useAuth()
   const [measurements, setMeasurements] = useState([])
-  const [program, setProgram] = useState(null)
-  const [exercisesById, setExercisesById] = useState({})
   const [workoutLogs, setWorkoutLogs] = useState([])
   const [selectedField, setSelectedField] = useState('weight_kg')
   const [status, setStatus] = useState('loading')
@@ -47,19 +44,6 @@ export default function ProgressPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: programData }, { data: exercises }] = await Promise.all([
-        supabase
-          .from('user_programs')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase.from('exercises').select('id, name'),
-      ])
-      setProgram(programData)
-      setExercisesById(Object.fromEntries((exercises ?? []).map((exercise) => [exercise.id, exercise])))
       await Promise.all([loadMeasurements(), loadWorkoutLogs()])
       setStatus('idle')
     }
@@ -93,14 +77,6 @@ export default function ProgressPage() {
 
       <div className="card">
         <AddMeasurementForm onAdded={loadMeasurements} />
-      </div>
-
-      <div className="card">
-        {program ? (
-          <LogWorkoutForm program={program} exercisesById={exercisesById} onLogged={loadWorkoutLogs} />
-        ) : (
-          <p>Pas de programme actif pour l'instant.</p>
-        )}
       </div>
 
       <h2>Séances récentes</h2>
