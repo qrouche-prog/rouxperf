@@ -30,17 +30,29 @@ const EQUIPMENT_TIERS: Record<string, string[]> = {
   ],
 }
 
+const CUSTOM_EXERCISE_SENTINEL = 'custom'
+
 function exerciseInputSchema(exerciseIds: string[]) {
   return {
     type: 'object',
     properties: {
-      exercise_id: { type: 'string', enum: exerciseIds },
+      exercise_id: { type: 'string', enum: [...exerciseIds, CUSTOM_EXERCISE_SENTINEL] },
+      custom_name: { type: 'string' },
+      custom_instructions: { type: 'string' },
       sets: { type: 'integer' },
       reps: { type: 'string' },
       rest_seconds: { type: 'integer' },
       notes: { type: 'string' },
     },
-    required: ['exercise_id', 'sets', 'reps', 'rest_seconds', 'notes'],
+    required: [
+      'exercise_id',
+      'custom_name',
+      'custom_instructions',
+      'sets',
+      'reps',
+      'rest_seconds',
+      'notes',
+    ],
     additionalProperties: false,
   }
 }
@@ -90,7 +102,11 @@ function validateProgramStructure(structure: any, validExerciseIds: Set<string>)
         return 'exercices manquants pour un jour'
       }
       for (const exercise of day.exercises) {
-        if (!validExerciseIds.has(exercise.exercise_id)) {
+        if (exercise.exercise_id === CUSTOM_EXERCISE_SENTINEL) {
+          if (!exercise.custom_name || !exercise.custom_name.trim()) {
+            return 'exercice personnalisé sans nom'
+          }
+        } else if (!validExerciseIds.has(exercise.exercise_id)) {
           return `exercice inconnu (${exercise.exercise_id})`
         }
         if (!Number.isInteger(exercise.sets) || exercise.sets < 1 || exercise.sets > 10) {
@@ -112,8 +128,23 @@ function validateProgramStructure(structure: any, validExerciseIds: Set<string>)
 const SYSTEM_PROMPT = `Tu es un coach sportif expérimenté qui conçoit des programmes d'entraînement personnalisés, sûrs et progressifs.
 Respecte strictement les blessures et limitations indiquées par l'utilisateur : si un mouvement pourrait les aggraver, ne le sélectionne pas.
 Adapte le volume, l'intensité et la complexité technique au niveau d'expérience indiqué.
-Choisis uniquement des exercices parmi la liste fournie, en les référençant par leur exercise_id exact — n'invente jamais d'exercice.
 Prévois une progression cohérente d'une semaine à l'autre (charge, volume ou intensité perçue) et indique-la dans le champ "notes" de chaque exercice.
+
+Pour choisir chaque exercice, deux options :
+1. Un exercice de la bibliothèque fournie, référencé par son exercise_id exact —
+   c'est le choix par défaut et obligatoire pour tout mouvement de musculation
+   avec charge ou technique (squat, soulevé, développé, tirage, machines,
+   isolation, etc.). Ne sors jamais de la bibliothèque pour ce type de mouvement,
+   même si elle te semble incomplète — la sécurité d'exécution prime.
+2. Un exercice libre, uniquement pour du cardio, un geste spécifique à un sport,
+   ou du conditionnement général quand rien dans la bibliothèque ne convient
+   (ex. course à pied si absente, geste technique d'un sport de combat, drill
+   spécifique à un sport listé dans target_sports) : mets exercise_id à "custom",
+   remplis custom_name (nom clair et court) et custom_instructions (description
+   concise, sûre et exécutable de comment le réaliser). N'utilise "custom" que
+   pour ce type de travail à faible risque technique — jamais pour remplacer un
+   mouvement de force qui existe déjà dans la bibliothèque. Quand exercise_id
+   n'est pas "custom", laisse custom_name et custom_instructions vides ("").
 
 Le profil contient aussi des aspects à travailler (focus_areas), une éventuelle
 compétition à venir (upcoming_events, event_date) et des sports pour lesquels
@@ -133,8 +164,9 @@ en façade :
   la surcharge.
 - Si un focus est "explosiveness"/"anaerobic" ou qu'un sport cible (target_sports)
   est renseigné, inclus des mouvements pliométriques/explosifs pertinents pour
-  ce sport (ex. sauts pour le volleyball/basketball) quand la bibliothèque le
-  permet — sans jamais sortir de la liste d'exercices fournie.
+  ce sport (ex. sauts pour le volleyball/basketball) en priorité depuis la
+  bibliothèque, et via un exercice "custom" seulement si un geste vraiment
+  spécifique au sport manque.
 
 Le champ special_situation (et special_situation_details) signale une situation
 qui change fondamentalement l'approche à adopter — la sécurité prime toujours
@@ -172,8 +204,8 @@ professionnel de santé en cas de doute").
 
 Le champ other_sport_notes contient des précisions libres de l'utilisateur
 (sport non listé, contexte supplémentaire) — prends-les en compte comme un
-complément d'information, sans jamais sortir de la bibliothèque d'exercices
-fournie pour autant.`
+complément d'information ; utilise un exercice "custom" si un geste propre à
+ce sport n'existe pas dans la bibliothèque.`
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -194,6 +226,59 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   })
+
+  // Client élevé utilisé uniquement pour créer/réutiliser les exercices
+  // "custom" proposés par l'IA — la table exercises n'a pas de policy insert
+  // pour les utilisateurs standards (bibliothèque en lecture seule côté client).
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  )
+
+  async function resolveCustomExercises(structure: any) {
+    for (const week of structure.weeks) {
+      for (const day of week.days) {
+        for (const exercise of day.exercises) {
+          if (exercise.exercise_id !== CUSTOM_EXERCISE_SENTINEL) continue
+
+          const name = exercise.custom_name.trim()
+          const { data: existing } = await serviceClient
+            .from('exercises')
+            .select('id')
+            .ilike('name', name)
+            .limit(1)
+            .maybeSingle()
+
+          if (existing) {
+            exercise.exercise_id = existing.id
+          } else {
+            const { data: created, error: createError } = await serviceClient
+              .from('exercises')
+              .insert({
+                name,
+                category: 'cardio',
+                muscle_group: 'cardio',
+                equipment_required: [],
+                contraindications: [],
+                instructions: exercise.custom_instructions?.trim() || name,
+                is_ai_generated: true,
+              })
+              .select('id')
+              .single()
+
+            if (createError || !created) {
+              throw new Error(`Échec de création de l'exercice personnalisé "${name}"`)
+            }
+            exercise.exercise_id = created.id
+          }
+
+          delete exercise.custom_name
+          delete exercise.custom_instructions
+        }
+      }
+    }
+    return structure
+  }
 
   const {
     data: { user },
@@ -290,7 +375,7 @@ Deno.serve(async (req: Request) => {
 Profil utilisateur :
 ${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${situationSection}${otherSportSection}
 
-Exercices disponibles (choisis exclusivement parmi ceux-ci, par exercise_id) :
+Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
 ${JSON.stringify(
   availableExercises.map(
     ({ id, name, category, muscle_group, contraindications, instructions }: any) => ({
@@ -341,6 +426,16 @@ ${JSON.stringify(
       const validationError = validateProgramStructure(structure, new Set(exerciseIds))
       if (validationError) {
         throw new Error(`Programme invalide : ${validationError}`)
+      }
+
+      structure = await resolveCustomExercises(structure)
+
+      const finalValidationError = validateProgramStructure(
+        structure,
+        new Set([...exerciseIds, ...structure.weeks.flatMap((w: any) => w.days.flatMap((d: any) => d.exercises.map((e: any) => e.exercise_id)))])
+      )
+      if (finalValidationError) {
+        throw new Error(`Programme invalide après résolution des exercices personnalisés : ${finalValidationError}`)
       }
 
       await supabase
