@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Tally from '../components/Tally'
 import Icon from '../components/onboarding/icons/Icon'
+import LogoMark from '../components/Logo'
 
 const STEPS = [
   {
@@ -60,7 +61,10 @@ export default function HomePage() {
   return (
     <>
       <header className="site-nav">
-        <span className="site-nav-brand">rouxperf</span>
+        <span className="site-nav-brand">
+          <LogoMark size={30} />
+          roux<span className="flame-text">perf</span>
+        </span>
         <nav>
           {user ? (
             <Link to="/dashboard" className="btn-primary">

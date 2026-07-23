@@ -219,6 +219,9 @@ a.btn-primary {
 }
 
 .site-nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-display);
   font-size: 1.6rem;
   text-transform: uppercase;
