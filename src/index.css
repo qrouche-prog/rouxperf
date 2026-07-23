@@ -1474,6 +1474,36 @@ a.btn-primary {
   margin: 4px 0 16px;
 }
 
+.focus-schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: -8px 0 20px;
+}
+
+.focus-schedule-row {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.focus-schedule-row select {
+  width: auto;
+  margin-bottom: 6px;
+}
+
+.focus-schedule-row [role='radiogroup'] label {
+  font-size: 0.85rem;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .select-card {
   display: flex;
   flex-direction: column;

@@ -5,6 +5,15 @@ const anthropic = new Anthropic()
 
 const WEEKS_COUNT = 4
 
+const FOCUS_AREA_LABELS: Record<string, string> = {
+  cardio: 'Cardio',
+  running: 'Course à pied',
+  aerobic: 'Endurance aérobie',
+  anaerobic: 'Capacité anaérobie',
+  explosiveness: 'Explosivité / plyométrie',
+  mobility: 'Mobilité',
+}
+
 const EQUIPMENT_TIERS: Record<string, string[]> = {
   bodyweight: ['bodyweight'],
   home_dumbbells: ['bodyweight', 'dumbbell'],
@@ -114,6 +123,9 @@ en façade :
   exercices de la catégorie "cardio" (conditionnement, intervalles) — le champ
   "reps" peut alors exprimer une durée ("30s", "45s") ou une distance ("400m")
   plutôt qu'un nombre de répétitions, exactement comme indiqué sur l'exercice.
+- focus_area_preferences précise, pour certains focus_areas, une fréquence
+  hebdomadaire exacte et un mode d'intégration ("separate" ou "integrated") —
+  respecte-les à la lettre plutôt que de deviner (détail plus bas).
 - Si une compétition est renseignée (Hyrox, Spartan/OCR, marathon, semi,
   10km, 5km, triathlon), oriente une partie du programme vers la préparation
   spécifique à cet effort (endurance, mouvements fonctionnels) ; si
@@ -210,10 +222,25 @@ Deno.serve(async (req: Request) => {
         latest_measurement: measurement,
       }
 
+      const focusAreaPreferences = trainingProfile.focus_area_preferences ?? {}
+      const scheduleLines = Object.entries(focusAreaPreferences).map(([area, pref]: [string, any]) => {
+        const label = FOCUS_AREA_LABELS[area] ?? area
+        const modeText =
+          pref.mode === 'integrated'
+            ? "intégré à l'intérieur des séances de musculation existantes (échauffement, finisher ou superset), sans créer de séance séparée"
+            : 'en séance(s) dédiée(s), distincte(s) des séances de musculation'
+        return `- ${label} : ${pref.frequency}× par semaine, ${modeText}.`
+      })
+
+      const schedulingSection =
+        scheduleLines.length > 0
+          ? `\n\nFréquence hebdomadaire demandée par domaine (respecte-la exactement) :\n${scheduleLines.join('\n')}\nSi au moins un domaine est en mode "séance(s) dédiée(s)", ces séances comptent dans le total de ${trainingProfile.days_per_week} séance(s) par semaine — répartis-les sur des jours différents des séances de musculation pures quand c'est cohérent avec ce total.`
+          : ''
+
       const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${trainingProfile.days_per_week} séance(s) par semaine, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
 Profil utilisateur :
-${JSON.stringify(promptSnapshot, null, 2)}
+${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}
 
 Exercices disponibles (choisis exclusivement parmi ceux-ci, par exercise_id) :
 ${JSON.stringify(

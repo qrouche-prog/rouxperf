@@ -64,6 +64,63 @@ const PATHS = {
     <path d="M3 17c1.5 1 3 1 4.5 0s3-1 4.5 0 3 1 4.5 0 3-1 4.5 0M6 13l4-5 4 2 4-4M9 5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
   ),
   hockey: <path d="M6 3 4 15a2 2 0 0 0 2 2h2l10-3M6 21h6" />,
+  combat: (
+    <>
+      <path d="M3 9a3 3 0 0 1 3-3c1.7 0 3 1.3 3 3v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />
+      <path d="M21 9a3 3 0 0 0-3-3c-1.7 0-3 1.3-3 3v5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V9Z" />
+      <path d="M9 12h6" />
+    </>
+  ),
+  tennis: (
+    <>
+      <ellipse cx="12" cy="9" rx="5.5" ry="6.5" />
+      <path d="M12 2.5v13M6.7 9h10.6" />
+      <path d="M12 15.5V22M9.5 22h5" />
+    </>
+  ),
+  rugby: (
+    <>
+      <path d="M12 3c4 0 7 4 7 9s-3 9-7 9-7-4-7-9 3-9 7-9Z" />
+      <path d="M12 3v18M8.5 8h7M8.5 16h7" />
+    </>
+  ),
+  cycling: (
+    <>
+      <circle cx="6" cy="17" r="3.5" />
+      <circle cx="18" cy="17" r="3.5" />
+      <path d="M6 17l4-8h5l3 8M10 9l3-4h3M13 9l5 8" />
+    </>
+  ),
+  climbing: (
+    <>
+      <path d="M3 19 9 8l3 5 2-3 7 9H3Z" />
+      <circle cx="9" cy="5" r="1.6" />
+    </>
+  ),
+  golf: (
+    <>
+      <path d="M6 21V4M6 4l9 3-9 3" />
+      <circle cx="6" cy="21" r="1.4" fill="currentColor" />
+    </>
+  ),
+  badminton: (
+    <>
+      <path d="M12 3l4 7-8 3 4-10Z" />
+      <path d="M12 13v9M9.5 22h5" />
+    </>
+  ),
+  handball: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M6 6l12 12M18 6 6 18" />
+    </>
+  ),
+  athletics: (
+    <>
+      <path d="M3 18c4-8 14-8 18 0" />
+      <path d="M3 21c4-6 14-6 18 0" />
+    </>
+  ),
 }
 
 export default function Icon({ name, size = 28 }) {

@@ -15,6 +15,16 @@ const FOCUS_AREAS = [
   { value: 'muscle_gain', label: 'Prise de muscle', icon: 'bicep' },
 ]
 
+// Domaines pour lesquels ça a du sens de demander une fréquence dédiée et un
+// mode d'intégration — la force est la base du programme et perte de poids /
+// prise de muscle sont des objectifs, pas des séances à planifier en soi.
+const SCHEDULABLE_FOCUS_AREAS = new Set(['cardio', 'running', 'aerobic', 'anaerobic', 'explosiveness', 'mobility'])
+
+const INTEGRATION_MODES = [
+  { value: 'separate', label: 'Séances dédiées, séparées de la musculation' },
+  { value: 'integrated', label: 'Intégré aux séances de musculation (échauffement/finisher)' },
+]
+
 const EVENTS = [
   { value: 'hyrox', label: 'Hyrox', icon: 'hyrox' },
   { value: 'spartan', label: 'Spartan / OCR', icon: 'obstacle' },
@@ -32,6 +42,15 @@ const SPORTS = [
   { value: 'basketball', label: 'Basketball', icon: 'basketball' },
   { value: 'swimming', label: 'Natation', icon: 'swim' },
   { value: 'hockey', label: 'Hockey', icon: 'hockey' },
+  { value: 'combat', label: 'Sport de combat', icon: 'combat' },
+  { value: 'tennis', label: 'Tennis', icon: 'tennis' },
+  { value: 'rugby', label: 'Rugby', icon: 'rugby' },
+  { value: 'cycling', label: 'Cyclisme', icon: 'cycling' },
+  { value: 'climbing', label: 'Escalade', icon: 'climbing' },
+  { value: 'golf', label: 'Golf', icon: 'golf' },
+  { value: 'badminton', label: 'Badminton', icon: 'badminton' },
+  { value: 'handball', label: 'Handball', icon: 'handball' },
+  { value: 'athletics', label: 'Athlétisme', icon: 'athletics' },
 ]
 
 function toggleValue(list, value, exclusiveValue) {
@@ -47,6 +66,7 @@ function toggleValue(list, value, exclusiveValue) {
 export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 'Continuer' }) {
   const { user } = useAuth()
   const [focusAreas, setFocusAreas] = useState(initial?.focus_areas ?? [])
+  const [focusAreaPreferences, setFocusAreaPreferences] = useState(initial?.focus_area_preferences ?? {})
   const [events, setEvents] = useState(initial?.upcoming_events ?? [])
   const [eventDate, setEventDate] = useState(initial?.event_date ?? '')
   const [targetSports, setTargetSports] = useState(initial?.target_sports ?? [])
@@ -54,6 +74,31 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
   const [error, setError] = useState(null)
 
   const hasEvent = events.length > 0 && !events.includes('none')
+
+  function toggleFocusArea(value) {
+    setFocusAreas((current) => {
+      const next = toggleValue(current, value)
+      if (next.includes(value) && SCHEDULABLE_FOCUS_AREAS.has(value)) {
+        setFocusAreaPreferences((prefs) => ({
+          ...prefs,
+          [value]: prefs[value] ?? { frequency: 2, mode: 'separate' },
+        }))
+      } else if (!next.includes(value)) {
+        setFocusAreaPreferences((prefs) => {
+          const { [value]: _removed, ...rest } = prefs
+          return rest
+        })
+      }
+      return next
+    })
+  }
+
+  function updateFocusAreaPreference(area, patch) {
+    setFocusAreaPreferences((prefs) => ({
+      ...prefs,
+      [area]: { ...(prefs[area] ?? { frequency: 2, mode: 'separate' }), ...patch },
+    }))
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -64,6 +109,7 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
       {
         user_id: user.id,
         focus_areas: focusAreas,
+        focus_area_preferences: focusAreaPreferences,
         upcoming_events: events,
         event_date: hasEvent && eventDate ? eventDate : null,
         target_sports: targetSports,
@@ -80,17 +126,57 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
     onNext()
   }
 
+  const schedulableSelected = focusAreas.filter((area) => SCHEDULABLE_FOCUS_AREAS.has(area))
+
   return (
     <form onSubmit={handleSubmit}>
       <h2>Tes objectifs sportifs</h2>
       <p>Sélectionne tout ce qui s'applique — ça affine directement ton programme.</p>
 
       <label>Aspects à travailler</label>
-      <SelectableCardGrid
-        options={FOCUS_AREAS}
-        selected={focusAreas}
-        onToggle={(value) => setFocusAreas((current) => toggleValue(current, value))}
-      />
+      <SelectableCardGrid options={FOCUS_AREAS} selected={focusAreas} onToggle={toggleFocusArea} />
+
+      {schedulableSelected.length > 0 && (
+        <div className="focus-schedule-list">
+          {schedulableSelected.map((area) => {
+            const areaLabel = FOCUS_AREAS.find((f) => f.value === area)?.label ?? area
+            const pref = focusAreaPreferences[area] ?? { frequency: 2, mode: 'separate' }
+            return (
+              <div key={area} className="focus-schedule-row">
+                <strong>{areaLabel}</strong>
+
+                <label htmlFor={`freq-${area}`}>Combien de fois par semaine ?</label>
+                <select
+                  id={`freq-${area}`}
+                  value={pref.frequency}
+                  onChange={(e) => updateFocusAreaPreference(area, { frequency: Number(e.target.value) })}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                    <option key={n} value={n}>
+                      {n}×
+                    </option>
+                  ))}
+                </select>
+
+                <div role="radiogroup" aria-label={`Comment intégrer ${areaLabel}`}>
+                  {INTEGRATION_MODES.map((mode) => (
+                    <label key={mode.value} style={{ display: 'block' }}>
+                      <input
+                        type="radio"
+                        name={`mode-${area}`}
+                        value={mode.value}
+                        checked={pref.mode === mode.value}
+                        onChange={() => updateFocusAreaPreference(area, { mode: mode.value })}
+                      />{' '}
+                      {mode.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       <label>Compétition à venir</label>
       <SelectableCardGrid
