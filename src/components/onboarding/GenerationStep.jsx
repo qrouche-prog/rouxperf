@@ -5,13 +5,17 @@ import { useAuth } from '../../context/AuthContext'
 
 const POLL_INTERVAL_MS = 3000
 const POLL_TIMEOUT_MS = 3 * 60 * 1000
+const PROGRESS_TICK_MS = 400
+const PROGRESS_CAP = 95
 
 export default function GenerationStep({ onBack }) {
   const { refreshProfile } = useAuth()
   const navigate = useNavigate()
   const [status, setStatus] = useState('idle')
+  const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
   const pollTimer = useRef(null)
+  const progressTimer = useRef(null)
 
   function stopPolling() {
     if (pollTimer.current) {
@@ -20,10 +24,33 @@ export default function GenerationStep({ onBack }) {
     }
   }
 
+  function startProgressAnimation() {
+    progressTimer.current = setInterval(() => {
+      setProgress((p) => p + (PROGRESS_CAP - p) * 0.03)
+    }, PROGRESS_TICK_MS)
+  }
+
+  function stopProgressAnimation() {
+    if (progressTimer.current) {
+      clearInterval(progressTimer.current)
+      progressTimer.current = null
+    }
+  }
+
+  function resetToIdle(message) {
+    stopPolling()
+    stopProgressAnimation()
+    setProgress(0)
+    setStatus('idle')
+    setError(message)
+  }
+
   async function finishSuccess() {
     stopPolling()
+    stopProgressAnimation()
+    setProgress(100)
     await refreshProfile()
-    navigate('/program', { replace: true })
+    setTimeout(() => navigate('/dashboard', { replace: true }), 400)
   }
 
   function pollProgram(programId, startedAt) {
@@ -40,16 +67,12 @@ export default function GenerationStep({ onBack }) {
       }
 
       if (program?.status === 'failed') {
-        stopPolling()
-        setStatus('idle')
-        setError(program.error_message ?? 'La génération a échoué. Réessaie.')
+        resetToIdle(program.error_message ?? 'La génération a échoué. Réessaie.')
         return
       }
 
       if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
-        stopPolling()
-        setStatus('idle')
-        setError(
+        resetToIdle(
           "La génération prend plus longtemps que prévu. Retourne sur la page Programme dans quelques instants, elle devrait apparaître."
         )
         return
@@ -60,8 +83,12 @@ export default function GenerationStep({ onBack }) {
   }
 
   async function handleGenerate() {
+    if (status === 'loading') return
+
     setError(null)
     setStatus('loading')
+    setProgress(0)
+    startProgressAnimation()
 
     const {
       data: { session },
@@ -74,15 +101,13 @@ export default function GenerationStep({ onBack }) {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
     } catch {
-      setStatus('idle')
-      setError('Impossible de contacter le serveur. Vérifie ta connexion et réessaie.')
+      resetToIdle('Impossible de contacter le serveur. Vérifie ta connexion et réessaie.')
       return
     }
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({}))
-      setStatus('idle')
-      setError(body.error ?? 'La génération a échoué. Réessaie.')
+      resetToIdle(body.error ?? 'La génération a échoué. Réessaie.')
       return
     }
 
@@ -96,6 +121,8 @@ export default function GenerationStep({ onBack }) {
     pollProgram(body.program.id, Date.now())
   }
 
+  const isLoading = status === 'loading'
+
   return (
     <div>
       <h2>Ton profil est complet</h2>
@@ -104,15 +131,25 @@ export default function GenerationStep({ onBack }) {
         (le temps que l'IA construise un programme complet et cohérent).
       </p>
 
-      {status === 'loading' && <p className="eyebrow">Génération en cours, ne quitte pas cette page...</p>}
+      {isLoading && (
+        <div>
+          <div className="generation-progress-bar">
+            <div className="generation-progress-fill" style={{ width: `${Math.min(progress, 100)}%` }} />
+          </div>
+          <p className="eyebrow">Génération en cours, ne quitte pas cette page...</p>
+        </div>
+      )}
+
       {error && <p role="alert">{error}</p>}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={onBack} disabled={status === 'loading'}>
-          Retour
-        </button>
-        <button type="button" onClick={handleGenerate} disabled={status === 'loading'}>
-          {status === 'loading' ? 'Génération en cours...' : 'Générer mon programme'}
+        {!isLoading && (
+          <button type="button" onClick={onBack} disabled={isLoading}>
+            Retour
+          </button>
+        )}
+        <button type="button" onClick={handleGenerate} disabled={isLoading}>
+          {isLoading ? 'Génération en cours...' : 'Générer mon programme'}
         </button>
       </div>
     </div>

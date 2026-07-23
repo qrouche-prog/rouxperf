@@ -1140,6 +1140,27 @@ a.btn-primary {
   background: var(--flame-gradient);
 }
 
+.generation-progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin: 16px 0 10px;
+}
+
+.generation-progress-fill {
+  height: 100%;
+  background: var(--flame-gradient);
+  transition: width 0.4s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generation-progress-fill {
+    transition: none;
+  }
+}
+
 .week-progress-label {
   text-align: center;
   margin: 6px 0 0;
