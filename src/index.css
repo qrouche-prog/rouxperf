@@ -1354,7 +1354,7 @@ a.btn-primary {
   align-items: center;
   justify-content: space-between;
   margin: -32px -24px 24px;
-  padding: 14px 24px;
+  padding: max(14px, env(safe-area-inset-top)) 24px 14px;
   background: var(--card);
   border-bottom: 1px solid var(--border);
 }
