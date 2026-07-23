@@ -10,6 +10,8 @@ export default function ProgramPage() {
   const [exercisesById, setExercisesById] = useState({})
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
+  const [weekIndex, setWeekIndex] = useState(0)
+  const [dayIndex, setDayIndex] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -36,6 +38,10 @@ export default function ProgramPage() {
       }
 
       setProgram(programData)
+      if (programData) {
+        const totalWeeks = programData.structure.weeks.length
+        setWeekIndex(Math.min(Math.max(programData.current_week - 1, 0), totalWeeks - 1))
+      }
       setExercisesById(Object.fromEntries((exercises ?? []).map((exercise) => [exercise.id, exercise])))
       setStatus('idle')
     }
@@ -65,43 +71,103 @@ export default function ProgramPage() {
     )
   }
 
+  const weeks = program.structure.weeks
+  const week = weeks[weekIndex]
+  const days = week.days
+  const day = days[dayIndex]
+
+  function goWeek(offset) {
+    const next = weekIndex + offset
+    if (next < 0 || next >= weeks.length) return
+    setWeekIndex(next)
+    setDayIndex(0)
+  }
+
+  function goDay(offset) {
+    const next = dayIndex + offset
+    if (next < 0 || next >= days.length) return
+    setDayIndex(next)
+  }
+
   return (
     <main>
       <nav className="crumbs">
         <Link to="/dashboard">Tableau de bord</Link> · <Link to="/progress">Ma progression</Link>
       </nav>
       <h1>Ton programme</h1>
-      <p className="eyebrow">Semaine {program.current_week}</p>
 
-      {program.structure.weeks.map((week) => (
-        <section key={week.week_number} className="card">
+      <div className="week-nav">
+        <button type="button" className="nav-arrow" onClick={() => goWeek(-1)} disabled={weekIndex === 0}>
+          ‹
+        </button>
+        <div className="week-nav-label">
           <h2>Semaine {week.week_number}</h2>
-          {week.days.map((day) => (
-            <div key={day.day_number} className="program-day">
-              <h3>
-                Jour {day.day_number} — {day.name}
-              </h3>
-              <ul className="exercise-list">
-                {day.exercises.map((exercise, index) => {
-                  const details = exercisesById[exercise.exercise_id]
-                  return (
-                    <li key={`${day.day_number}-${index}`} className="exercise-row">
-                      <div className="exercise-row-header">
-                        <strong>{details?.name ?? 'Exercice'}</strong>
-                        <Tally count={exercise.sets} />
-                      </div>
-                      <p className="exercise-meta">
-                        {exercise.reps} reps · repos {exercise.rest_seconds}s
-                      </p>
-                      {exercise.notes && <p className="exercise-notes">{exercise.notes}</p>}
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
+          <span className="eyebrow">/ {weeks.length}</span>
+        </div>
+        <button
+          type="button"
+          className="nav-arrow"
+          onClick={() => goWeek(1)}
+          disabled={weekIndex === weeks.length - 1}
+        >
+          ›
+        </button>
+      </div>
+
+      <div className="card">
+        <div className="day-nav">
+          <button type="button" className="nav-arrow" onClick={() => goDay(-1)} disabled={dayIndex === 0}>
+            ‹
+          </button>
+          <div className="day-nav-label">
+            <h3>
+              Jour {day.day_number} — {day.name}
+            </h3>
+            <span className="eyebrow">
+              Séance {dayIndex + 1} / {days.length}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="nav-arrow"
+            onClick={() => goDay(1)}
+            disabled={dayIndex === days.length - 1}
+          >
+            ›
+          </button>
+        </div>
+
+        <div className="day-dots">
+          {days.map((d, i) => (
+            <button
+              key={d.day_number}
+              type="button"
+              className={`day-dot${i === dayIndex ? ' day-dot-active' : ''}`}
+              onClick={() => setDayIndex(i)}
+              aria-label={`Jour ${d.day_number}`}
+              aria-current={i === dayIndex}
+            />
           ))}
-        </section>
-      ))}
+        </div>
+
+        <ul className="exercise-list">
+          {day.exercises.map((exercise, index) => {
+            const details = exercisesById[exercise.exercise_id]
+            return (
+              <li key={`${day.day_number}-${index}`} className="exercise-row">
+                <div className="exercise-row-header">
+                  <strong>{details?.name ?? 'Exercice'}</strong>
+                  <Tally count={exercise.sets} />
+                </div>
+                <p className="exercise-meta">
+                  {exercise.reps} reps · repos {exercise.rest_seconds}s
+                </p>
+                {exercise.notes && <p className="exercise-notes">{exercise.notes}</p>}
+              </li>
+            )
+          })}
+        </ul>
+      </div>
     </main>
   )
 }
