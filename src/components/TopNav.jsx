@@ -14,8 +14,8 @@ export default function TopNav() {
   const navigate = useNavigate()
 
   async function handleSignOut() {
-    await signOut()
     navigate('/', { replace: true })
+    await signOut()
   }
 
   return (
