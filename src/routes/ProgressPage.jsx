@@ -1,26 +1,24 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import MeasurementChart from '../components/progress/MeasurementChart'
-import AddMeasurementForm from '../components/progress/AddMeasurementForm'
+import MeasurementCard from '../components/progress/MeasurementCard'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
 const MEASUREMENT_FIELDS = [
-  { value: 'weight_kg', label: 'Poids' },
-  { value: 'body_fat_pct', label: 'Masse grasse' },
-  { value: 'waist_cm', label: 'Tour de taille' },
-  { value: 'hips_cm', label: 'Tour de hanches' },
-  { value: 'chest_cm', label: 'Tour de poitrine' },
-  { value: 'arm_cm', label: 'Tour de bras' },
-  { value: 'thigh_cm', label: 'Tour de cuisse' },
+  { value: 'weight_kg', label: 'Poids', unit: 'kg' },
+  { value: 'body_fat_pct', label: 'Masse grasse', unit: '%' },
+  { value: 'waist_cm', label: 'Tour de taille', unit: 'cm' },
+  { value: 'hips_cm', label: 'Tour de hanches', unit: 'cm' },
+  { value: 'chest_cm', label: 'Tour de poitrine', unit: 'cm' },
+  { value: 'arm_cm', label: 'Tour de bras', unit: 'cm' },
+  { value: 'thigh_cm', label: 'Tour de cuisse', unit: 'cm' },
 ]
 
 export default function ProgressPage() {
   const { user } = useAuth()
   const [measurements, setMeasurements] = useState([])
   const [workoutLogs, setWorkoutLogs] = useState([])
-  const [selectedField, setSelectedField] = useState('weight_kg')
   const [status, setStatus] = useState('loading')
 
   async function loadMeasurements() {
@@ -58,25 +56,17 @@ export default function ProgressPage() {
       <TopNav />
       <h1>Ta progression</h1>
 
-      <div className="card">
-        <label htmlFor="measurementField">Mesure affichée</label>
-        <select id="measurementField" value={selectedField} onChange={(e) => setSelectedField(e.target.value)}>
-          {MEASUREMENT_FIELDS.map((field) => (
-            <option key={field.value} value={field.value}>
-              {field.label}
-            </option>
-          ))}
-        </select>
-
-        <MeasurementChart
-          data={measurements}
-          field={selectedField}
-          label={MEASUREMENT_FIELDS.find((field) => field.value === selectedField)?.label ?? selectedField}
-        />
-      </div>
-
-      <div className="card">
-        <AddMeasurementForm onAdded={loadMeasurements} />
+      <div className="measurement-grid">
+        {MEASUREMENT_FIELDS.map((field) => (
+          <MeasurementCard
+            key={field.value}
+            field={field.value}
+            label={field.label}
+            unit={field.unit}
+            data={measurements}
+            onAdded={loadMeasurements}
+          />
+        ))}
       </div>
 
       <h2>Séances récentes</h2>
