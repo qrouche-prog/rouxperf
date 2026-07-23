@@ -495,6 +495,45 @@ a.btn-primary {
   border-bottom: none;
 }
 
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 20px 0 28px;
+}
+
+.stat-tile {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.9rem;
+  font-weight: 500;
+  color: var(--flame-3);
+  line-height: 1.1;
+}
+
+.stat-unit {
+  font-size: 1rem;
+  color: var(--iron);
+  margin-left: 2px;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--iron);
+  margin-top: 4px;
+}
+
 .dashboard-links {
   display: grid;
   gap: 16px;
@@ -511,11 +550,18 @@ a.btn-primary {
   display: block;
   text-decoration: none;
   color: var(--ink);
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .dashboard-link:hover {
-  border-color: var(--ember);
+  border-color: var(--flame-2);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.dashboard-link svg {
+  color: var(--flame-2);
+  margin-bottom: 8px;
 }
 
 .dashboard-link h3 {
@@ -526,6 +572,12 @@ a.btn-primary {
   color: var(--iron);
   font-size: 0.9rem;
   margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-link {
+    transition: none;
+  }
 }
 
 .program-day {
@@ -578,9 +630,28 @@ a.btn-primary {
 
 .onboarding-progress {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 24px;
+}
+
+.progress-bar {
+  display: flex;
+  gap: 4px;
+}
+
+.progress-segment {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.progress-segment-filled {
+  background: var(--flame-gradient);
+  border-color: transparent;
+  box-shadow: 0 0 8px rgba(255, 107, 0, 0.5);
 }
 
 .google-button-wrap {

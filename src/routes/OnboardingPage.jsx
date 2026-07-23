@@ -8,7 +8,6 @@ import SportGoalsStep from '../components/onboarding/SportGoalsStep'
 import ExperienceStep from '../components/onboarding/ExperienceStep'
 import PreferencesStep from '../components/onboarding/PreferencesStep'
 import GenerationStep from '../components/onboarding/GenerationStep'
-import Tally from '../components/Tally'
 
 const STEP_COMPONENTS = {
   infos: PersonalInfoStep,
@@ -45,9 +44,20 @@ export default function OnboardingPage() {
   return (
     <main>
       <div className="onboarding-progress">
-        <Tally count={index + 1} />
+        <div
+          className="progress-bar"
+          role="progressbar"
+          aria-valuenow={index + 1}
+          aria-valuemin={1}
+          aria-valuemax={ONBOARDING_STEPS.length}
+          aria-label={`Étape ${index + 1} sur ${ONBOARDING_STEPS.length}`}
+        >
+          {ONBOARDING_STEPS.map((s, i) => (
+            <span key={s.slug} className={`progress-segment${i <= index ? ' progress-segment-filled' : ''}`} />
+          ))}
+        </div>
         <span className="eyebrow">
-          / {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[index].label}
+          Étape {index + 1} / {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[index].label}
         </span>
       </div>
       <StepComponent onNext={() => goToStep(1)} onBack={() => goToStep(-1)} />
