@@ -13,6 +13,24 @@ function countCompleted(entries, exerciseIndex, totalSets) {
   return n
 }
 
+function buildEntriesFromLoggedSets(day, loggedSets) {
+  const entries = {}
+  for (const set of loggedSets) {
+    const setIndex = set.set_number - 1
+    const exerciseIndex = day.exercises.findIndex(
+      (exercise, i) => exercise.exercise_id === set.exercise_id && !entries[`${i}-${setIndex}`]
+    )
+    if (exerciseIndex !== -1) {
+      entries[`${exerciseIndex}-${setIndex}`] = {
+        reps: set.reps ?? '',
+        weight_kg: set.weight_kg ?? '',
+        rpe: set.rpe ?? '',
+      }
+    }
+  }
+  return entries
+}
+
 export default function SessionRunnerPage() {
   const { weekNumber, dayNumber } = useParams()
   const { user } = useAuth()
@@ -23,6 +41,8 @@ export default function SessionRunnerPage() {
   const [loadError, setLoadError] = useState(null)
 
   const [entries, setEntries] = useState({})
+  const [persistedKeys, setPersistedKeys] = useState(new Set())
+  const [resumeLogId, setResumeLogId] = useState(null)
   const [selectedExerciseIndex, setSelectedExerciseIndex] = useState(null)
   const [phase, setPhase] = useState('hub')
   const [restRemaining, setRestRemaining] = useState(0)
@@ -53,10 +73,40 @@ export default function SessionRunnerPage() {
       }
       setProgram(programData)
       setExercisesById(Object.fromEntries((exercises ?? []).map((exercise) => [exercise.id, exercise])))
+
+      if (programData) {
+        const week = programData.structure.weeks.find((w) => w.week_number === Number(weekNumber))
+        const day = week?.days.find((d) => d.day_number === Number(dayNumber))
+
+        if (day) {
+          const { data: existingLog } = await supabase
+            .from('workout_logs')
+            .select('id, performed_at, workout_log_sets(exercise_id, set_number, reps, weight_kg, rpe)')
+            .eq('user_id', user.id)
+            .eq('program_id', programData.id)
+            .eq('week_number', Number(weekNumber))
+            .eq('day_number', Number(dayNumber))
+            .order('performed_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (existingLog) {
+            const totalSets = day.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
+            const loggedCount = existingLog.workout_log_sets.length
+            if (loggedCount > 0 && loggedCount < totalSets) {
+              const resumedEntries = buildEntriesFromLoggedSets(day, existingLog.workout_log_sets)
+              setEntries(resumedEntries)
+              setPersistedKeys(new Set(Object.keys(resumedEntries)))
+              setResumeLogId(existingLog.id)
+            }
+          }
+        }
+      }
+
       setStatus('idle')
     }
     load()
-  }, [user.id])
+  }, [user.id, weekNumber, dayNumber])
 
   useEffect(() => {
     if (phase !== 'resting') return undefined
@@ -108,36 +158,42 @@ export default function SessionRunnerPage() {
     setSubmitStatus('loading')
     setSubmitError(null)
 
-    const { data: workoutLog, error: logError } = await supabase
-      .from('workout_logs')
-      .insert({
-        user_id: user.id,
-        program_id: program.id,
-        week_number: Number(weekNumber),
-        day_number: Number(dayNumber),
-      })
-      .select()
-      .single()
+    let logId = resumeLogId
+    if (!logId) {
+      const { data: workoutLog, error: logError } = await supabase
+        .from('workout_logs')
+        .insert({
+          user_id: user.id,
+          program_id: program.id,
+          week_number: Number(weekNumber),
+          day_number: Number(dayNumber),
+        })
+        .select()
+        .single()
 
-    if (logError) {
-      setSubmitStatus('idle')
-      setSubmitError(logError.message)
-      return
+      if (logError) {
+        setSubmitStatus('idle')
+        setSubmitError(logError.message)
+        return
+      }
+      logId = workoutLog.id
     }
 
-    const rows = Object.entries(entries).map(([key, entry]) => {
-      const [exerciseIndex, setIndex] = key.split('-').map(Number)
-      const exercise = day.exercises[exerciseIndex]
-      return {
-        workout_log_id: workoutLog.id,
-        user_id: user.id,
-        exercise_id: exercise.exercise_id,
-        set_number: setIndex + 1,
-        reps: entry.reps ? Number(entry.reps) : null,
-        weight_kg: entry.weight_kg ? Number(entry.weight_kg) : null,
-        rpe: entry.rpe ? Number(entry.rpe) : null,
-      }
-    })
+    const rows = Object.entries(entries)
+      .filter(([key]) => !persistedKeys.has(key))
+      .map(([key, entry]) => {
+        const [exerciseIndex, setIndex] = key.split('-').map(Number)
+        const exercise = day.exercises[exerciseIndex]
+        return {
+          workout_log_id: logId,
+          user_id: user.id,
+          exercise_id: exercise.exercise_id,
+          set_number: setIndex + 1,
+          reps: entry.reps ? Number(entry.reps) : null,
+          weight_kg: entry.weight_kg ? Number(entry.weight_kg) : null,
+          rpe: entry.rpe ? Number(entry.rpe) : null,
+        }
+      })
 
     if (rows.length > 0) {
       const { error: setsError } = await supabase.from('workout_log_sets').insert(rows)
@@ -163,7 +219,7 @@ export default function SessionRunnerPage() {
           <p>
             {finalPercent === 100
               ? 'Tous les exercices sont faits, bien joué.'
-              : `${doneSets} série(s) sur ${totalSets} enregistrée(s).`}
+              : `${doneSets} série(s) sur ${totalSets} enregistrée(s). Reviens ici pour continuer.`}
           </p>
           <Link to="/program" className="btn-primary">
             Retour au programme
@@ -242,6 +298,22 @@ export default function SessionRunnerPage() {
             Série {setIndexToFill + 1} / {exercise.sets} — cible : {exercise.reps}
           </p>
           <Tally count={exercise.sets} />
+
+          {completed > 0 && (
+            <ul className="completed-sets-list">
+              {Array.from({ length: completed }).map((_, i) => {
+                const done = entries[`${selectedExerciseIndex}-${i}`]
+                return (
+                  <li key={i}>
+                    <span className="eyebrow">Série {i + 1}</span>
+                    <span>
+                      {done.reps || '—'} reps · {done.weight_kg || '—'} kg · RPE {done.rpe || '—'}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
 
           <form onSubmit={handleSetSubmit}>
             <label htmlFor="reps">Répétitions</label>
