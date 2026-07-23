@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-export default function PersonalInfoStep({ onNext }) {
+export default function PersonalInfoStep({ onNext, submitLabel = 'Continuer' }) {
   const { user, profile, refreshProfile } = useAuth()
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [birthDate, setBirthDate] = useState(profile?.birth_date ?? '')
@@ -79,7 +79,7 @@ export default function PersonalInfoStep({ onNext }) {
       {error && <p role="alert">{error}</p>}
 
       <button type="submit" disabled={status === 'loading'}>
-        {status === 'loading' ? 'Enregistrement...' : 'Continuer'}
+        {status === 'loading' ? 'Enregistrement...' : submitLabel}
       </button>
     </form>
   )

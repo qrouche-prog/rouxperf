@@ -44,12 +44,12 @@ function toggleValue(list, value, exclusiveValue) {
     : [...withoutExclusive, value]
 }
 
-export default function SportGoalsStep({ onNext, onBack }) {
+export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 'Continuer' }) {
   const { user } = useAuth()
-  const [focusAreas, setFocusAreas] = useState([])
-  const [events, setEvents] = useState([])
-  const [eventDate, setEventDate] = useState('')
-  const [targetSports, setTargetSports] = useState([])
+  const [focusAreas, setFocusAreas] = useState(initial?.focus_areas ?? [])
+  const [events, setEvents] = useState(initial?.upcoming_events ?? [])
+  const [eventDate, setEventDate] = useState(initial?.event_date ?? '')
+  const [targetSports, setTargetSports] = useState(initial?.target_sports ?? [])
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
 
@@ -117,11 +117,13 @@ export default function SportGoalsStep({ onNext, onBack }) {
       {error && <p role="alert">{error}</p>}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={onBack}>
-          Retour
-        </button>
+        {onBack && (
+          <button type="button" onClick={onBack}>
+            Retour
+          </button>
+        )}
         <button type="submit" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Enregistrement...' : 'Continuer'}
+          {status === 'loading' ? 'Enregistrement...' : submitLabel}
         </button>
       </div>
     </form>

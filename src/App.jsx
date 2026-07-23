@@ -12,6 +12,7 @@ import DashboardPage from './routes/DashboardPage'
 import ProgramPage from './routes/ProgramPage'
 import ProgressPage from './routes/ProgressPage'
 import SessionRunnerPage from './routes/SessionRunnerPage'
+import SettingsPage from './routes/SettingsPage'
 
 export default function App() {
   return (
@@ -67,6 +68,16 @@ export default function App() {
               <RequireAuth>
                 <RequireOnboarding>
                   <SessionRunnerPage />
+                </RequireOnboarding>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <RequireAuth>
+                <RequireOnboarding>
+                  <SettingsPage />
                 </RequireOnboarding>
               </RequireAuth>
             }

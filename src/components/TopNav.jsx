@@ -5,6 +5,7 @@ const LINKS = [
   { to: '/dashboard', label: 'Accueil' },
   { to: '/program', label: 'Programme' },
   { to: '/progress', label: 'Progrès' },
+  { to: '/settings', label: 'Réglages' },
 ]
 
 export default function TopNav() {

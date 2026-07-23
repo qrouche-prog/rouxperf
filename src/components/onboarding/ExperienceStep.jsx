@@ -3,10 +3,10 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import ExperienceLevelGuide from './help/ExperienceLevelGuide'
 
-export default function ExperienceStep({ onNext, onBack }) {
+export default function ExperienceStep({ onNext, onBack, initial, submitLabel = 'Continuer' }) {
   const { user } = useAuth()
-  const [experienceLevel, setExperienceLevel] = useState('')
-  const [yearsTraining, setYearsTraining] = useState('')
+  const [experienceLevel, setExperienceLevel] = useState(initial?.experience_level ?? '')
+  const [yearsTraining, setYearsTraining] = useState(initial?.years_training ?? '')
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
 
@@ -71,11 +71,13 @@ export default function ExperienceStep({ onNext, onBack }) {
       {error && <p role="alert">{error}</p>}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={onBack}>
-          Retour
-        </button>
+        {onBack && (
+          <button type="button" onClick={onBack}>
+            Retour
+          </button>
+        )}
         <button type="submit" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Enregistrement...' : 'Continuer'}
+          {status === 'loading' ? 'Enregistrement...' : submitLabel}
         </button>
       </div>
     </form>

@@ -11,11 +11,11 @@ const GOAL_TYPES = [
   { value: 'recomposition', label: 'Recomposition corporelle' },
 ]
 
-export default function GoalsStep({ onNext, onBack }) {
+export default function GoalsStep({ onNext, onBack, initial, submitLabel = 'Continuer' }) {
   const { user } = useAuth()
-  const [goalType, setGoalType] = useState('')
-  const [targetWeightKg, setTargetWeightKg] = useState('')
-  const [targetDate, setTargetDate] = useState('')
+  const [goalType, setGoalType] = useState(initial?.goal_type ?? '')
+  const [targetWeightKg, setTargetWeightKg] = useState(initial?.target_weight_kg ?? '')
+  const [targetDate, setTargetDate] = useState(initial?.target_date ?? '')
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
 
@@ -88,11 +88,13 @@ export default function GoalsStep({ onNext, onBack }) {
       {error && <p role="alert">{error}</p>}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={onBack}>
-          Retour
-        </button>
+        {onBack && (
+          <button type="button" onClick={onBack}>
+            Retour
+          </button>
+        )}
         <button type="submit" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Enregistrement...' : 'Continuer'}
+          {status === 'loading' ? 'Enregistrement...' : submitLabel}
         </button>
       </div>
     </form>

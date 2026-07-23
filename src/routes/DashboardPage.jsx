@@ -22,6 +22,10 @@ function isoWeekday(date) {
   return day === 0 ? 7 : day
 }
 
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+
 function getCurrentWeekDates() {
   const today = new Date()
   const monday = new Date(today)
@@ -41,8 +45,9 @@ export default function DashboardPage() {
   const [goal, setGoal] = useState(null)
   const [sessionCount, setSessionCount] = useState(null)
   const [latestWeight, setLatestWeight] = useState(null)
-  const [todayLogged, setTodayLogged] = useState(false)
+  const [setsLoggedByDay, setSetsLoggedByDay] = useState({})
   const [status, setStatus] = useState('loading')
+  const [selectedDate, setSelectedDate] = useState(() => new Date())
 
   useEffect(() => {
     async function load() {
@@ -82,24 +87,21 @@ export default function DashboardPage() {
       setLatestWeight(measurement?.weight_kg ?? null)
 
       if (programData) {
-        const preferredDays = [...(profileData?.preferred_days ?? [])].sort((a, b) => a - b)
-        const todayIso = isoWeekday(new Date())
-        const occurrenceIndex = preferredDays.indexOf(todayIso)
-        if (occurrenceIndex !== -1) {
-          const currentWeekData = programData.structure.weeks.find((w) => w.week_number === programData.current_week)
-          const todaysDay = currentWeekData?.days[occurrenceIndex]
-          if (todaysDay) {
-            const { data: log } = await supabase
-              .from('workout_logs')
-              .select('id')
-              .eq('user_id', user.id)
-              .eq('program_id', programData.id)
-              .eq('week_number', programData.current_week)
-              .eq('day_number', todaysDay.day_number)
-              .maybeSingle()
-            setTodayLogged(!!log)
+        const { data: logs } = await supabase
+          .from('workout_logs')
+          .select('week_number, day_number, performed_at, workout_log_sets(exercise_id)')
+          .eq('user_id', user.id)
+          .eq('program_id', programData.id)
+          .order('performed_at', { ascending: false })
+
+        const latestByDay = {}
+        for (const log of logs ?? []) {
+          const key = `${log.week_number}-${log.day_number}`
+          if (!(key in latestByDay)) {
+            latestByDay[key] = log.workout_log_sets.length
           }
         }
+        setSetsLoggedByDay(latestByDay)
       }
 
       setStatus('idle')
@@ -116,14 +118,28 @@ export default function DashboardPage() {
 
   const totalWeeks = program?.structure?.weeks?.length ?? null
   const weekDates = getCurrentWeekDates()
-  const todayIso = isoWeekday(new Date())
+  const today = new Date()
+  const todayIso = isoWeekday(today)
   const preferredDays = trainingProfile?.preferred_days ?? []
-
   const sortedPreferred = [...preferredDays].sort((a, b) => a - b)
-  const occurrenceIndex = sortedPreferred.indexOf(todayIso)
-  const isTrainingDay = occurrenceIndex !== -1
   const currentWeekData = program?.structure?.weeks?.find((w) => w.week_number === program.current_week)
-  const todaysSession = isTrainingDay ? currentWeekData?.days[occurrenceIndex] : null
+
+  const selectedIso = isoWeekday(selectedDate)
+  const selectedOccurrenceIndex = sortedPreferred.indexOf(selectedIso)
+  const isSelectedTrainingDay = selectedOccurrenceIndex !== -1
+  const selectedSession = isSelectedTrainingDay ? currentWeekData?.days[selectedOccurrenceIndex] : null
+
+  let selectedPercent = 0
+  if (program && selectedSession) {
+    const totalSets = selectedSession.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
+    const loggedSets = setsLoggedByDay[`${program.current_week}-${selectedSession.day_number}`] ?? 0
+    selectedPercent = totalSets > 0 ? Math.min(100, Math.round((loggedSets / totalSets) * 100)) : 0
+  }
+  const selectedIsToday = isSameDay(selectedDate, today)
+  const selectedIsPast = !selectedIsToday && selectedDate < today
+  const selectedIsFuture = !selectedIsToday && selectedDate > today
+
+  const dayLabelFormatter = new Intl.DateTimeFormat('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <main>
@@ -134,32 +150,61 @@ export default function DashboardPage() {
       <div className="day-strip">
         {weekDates.map((date, i) => {
           const iso = i + 1
-          const isToday = iso === todayIso
+          const isToday = isSameDay(date, today)
+          const isSelected = isSameDay(date, selectedDate)
           const isTraining = preferredDays.includes(iso)
           return (
-            <div key={i} className={`day-strip-item${isToday ? ' day-strip-item-today' : ''}`}>
+            <button
+              key={i}
+              type="button"
+              className={`day-strip-item${isSelected ? ' day-strip-item-selected' : ''}${isToday ? ' day-strip-item-today' : ''}`}
+              onClick={() => setSelectedDate(date)}
+            >
               <span className="day-strip-letter">{WEEKDAY_LABELS[i]}</span>
               <span className="day-strip-date">{date.getDate()}</span>
               {isTraining && <span className="day-strip-dot" />}
-            </div>
+            </button>
           )
         })}
       </div>
 
-      <div className="card session-of-day">
-        <Icon name={todaysSession ? 'bolt' : 'stretch'} size={26} />
-        {program && todaysSession ? (
+      <Link
+        to={
+          program && selectedSession
+            ? `/session/${program.current_week}/${selectedSession.day_number}`
+            : '/program'
+        }
+        className="card session-of-day"
+      >
+        <Icon name={selectedSession ? 'bolt' : 'stretch'} size={26} />
+        {program && selectedSession ? (
           <>
-            <h3>Séance du jour — {todaysSession.name}</h3>
-            <p>{todayLogged ? 'Déjà loggée aujourd\'hui, bien joué.' : "Pas encore loggée aujourd'hui."}</p>
-            <Link to="/program" className="btn-primary">
-              {todayLogged ? 'Revoir la séance' : 'Voir la séance'}
-            </Link>
+            <span className="eyebrow">
+              {selectedIsToday ? "Aujourd'hui" : dayLabelFormatter.format(selectedDate)}
+            </span>
+            <h3>{selectedSession.name}</h3>
+            <p>
+              {selectedPercent === 100
+                ? 'Terminée — 100%'
+                : selectedPercent > 0
+                  ? `${selectedPercent}% réalisé`
+                  : selectedIsFuture
+                    ? "Pas encore commencée."
+                    : selectedIsPast
+                      ? 'Non réalisée.'
+                      : "Pas encore loggée aujourd'hui."}
+            </p>
+            <span className="btn-primary">
+              {selectedPercent === 100 ? 'Revoir la séance' : selectedPercent > 0 ? 'Continuer' : 'Voir la séance'}
+            </span>
           </>
         ) : program ? (
           <>
+            <span className="eyebrow">
+              {selectedIsToday ? "Aujourd'hui" : dayLabelFormatter.format(selectedDate)}
+            </span>
             <h3>Jour de repos</h3>
-            <p>Pas de séance prévue aujourd'hui selon tes préférences.</p>
+            <p>Pas de séance prévue ce jour-là selon tes préférences.</p>
           </>
         ) : (
           <>
@@ -167,31 +212,31 @@ export default function DashboardPage() {
             <p>Termine ton onboarding pour générer ton programme.</p>
           </>
         )}
-      </div>
+      </Link>
 
       <div className="stat-row">
-        <div className="stat-tile">
+        <Link to="/program" className="stat-tile">
           <span className="stat-value">
             {program ? program.current_week : '—'}
             {totalWeeks && <span className="stat-unit">/{totalWeeks}</span>}
           </span>
           <span className="stat-label">Semaine</span>
-        </div>
-        <div className="stat-tile">
+        </Link>
+        <Link to="/progress" className="stat-tile">
           <span className="stat-value">{sessionCount}</span>
           <span className="stat-label">Séances loggées</span>
-        </div>
-        <div className="stat-tile">
+        </Link>
+        <Link to="/progress" className="stat-tile">
           <span className="stat-value">
             {latestWeight ?? '—'}
             {latestWeight != null && <span className="stat-unit">kg</span>}
           </span>
           <span className="stat-label">Poids actuel</span>
-        </div>
+        </Link>
       </div>
 
       {goal && (
-        <div className="card goal-card">
+        <Link to="/settings#objectif" className="card goal-card">
           <Icon name="target" size={24} />
           <div>
             <span className="eyebrow">Ton objectif</span>
@@ -200,7 +245,7 @@ export default function DashboardPage() {
               <p>Échéance : {new Date(goal.target_date).toLocaleDateString('fr-CH')}</p>
             )}
           </div>
-        </div>
+        </Link>
       )}
 
       <div className="dashboard-links">
@@ -213,6 +258,11 @@ export default function DashboardPage() {
           <Icon name="run" size={30} />
           <h3>Ta progression</h3>
           <p>Mesures dans le temps, séances loggées.</p>
+        </Link>
+        <Link to="/settings" className="card dashboard-link">
+          <Icon name="settings" size={30} />
+          <h3>Réglages</h3>
+          <p>Modifie tes infos, ton objectif et tes préférences.</p>
         </Link>
       </div>
 

@@ -5,6 +5,7 @@ const ITEMS = [
   { to: '/dashboard', icon: 'home', label: 'Accueil' },
   { to: '/program', icon: 'dumbbell', label: 'Programme' },
   { to: '/progress', icon: 'run', label: 'Progrès' },
+  { to: '/settings', icon: 'settings', label: 'Réglages' },
 ]
 
 export default function BottomNav() {

@@ -12,13 +12,13 @@ const DAYS = [
   { value: 7, label: 'Dimanche' },
 ]
 
-export default function PreferencesStep({ onNext, onBack }) {
+export default function PreferencesStep({ onNext, onBack, initial, submitLabel = 'Continuer' }) {
   const { user } = useAuth()
-  const [equipmentAccess, setEquipmentAccess] = useState('')
-  const [daysPerWeek, setDaysPerWeek] = useState('')
-  const [sessionDurationMinutes, setSessionDurationMinutes] = useState('')
-  const [preferredDays, setPreferredDays] = useState([])
-  const [injuriesLimitations, setInjuriesLimitations] = useState('')
+  const [equipmentAccess, setEquipmentAccess] = useState(initial?.equipment_access ?? '')
+  const [daysPerWeek, setDaysPerWeek] = useState(initial?.days_per_week ?? '')
+  const [sessionDurationMinutes, setSessionDurationMinutes] = useState(initial?.session_duration_minutes ?? '')
+  const [preferredDays, setPreferredDays] = useState(initial?.preferred_days ?? [])
+  const [injuriesLimitations, setInjuriesLimitations] = useState(initial?.injuries_limitations ?? '')
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
 
@@ -126,11 +126,13 @@ export default function PreferencesStep({ onNext, onBack }) {
       {error && <p role="alert">{error}</p>}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={onBack}>
-          Retour
-        </button>
+        {onBack && (
+          <button type="button" onClick={onBack}>
+            Retour
+          </button>
+        )}
         <button type="submit" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Enregistrement...' : 'Continuer'}
+          {status === 'loading' ? 'Enregistrement...' : submitLabel}
         </button>
       </div>
     </form>
