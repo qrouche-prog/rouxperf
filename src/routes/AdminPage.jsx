@@ -21,14 +21,20 @@ async function authedFetch(path, options = {}) {
   return body
 }
 
+function blankExercise(exercisesList) {
+  return { exercise_id: exercisesList[0]?.id ?? '', sets: 3, reps: '8-12', rest_seconds: 60, notes: '' }
+}
+
 export default function AdminPage() {
   const [users, setUsers] = useState([])
+  const [exercisesList, setExercisesList] = useState([])
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
 
   const [selectedUser, setSelectedUser] = useState(null)
   const [program, setProgram] = useState(null)
-  const [structureText, setStructureText] = useState('')
+  const [weeks, setWeeks] = useState([])
+  const [weekIndex, setWeekIndex] = useState(0)
   const [programStatus, setProgramStatus] = useState('idle')
   const [programError, setProgramError] = useState(null)
   const [saved, setSaved] = useState(false)
@@ -36,8 +42,12 @@ export default function AdminPage() {
   useEffect(() => {
     async function load() {
       try {
-        const body = await authedFetch('/api/admin/users')
-        setUsers(body.users)
+        const [usersBody, { data: exercises }] = await Promise.all([
+          authedFetch('/api/admin/users'),
+          supabase.from('exercises').select('id, name, category').order('name'),
+        ])
+        setUsers(usersBody.users)
+        setExercisesList(exercises ?? [])
       } catch (err) {
         setError(err.message)
       }
@@ -49,7 +59,8 @@ export default function AdminPage() {
   async function openUser(user) {
     setSelectedUser(user)
     setProgram(null)
-    setStructureText('')
+    setWeeks([])
+    setWeekIndex(0)
     setProgramError(null)
     setSaved(false)
     setProgramStatus('loading')
@@ -57,31 +68,96 @@ export default function AdminPage() {
     try {
       const body = await authedFetch(`/api/admin/program?user_id=${user.id}`)
       setProgram(body.program)
-      setStructureText(body.program ? JSON.stringify(body.program.structure, null, 2) : '')
+      setWeeks(body.program?.structure?.weeks ?? [])
     } catch (err) {
       setProgramError(err.message)
     }
     setProgramStatus('idle')
   }
 
+  function updateDay(dIdx, patch) {
+    setWeeks((current) =>
+      current.map((week, wIdx) =>
+        wIdx !== weekIndex
+          ? week
+          : { ...week, days: week.days.map((day, i) => (i === dIdx ? { ...day, ...patch } : day)) }
+      )
+    )
+  }
+
+  function updateExercise(dIdx, eIdx, patch) {
+    setWeeks((current) =>
+      current.map((week, wIdx) =>
+        wIdx !== weekIndex
+          ? week
+          : {
+              ...week,
+              days: week.days.map((day, i) =>
+                i !== dIdx
+                  ? day
+                  : { ...day, exercises: day.exercises.map((ex, j) => (j === eIdx ? { ...ex, ...patch } : ex)) }
+              ),
+            }
+      )
+    )
+  }
+
+  function addExercise(dIdx) {
+    setWeeks((current) =>
+      current.map((week, wIdx) =>
+        wIdx !== weekIndex
+          ? week
+          : {
+              ...week,
+              days: week.days.map((day, i) =>
+                i !== dIdx ? day : { ...day, exercises: [...day.exercises, blankExercise(exercisesList)] }
+              ),
+            }
+      )
+    )
+  }
+
+  function removeExercise(dIdx, eIdx) {
+    setWeeks((current) =>
+      current.map((week, wIdx) =>
+        wIdx !== weekIndex
+          ? week
+          : {
+              ...week,
+              days: week.days.map((day, i) =>
+                i !== dIdx ? day : { ...day, exercises: day.exercises.filter((_, j) => j !== eIdx) }
+              ),
+            }
+      )
+    )
+  }
+
+  function addDay() {
+    setWeeks((current) =>
+      current.map((week, wIdx) => {
+        if (wIdx !== weekIndex) return week
+        const nextDayNumber = (week.days.at(-1)?.day_number ?? 0) + 1
+        return { ...week, days: [...week.days, { day_number: nextDayNumber, name: 'Nouvelle séance', exercises: [] }] }
+      })
+    )
+  }
+
+  function removeDay(dIdx) {
+    setWeeks((current) =>
+      current.map((week, wIdx) => (wIdx !== weekIndex ? week : { ...week, days: week.days.filter((_, i) => i !== dIdx) }))
+    )
+  }
+
   async function handleSave() {
     setProgramError(null)
     setSaved(false)
-
-    let structure
-    try {
-      structure = JSON.parse(structureText)
-    } catch {
-      setProgramError('JSON invalide — vérifie la syntaxe.')
-      return
-    }
-
     setProgramStatus('loading')
+
     try {
       const body = await authedFetch('/api/admin/program', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ program_id: program.id, structure }),
+        body: JSON.stringify({ program_id: program.id, structure: { weeks } }),
       })
       setProgram(body.program)
       setSaved(true)
@@ -93,6 +169,8 @@ export default function AdminPage() {
   }
 
   if (status === 'loading') return null
+
+  const week = weeks[weekIndex]
 
   return (
     <main>
@@ -136,22 +214,106 @@ export default function AdminPage() {
               <p>Aucun programme actif pour cet utilisateur.</p>
             )}
 
-            {program && (
+            {week && (
               <>
-                <label htmlFor="structureEditor">
-                  Structure JSON du programme (semaines / jours / exercices)
-                </label>
-                <textarea
-                  id="structureEditor"
-                  value={structureText}
-                  onChange={(e) => setStructureText(e.target.value)}
-                  rows={20}
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
-                />
-                <button type="button" onClick={handleSave} disabled={programStatus === 'loading'}>
-                  {programStatus === 'loading' ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                <div className="week-nav">
+                  <button
+                    type="button"
+                    className="nav-arrow"
+                    onClick={() => setWeekIndex((i) => Math.max(0, i - 1))}
+                    disabled={weekIndex === 0}
+                  >
+                    ‹
+                  </button>
+                  <div className="week-nav-label">
+                    <h3>Semaine {week.week_number}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    className="nav-arrow"
+                    onClick={() => setWeekIndex((i) => Math.min(weeks.length - 1, i + 1))}
+                    disabled={weekIndex === weeks.length - 1}
+                  >
+                    ›
+                  </button>
+                </div>
+
+                {week.days.map((day, dIdx) => (
+                  <div key={dIdx} className="admin-day-card">
+                    <div className="admin-day-header">
+                      <input
+                        value={day.name}
+                        onChange={(e) => updateDay(dIdx, { name: e.target.value })}
+                        aria-label="Nom de la séance"
+                      />
+                      <button type="button" className="link-button" onClick={() => removeDay(dIdx)}>
+                        Supprimer la séance
+                      </button>
+                    </div>
+
+                    {day.exercises.map((exercise, eIdx) => (
+                      <div key={eIdx} className="admin-exercise-row">
+                        <select
+                          value={exercise.exercise_id}
+                          onChange={(e) => updateExercise(dIdx, eIdx, { exercise_id: e.target.value })}
+                        >
+                          {exercisesList.map((ex) => (
+                            <option key={ex.id} value={ex.id}>
+                              {ex.name} — {ex.category}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min="1"
+                          value={exercise.sets}
+                          onChange={(e) => updateExercise(dIdx, eIdx, { sets: Number(e.target.value) })}
+                          aria-label="Séries"
+                          title="Séries"
+                        />
+                        <input
+                          value={exercise.reps}
+                          onChange={(e) => updateExercise(dIdx, eIdx, { reps: e.target.value })}
+                          aria-label="Répétitions"
+                          title="Répétitions"
+                          placeholder="reps"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={exercise.rest_seconds}
+                          onChange={(e) => updateExercise(dIdx, eIdx, { rest_seconds: Number(e.target.value) })}
+                          aria-label="Repos (s)"
+                          title="Repos (secondes)"
+                        />
+                        <input
+                          value={exercise.notes}
+                          onChange={(e) => updateExercise(dIdx, eIdx, { notes: e.target.value })}
+                          aria-label="Notes"
+                          placeholder="notes"
+                        />
+                        <button type="button" className="link-button" onClick={() => removeExercise(dIdx, eIdx)}>
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+
+                    <button type="button" onClick={() => addExercise(dIdx)}>
+                      + Ajouter un exercice
+                    </button>
+                  </div>
+                ))}
+
+                <button type="button" onClick={addDay}>
+                  + Ajouter une séance
                 </button>
-                {saved && <p className="settings-saved">Enregistré ✓</p>}
+
+                <div style={{ marginTop: 16 }}>
+                  <button type="button" onClick={handleSave} disabled={programStatus === 'loading'}>
+                    {programStatus === 'loading' ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                  </button>
+                  {saved && <p className="settings-saved">Enregistré ✓</p>}
+                </div>
               </>
             )}
           </div>

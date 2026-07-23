@@ -1515,9 +1515,49 @@ a.btn-primary {
   color: var(--flame-2);
 }
 
-.admin-program-editor textarea {
-  width: 100%;
-  min-height: 400px;
+.admin-day-card {
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  margin: 12px 0;
+}
+
+.admin-day-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-day-header input {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.admin-exercise-row {
+  display: grid;
+  grid-template-columns: 2fr 60px 90px 70px 1.5fr auto;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.admin-exercise-row select,
+.admin-exercise-row input {
+  padding: 8px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .admin-exercise-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-exercise-row select {
+    grid-column: 1 / -1;
+  }
 }
 
 .situation-disclaimer {
