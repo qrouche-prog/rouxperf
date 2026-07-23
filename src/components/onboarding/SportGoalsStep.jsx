@@ -70,6 +70,7 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
   const [events, setEvents] = useState(initial?.upcoming_events ?? [])
   const [eventDate, setEventDate] = useState(initial?.event_date ?? '')
   const [targetSports, setTargetSports] = useState(initial?.target_sports ?? [])
+  const [otherSportNotes, setOtherSportNotes] = useState(initial?.other_sport_notes ?? '')
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
 
@@ -113,6 +114,7 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
         upcoming_events: events,
         event_date: hasEvent && eventDate ? eventDate : null,
         target_sports: targetSports,
+        other_sport_notes: otherSportNotes.trim() || null,
       },
       { onConflict: 'user_id' }
     )
@@ -198,6 +200,17 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
         options={SPORTS}
         selected={targetSports}
         onToggle={(value) => setTargetSports((current) => toggleValue(current, value))}
+      />
+
+      <label htmlFor="otherSportNotes">
+        Un autre sport, une discipline précise ou une information à préciser (optionnel)
+      </label>
+      <textarea
+        id="otherSportNotes"
+        value={otherSportNotes}
+        onChange={(e) => setOtherSportNotes(e.target.value)}
+        rows={3}
+        placeholder="Ex. escrime, water-polo, danse, ou toute précision utile sur tes objectifs"
       />
 
       {error && <p role="alert">{error}</p>}

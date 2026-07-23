@@ -4,6 +4,7 @@ export const ONBOARDING_STEPS = [
   { slug: 'objectifs', label: 'Objectifs' },
   { slug: 'sport', label: 'Objectifs sportifs' },
   { slug: 'experience', label: 'Expérience' },
+  { slug: 'situation', label: 'Ta situation' },
   { slug: 'preferences', label: 'Préférences' },
   { slug: 'generation', label: 'Génération' },
 ]

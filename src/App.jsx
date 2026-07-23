@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import RequireAuth from './components/RequireAuth'
 import RequireOnboarding from './components/RequireOnboarding'
+import RequireAdmin from './components/RequireAdmin'
 import HomePage from './routes/HomePage'
 import LoginPage from './routes/LoginPage'
 import SignupPage from './routes/SignupPage'
@@ -13,6 +14,7 @@ import ProgramPage from './routes/ProgramPage'
 import ProgressPage from './routes/ProgressPage'
 import SessionRunnerPage from './routes/SessionRunnerPage'
 import SettingsPage from './routes/SettingsPage'
+import AdminPage from './routes/AdminPage'
 
 export default function App() {
   return (
@@ -79,6 +81,16 @@ export default function App() {
                 <RequireOnboarding>
                   <SettingsPage />
                 </RequireOnboarding>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <RequireAuth>
+                <RequireAdmin>
+                  <AdminPage />
+                </RequireAdmin>
               </RequireAuth>
             }
           />

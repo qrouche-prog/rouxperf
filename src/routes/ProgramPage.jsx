@@ -7,9 +7,16 @@ import Icon from '../components/onboarding/icons/Icon'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
+const SITUATION_LABELS = {
+  pregnant: 'grossesse',
+  postpartum: 'post-partum',
+  injury_rehab: 'rééducation / blessure en cours',
+}
+
 export default function ProgramPage() {
   const { user } = useAuth()
   const [program, setProgram] = useState(null)
+  const [specialSituation, setSpecialSituation] = useState(null)
   const [exercisesById, setExercisesById] = useState({})
   const [setsLoggedByDay, setSetsLoggedByDay] = useState({})
   const [setsLoggedByExercise, setSetsLoggedByExercise] = useState({})
@@ -22,17 +29,19 @@ export default function ProgramPage() {
     let cancelled = false
 
     async function load() {
-      const [{ data: programData, error: programError }, { data: exercises }] = await Promise.all([
-        supabase
-          .from('user_programs')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase.from('exercises').select('id, name, instructions'),
-      ])
+      const [{ data: programData, error: programError }, { data: exercises }, { data: trainingProfile }] =
+        await Promise.all([
+          supabase
+            .from('user_programs')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase.from('exercises').select('id, name, instructions'),
+          supabase.from('user_training_profile').select('special_situation').eq('user_id', user.id).maybeSingle(),
+        ])
 
       if (cancelled) return
 
@@ -43,6 +52,7 @@ export default function ProgramPage() {
       }
 
       setProgram(programData)
+      setSpecialSituation(trainingProfile?.special_situation ?? null)
       setExercisesById(Object.fromEntries((exercises ?? []).map((exercise) => [exercise.id, exercise])))
 
       if (programData) {
@@ -128,6 +138,13 @@ export default function ProgramPage() {
     <main>
       <TopNav />
       <h1>Ton programme</h1>
+
+      {SITUATION_LABELS[specialSituation] && (
+        <p className="situation-disclaimer">
+          Programme adapté à ta situation ({SITUATION_LABELS[specialSituation]}) — ça reste une proposition
+          automatisée à titre indicatif, pas un avis médical. Consulte un professionnel de santé en cas de doute.
+        </p>
+      )}
 
       <div className="week-nav">
         <button type="button" className="nav-arrow" onClick={() => goWeek(-1)} disabled={weekIndex === 0}>

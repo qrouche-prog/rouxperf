@@ -6,6 +6,7 @@ import MeasurementsStep from '../components/onboarding/MeasurementsStep'
 import GoalsStep from '../components/onboarding/GoalsStep'
 import SportGoalsStep from '../components/onboarding/SportGoalsStep'
 import ExperienceStep from '../components/onboarding/ExperienceStep'
+import SpecialSituationStep from '../components/onboarding/SpecialSituationStep'
 import PreferencesStep from '../components/onboarding/PreferencesStep'
 import GenerationStep from '../components/onboarding/GenerationStep'
 
@@ -15,6 +16,7 @@ const STEP_COMPONENTS = {
   objectifs: GoalsStep,
   sport: SportGoalsStep,
   experience: ExperienceStep,
+  situation: SpecialSituationStep,
   preferences: PreferencesStep,
   generation: GenerationStep,
 }

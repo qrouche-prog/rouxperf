@@ -134,7 +134,46 @@ en façade :
 - Si un focus est "explosiveness"/"anaerobic" ou qu'un sport cible (target_sports)
   est renseigné, inclus des mouvements pliométriques/explosifs pertinents pour
   ce sport (ex. sauts pour le volleyball/basketball) quand la bibliothèque le
-  permet — sans jamais sortir de la liste d'exercices fournie.`
+  permet — sans jamais sortir de la liste d'exercices fournie.
+
+Le champ special_situation (et special_situation_details) signale une situation
+qui change fondamentalement l'approche à adopter — la sécurité prime toujours
+sur la performance, applique ces règles strictement :
+- "pregnant" (grossesse) : jamais d'objectif de perte de poids ou de restriction
+  implicite, quel que soit goal_type. Intensité modérée (test de la parole).
+  À partir du 2e trimestre (trimester >= 2), évite toute position allongée sur
+  le dos prolongée, les sauts/impacts élevés, les mouvements à risque de chute
+  ou de contact, et les efforts en apnée/charge maximale. Privilégie renforcement
+  postural, plancher pelvien, mobilité et cardio à impact modéré (marche, vélo,
+  natation, rameur) si disponibles. Volume et charge nettement réduits par
+  rapport à un profil standard de même niveau.
+- "postpartum" (post-partum) : si weeks_since_birth < 6, limite-toi à des
+  exercices très légers (marche, respiration, réactivation du plancher pelvien
+  et de la sangle abdominale profonde) — pas de charge, pas de gainage frontal
+  intense (crunchs, planches longues). Entre 6 et 12 semaines, progression très
+  graduelle, priorité à la réintégration du tronc profond avant tout travail
+  abdominal classique. Si delivery_type = "cesarean", marge de prudence
+  supplémentaire sur le gainage et le port de charge.
+- "injury_rehab" (rééducation) : ne sélectionne aucun exercice qui sollicite
+  directement la zone indiquée (area) de façon intense ; privilégie les groupes
+  musculaires non affectés et la mobilité douce autour de la zone si pertinent.
+  Si cleared_by_professional est false, reste particulièrement conservateur
+  (volume et charge bas).
+- "competitive_athlete" (athlète confirmé) : adapte à competition_phase —
+  "off_season" → volume plus élevé, développement général ; "pre_season" →
+  montée progressive de l'intensité spécifique à la discipline ; "in_season" →
+  maintien, volume réduit pour préserver la fraîcheur ; "taper" → réduction
+  nette du volume avec maintien de l'intensité avant une compétition.
+
+Dans tous les cas où special_situation n'est pas "none", ajoute dans le champ
+"notes" du premier exercice de la première séance un rappel de prudence adapté
+(ex. "Arrête tout mouvement provoquant une douleur inhabituelle et consulte un
+professionnel de santé en cas de doute").
+
+Le champ other_sport_notes contient des précisions libres de l'utilisateur
+(sport non listé, contexte supplémentaire) — prends-les en compte comme un
+complément d'information, sans jamais sortir de la bibliothèque d'exercices
+fournie pour autant.`
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -237,10 +276,19 @@ Deno.serve(async (req: Request) => {
           ? `\n\nFréquence hebdomadaire demandée par domaine (respecte-la exactement) :\n${scheduleLines.join('\n')}\nSi au moins un domaine est en mode "séance(s) dédiée(s)", ces séances comptent dans le total de ${trainingProfile.days_per_week} séance(s) par semaine — répartis-les sur des jours différents des séances de musculation pures quand c'est cohérent avec ce total.`
           : ''
 
+      const situationSection =
+        trainingProfile.special_situation && trainingProfile.special_situation !== 'none'
+          ? `\n\nSituation particulière à respecter impérativement : "${trainingProfile.special_situation}" — détails : ${JSON.stringify(trainingProfile.special_situation_details ?? {})}. Applique les règles correspondantes définies dans tes instructions système, sans exception.`
+          : ''
+
+      const otherSportSection = trainingProfile.other_sport_notes
+        ? `\n\nPrécisions libres de l'utilisateur sur ses sports/objectifs : ${trainingProfile.other_sport_notes}`
+        : ''
+
       const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${trainingProfile.days_per_week} séance(s) par semaine, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
 Profil utilisateur :
-${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}
+${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${situationSection}${otherSportSection}
 
 Exercices disponibles (choisis exclusivement parmi ceux-ci, par exercise_id) :
 ${JSON.stringify(
@@ -259,7 +307,7 @@ ${JSON.stringify(
 )}`
 
       const stream = anthropic.messages.stream({
-        model: 'claude-opus-4-8',
+        model: 'claude-sonnet-5',
         max_tokens: 16000,
         thinking: { type: 'adaptive' },
         output_config: {

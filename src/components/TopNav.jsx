@@ -10,13 +10,15 @@ const LINKS = [
 ]
 
 export default function TopNav() {
-  const { user, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
 
   async function handleSignOut() {
     navigate('/', { replace: true })
     await signOut()
   }
+
+  const links = profile?.is_admin ? [...LINKS, { to: '/admin', label: 'Admin' }] : LINKS
 
   return (
     <header className="top-nav">
@@ -25,7 +27,7 @@ export default function TopNav() {
         roux<span className="flame-text">perf</span>
       </Link>
       <nav className="top-nav-links">
-        {LINKS.map((link) => (
+        {links.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}

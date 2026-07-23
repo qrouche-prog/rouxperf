@@ -8,6 +8,12 @@ import TopNav from '../components/TopNav'
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
+const SITUATION_LABELS = {
+  pregnant: 'grossesse',
+  postpartum: 'post-partum',
+  injury_rehab: 'rééducation / blessure en cours',
+}
+
 const GOAL_LABELS = {
   weight_loss: 'Perte de poids',
   muscle_gain: 'Prise de muscle',
@@ -158,6 +164,15 @@ export default function DashboardPage() {
         {greeting === 'Bienvenue' ? ' !' : ''}
       </p>
       <h1>Tableau de bord</h1>
+
+      {SITUATION_LABELS[trainingProfile?.special_situation] && (
+        <p className="situation-disclaimer">
+          Programme adapté à ta situation ({SITUATION_LABELS[trainingProfile.special_situation]}) — ça reste une
+          proposition automatisée à titre indicatif, pas un avis médical. Consulte un professionnel de santé en cas
+          de doute, et modifie cette information dans{' '}
+          <Link to="/settings#situation">Réglages</Link> si elle change.
+        </p>
+      )}
 
       <div className="day-strip">
         {weekDates.map((date, i) => {

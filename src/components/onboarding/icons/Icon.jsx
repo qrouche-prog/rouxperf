@@ -121,6 +121,32 @@ const PATHS = {
       <path d="M3 21c4-6 14-6 18 0" />
     </>
   ),
+  pregnancy: (
+    <>
+      <circle cx="12" cy="5" r="2.2" />
+      <path d="M9 8c-3 1-4 4-4 7a7 7 0 0 0 14 0c0-2-.5-3.5-1.5-5" />
+    </>
+  ),
+  baby: (
+    <>
+      <circle cx="12" cy="9" r="5" />
+      <path d="M9 10c.5 1 1.5 1.5 3 1.5s2.5-.5 3-1.5M9 8h.01M15 8h.01" />
+      <path d="M12 14v7" />
+    </>
+  ),
+  medical: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
+    </>
+  ),
+  trophy: (
+    <>
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+      <path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3" />
+      <path d="M12 13v5M9 21h6" />
+    </>
+  ),
 }
 
 export default function Icon({ name, size = 28 }) {

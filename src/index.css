@@ -1474,6 +1474,62 @@ a.btn-primary {
   margin: 4px 0 16px;
 }
 
+.admin-layout {
+  display: grid;
+  gap: 20px;
+  margin-top: 16px;
+}
+
+@media (min-width: 768px) {
+  .admin-layout {
+    grid-template-columns: 280px 1fr;
+    align-items: start;
+  }
+}
+
+.admin-user-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.admin-user-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 4px;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+.admin-user-item-active {
+  color: var(--flame-2);
+}
+
+.admin-program-editor textarea {
+  width: 100%;
+  min-height: 400px;
+}
+
+.situation-disclaimer {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--flame-2);
+  border-radius: 4px;
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  color: var(--iron);
+}
+
 .focus-schedule-list {
   display: flex;
   flex-direction: column;

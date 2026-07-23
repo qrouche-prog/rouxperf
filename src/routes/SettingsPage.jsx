@@ -5,6 +5,7 @@ import PersonalInfoStep from '../components/onboarding/PersonalInfoStep'
 import GoalsStep from '../components/onboarding/GoalsStep'
 import SportGoalsStep from '../components/onboarding/SportGoalsStep'
 import ExperienceStep from '../components/onboarding/ExperienceStep'
+import SpecialSituationStep from '../components/onboarding/SpecialSituationStep'
 import PreferencesStep from '../components/onboarding/PreferencesStep'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
@@ -96,6 +97,18 @@ export default function SettingsPage() {
           }}
         />
         {savedSection === 'experience' && <p className="settings-saved">Enregistré ✓</p>}
+      </section>
+
+      <section id="situation" className="card settings-section">
+        <SpecialSituationStep
+          initial={trainingProfile ?? undefined}
+          submitLabel="Enregistrer"
+          onNext={async () => {
+            await loadTrainingProfile()
+            flashSaved('situation')
+          }}
+        />
+        {savedSection === 'situation' && <p className="settings-saved">Enregistré ✓</p>}
       </section>
 
       <section id="preferences" className="card settings-section">
