@@ -12,6 +12,7 @@ export default function ProgramPage() {
   const [program, setProgram] = useState(null)
   const [exercisesById, setExercisesById] = useState({})
   const [setsLoggedByDay, setSetsLoggedByDay] = useState({})
+  const [setsLoggedByExercise, setSetsLoggedByExercise] = useState({})
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
   const [weekIndex, setWeekIndex] = useState(0)
@@ -50,20 +51,27 @@ export default function ProgramPage() {
 
         const { data: logs } = await supabase
           .from('workout_logs')
-          .select('week_number, day_number, performed_at, workout_log_sets(id)')
+          .select('week_number, day_number, performed_at, workout_log_sets(exercise_id)')
           .eq('user_id', user.id)
           .eq('program_id', programData.id)
           .order('performed_at', { ascending: false })
 
         if (!cancelled) {
           const latestByDay = {}
+          const latestByDayExercise = {}
           for (const log of logs ?? []) {
             const key = `${log.week_number}-${log.day_number}`
             if (!(key in latestByDay)) {
               latestByDay[key] = log.workout_log_sets.length
+              const perExercise = {}
+              for (const set of log.workout_log_sets) {
+                perExercise[set.exercise_id] = (perExercise[set.exercise_id] ?? 0) + 1
+              }
+              latestByDayExercise[key] = perExercise
             }
           }
           setSetsLoggedByDay(latestByDay)
+          setSetsLoggedByExercise(latestByDayExercise)
         }
       }
 
@@ -189,6 +197,11 @@ export default function ProgramPage() {
                 <ul className="exercise-list">
                   {day.exercises.map((exercise, index) => {
                     const details = exercisesById[exercise.exercise_id]
+                    const loggedForExercise =
+                      setsLoggedByExercise[`${week.week_number}-${day.day_number}`]?.[exercise.exercise_id] ?? 0
+                    const exercisePercent =
+                      exercise.sets > 0 ? Math.min(100, Math.round((loggedForExercise / exercise.sets) * 100)) : 0
+                    const exerciseDone = exercisePercent === 100
                     return (
                       <li key={`${day.day_number}-${index}`} className="exercise-row">
                         <div className="exercise-row-header">
@@ -198,6 +211,18 @@ export default function ProgramPage() {
                         <p className="exercise-meta">
                           {exercise.reps} reps · repos {exercise.rest_seconds}s
                         </p>
+                        <div className="exercise-progress-row">
+                          <div className="exercise-progress-bar">
+                            <div
+                              className={`exercise-progress-fill${exerciseDone ? ' exercise-progress-fill-done' : ''}`}
+                              style={{ width: `${exercisePercent}%` }}
+                            />
+                          </div>
+                          <span className="eyebrow exercise-progress-label">
+                            {loggedForExercise} / {exercise.sets} séries
+                            {exercisePercent > 0 && ` — ${exercisePercent}%`}
+                          </span>
+                        </div>
                         {exercise.notes && <p className="exercise-notes">{exercise.notes}</p>}
                       </li>
                     )
