@@ -38,6 +38,7 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -51,6 +52,9 @@ body {
   background: var(--page-bg);
   color: var(--ink);
   font: 16px/1.55 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
   position: relative;
   overflow-x: hidden;
 }
@@ -562,6 +566,7 @@ a.btn-primary {
 .measurement-summary {
   display: flex;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   margin: 16px 0 8px;
   padding: 4px 2px 14px;
   scrollbar-width: thin;
@@ -700,7 +705,7 @@ a.btn-primary {
   flex: 1;
   min-width: 0;
   padding: 8px 10px;
-  font-size: 0.85rem;
+  font-size: 1rem;
 }
 
 .measurement-quick-add button {
