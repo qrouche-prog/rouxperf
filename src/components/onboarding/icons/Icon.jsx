@@ -27,6 +27,15 @@ const PATHS = {
     <path d="M4 18c1.5 0 1.5-2 3-2s1.5 2 3 2 1.5-2 3-2 1.5 2 3 2 1.5-2 3-2M8 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM6 13l3-4 3 2 3-5M17 4l2 2-3 2" />
   ),
   dash: <path d="M5 12h14" />,
+  home: <path d="M4 11 12 4l8 7M6 10v9h5v-5h2v5h5v-9" />,
+  check: <path d="M4 12.5 9.5 18 20 6" />,
+  target: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="0.8" fill="currentColor" />
+    </>
+  ),
   volleyball: (
     <>
       <circle cx="12" cy="12" r="9" />

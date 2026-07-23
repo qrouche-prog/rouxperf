@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import MeasurementChart from '../components/progress/MeasurementChart'
 import AddMeasurementForm from '../components/progress/AddMeasurementForm'
 import LogWorkoutForm from '../components/progress/LogWorkoutForm'
+import BottomNav from '../components/BottomNav'
 
 const MEASUREMENT_FIELDS = [
   { value: 'weight_kg', label: 'Poids' },
@@ -119,6 +120,9 @@ export default function ProgressPage() {
           ))}
         </ul>
       )}
+
+      <div className="bottom-nav-spacer" />
+      <BottomNav />
     </main>
   )
 }

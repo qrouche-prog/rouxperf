@@ -3,15 +3,18 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Tally from '../components/Tally'
+import Icon from '../components/onboarding/icons/Icon'
+import BottomNav from '../components/BottomNav'
 
 export default function ProgramPage() {
   const { user } = useAuth()
   const [program, setProgram] = useState(null)
   const [exercisesById, setExercisesById] = useState({})
+  const [completedDays, setCompletedDays] = useState(new Set())
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
   const [weekIndex, setWeekIndex] = useState(0)
-  const [dayIndex, setDayIndex] = useState(0)
+  const [openDayNumber, setOpenDayNumber] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -38,11 +41,22 @@ export default function ProgramPage() {
       }
 
       setProgram(programData)
+      setExercisesById(Object.fromEntries((exercises ?? []).map((exercise) => [exercise.id, exercise])))
+
       if (programData) {
         const totalWeeks = programData.structure.weeks.length
         setWeekIndex(Math.min(Math.max(programData.current_week - 1, 0), totalWeeks - 1))
+
+        const { data: logs } = await supabase
+          .from('workout_logs')
+          .select('week_number, day_number')
+          .eq('user_id', user.id)
+          .eq('program_id', programData.id)
+        if (!cancelled) {
+          setCompletedDays(new Set((logs ?? []).map((log) => `${log.week_number}-${log.day_number}`)))
+        }
       }
-      setExercisesById(Object.fromEntries((exercises ?? []).map((exercise) => [exercise.id, exercise])))
+
       setStatus('idle')
     }
 
@@ -74,19 +88,13 @@ export default function ProgramPage() {
   const weeks = program.structure.weeks
   const week = weeks[weekIndex]
   const days = week.days
-  const day = days[dayIndex]
+  const doneCount = days.filter((d) => completedDays.has(`${week.week_number}-${d.day_number}`)).length
 
   function goWeek(offset) {
     const next = weekIndex + offset
     if (next < 0 || next >= weeks.length) return
     setWeekIndex(next)
-    setDayIndex(0)
-  }
-
-  function goDay(offset) {
-    const next = dayIndex + offset
-    if (next < 0 || next >= days.length) return
-    setDayIndex(next)
+    setOpenDayNumber(null)
   }
 
   return (
@@ -113,60 +121,63 @@ export default function ProgramPage() {
         </button>
       </div>
 
-      <div className="card">
-        <div className="day-nav">
-          <button type="button" className="nav-arrow" onClick={() => goDay(-1)} disabled={dayIndex === 0}>
-            ‹
-          </button>
-          <div className="day-nav-label">
-            <h3>
-              Jour {day.day_number} — {day.name}
-            </h3>
-            <span className="eyebrow">
-              Séance {dayIndex + 1} / {days.length}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="nav-arrow"
-            onClick={() => goDay(1)}
-            disabled={dayIndex === days.length - 1}
-          >
-            ›
-          </button>
-        </div>
-
-        <div className="day-dots">
-          {days.map((d, i) => (
-            <button
-              key={d.day_number}
-              type="button"
-              className={`day-dot${i === dayIndex ? ' day-dot-active' : ''}`}
-              onClick={() => setDayIndex(i)}
-              aria-label={`Jour ${d.day_number}`}
-              aria-current={i === dayIndex}
-            />
-          ))}
-        </div>
-
-        <ul className="exercise-list">
-          {day.exercises.map((exercise, index) => {
-            const details = exercisesById[exercise.exercise_id]
-            return (
-              <li key={`${day.day_number}-${index}`} className="exercise-row">
-                <div className="exercise-row-header">
-                  <strong>{details?.name ?? 'Exercice'}</strong>
-                  <Tally count={exercise.sets} />
-                </div>
-                <p className="exercise-meta">
-                  {exercise.reps} reps · repos {exercise.rest_seconds}s
-                </p>
-                {exercise.notes && <p className="exercise-notes">{exercise.notes}</p>}
-              </li>
-            )
-          })}
-        </ul>
+      <div className="week-progress-bar">
+        <div className="week-progress-fill" style={{ width: `${(doneCount / days.length) * 100}%` }} />
       </div>
+      <p className="eyebrow week-progress-label">
+        {doneCount} / {days.length} séances complétées
+      </p>
+
+      <div className="session-list">
+        {days.map((day) => {
+          const isDone = completedDays.has(`${week.week_number}-${day.day_number}`)
+          const isOpen = openDayNumber === day.day_number
+          return (
+            <div key={day.day_number} className="session-card">
+              <button
+                type="button"
+                className="session-card-header"
+                onClick={() => setOpenDayNumber(isOpen ? null : day.day_number)}
+              >
+                <span className={`session-status-badge${isDone ? ' session-status-done' : ''}`}>
+                  <Icon name={isDone ? 'check' : 'bolt'} size={18} />
+                </span>
+                <span className="session-card-title">
+                  <strong>
+                    Jour {day.day_number} — {day.name}
+                  </strong>
+                  <span className="eyebrow">{isDone ? 'Terminé' : 'Non commencé'}</span>
+                </span>
+                <span className="session-card-chevron">{isOpen ? '︿' : '﹀'}</span>
+              </button>
+              <div className={`session-progress-bar${isDone ? ' session-progress-bar-done' : ''}`} />
+
+              {isOpen && (
+                <ul className="exercise-list">
+                  {day.exercises.map((exercise, index) => {
+                    const details = exercisesById[exercise.exercise_id]
+                    return (
+                      <li key={`${day.day_number}-${index}`} className="exercise-row">
+                        <div className="exercise-row-header">
+                          <strong>{details?.name ?? 'Exercice'}</strong>
+                          <Tally count={exercise.sets} />
+                        </div>
+                        <p className="exercise-meta">
+                          {exercise.reps} reps · repos {exercise.rest_seconds}s
+                        </p>
+                        {exercise.notes && <p className="exercise-notes">{exercise.notes}</p>}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="bottom-nav-spacer" />
+      <BottomNav />
     </main>
   )
 }
