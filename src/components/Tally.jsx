@@ -46,7 +46,7 @@ export default function Tally({ count, max = 20 }) {
     <span className="tally" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} aria-label={String(count)}>
       <svg width={0} height={0} style={{ position: 'absolute' }} aria-hidden="true">
         <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1="0" y1="1" x2="0" y2="17">
             <stop offset="0%" stopColor="var(--flame-3)" />
             <stop offset="55%" stopColor="var(--flame-2)" />
             <stop offset="100%" stopColor="var(--flame-1)" />

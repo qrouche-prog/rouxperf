@@ -6,7 +6,7 @@ export default function LogoMark({ size = 28 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
       <defs>
-        <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
+        <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1="0" y1="25" x2="0" y2="6">
           <stop offset="0%" stopColor="var(--flame-1)" />
           <stop offset="55%" stopColor="var(--flame-2)" />
           <stop offset="100%" stopColor="var(--flame-3)" />

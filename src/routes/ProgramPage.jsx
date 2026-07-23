@@ -102,7 +102,6 @@ export default function ProgramPage() {
         </button>
         <div className="week-nav-label">
           <h2>Semaine {week.week_number}</h2>
-          <span className="eyebrow">/ {weeks.length}</span>
         </div>
         <button
           type="button"

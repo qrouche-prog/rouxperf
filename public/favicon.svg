@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <defs>
-    <linearGradient id="rp-flame" x1="0" y1="1" x2="0" y2="0">
+    <linearGradient id="rp-flame" gradientUnits="userSpaceOnUse" x1="0" y1="25" x2="0" y2="6">
       <stop offset="0%" stop-color="#C81E1E" />
       <stop offset="55%" stop-color="#FF6B00" />
       <stop offset="100%" stop-color="#FFC72C" />
