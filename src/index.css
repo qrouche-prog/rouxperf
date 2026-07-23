@@ -1397,6 +1397,11 @@ a.btn-primary {
   color: var(--flame-2);
 }
 
+.top-nav-signout {
+  color: var(--flame-2);
+  font-weight: 700;
+}
+
 .top-nav-account {
   display: flex;
   align-items: center;

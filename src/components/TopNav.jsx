@@ -37,7 +37,7 @@ export default function TopNav() {
       </nav>
       <div className="top-nav-account">
         {user ? (
-          <button type="button" className="top-nav-link" onClick={handleSignOut}>
+          <button type="button" className="top-nav-link top-nav-signout" onClick={handleSignOut}>
             Se déconnecter
           </button>
         ) : (
