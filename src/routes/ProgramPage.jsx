@@ -11,7 +11,7 @@ export default function ProgramPage() {
   const { user } = useAuth()
   const [program, setProgram] = useState(null)
   const [exercisesById, setExercisesById] = useState({})
-  const [completedDays, setCompletedDays] = useState(new Set())
+  const [setsLoggedByDay, setSetsLoggedByDay] = useState({})
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
   const [weekIndex, setWeekIndex] = useState(0)
@@ -50,11 +50,20 @@ export default function ProgramPage() {
 
         const { data: logs } = await supabase
           .from('workout_logs')
-          .select('week_number, day_number')
+          .select('week_number, day_number, performed_at, workout_log_sets(id)')
           .eq('user_id', user.id)
           .eq('program_id', programData.id)
+          .order('performed_at', { ascending: false })
+
         if (!cancelled) {
-          setCompletedDays(new Set((logs ?? []).map((log) => `${log.week_number}-${log.day_number}`)))
+          const latestByDay = {}
+          for (const log of logs ?? []) {
+            const key = `${log.week_number}-${log.day_number}`
+            if (!(key in latestByDay)) {
+              latestByDay[key] = log.workout_log_sets.length
+            }
+          }
+          setSetsLoggedByDay(latestByDay)
         }
       }
 
@@ -91,7 +100,14 @@ export default function ProgramPage() {
   const weeks = program.structure.weeks
   const week = weeks[weekIndex]
   const days = week.days
-  const doneCount = days.filter((d) => completedDays.has(`${week.week_number}-${d.day_number}`)).length
+
+  function sessionPercent(day) {
+    const totalSets = day.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
+    const loggedSets = setsLoggedByDay[`${week.week_number}-${day.day_number}`] ?? 0
+    return totalSets > 0 ? Math.min(100, Math.round((loggedSets / totalSets) * 100)) : 0
+  }
+
+  const doneCount = days.filter((d) => sessionPercent(d) === 100).length
 
   function goWeek(offset) {
     const next = weekIndex + offset
@@ -131,7 +147,9 @@ export default function ProgramPage() {
 
       <div className="session-list">
         {days.map((day) => {
-          const isDone = completedDays.has(`${week.week_number}-${day.day_number}`)
+          const percent = sessionPercent(day)
+          const isDone = percent === 100
+          const isStarted = percent > 0
           const isOpen = openDayNumber === day.day_number
           return (
             <div key={day.day_number} className="session-card">
@@ -143,10 +161,12 @@ export default function ProgramPage() {
                   <strong>
                     Jour {day.day_number} — {day.name}
                   </strong>
-                  <span className="eyebrow">{isDone ? 'Terminé' : 'Non commencé'}</span>
+                  <span className="eyebrow">
+                    {isDone ? 'Terminé — 100%' : isStarted ? `${percent}% réalisé` : 'Non commencé'}
+                  </span>
                 </span>
                 <Link to={`/session/${week.week_number}/${day.day_number}`} className="btn-primary session-start-btn">
-                  {isDone ? 'Refaire' : 'Commencer'}
+                  {isDone ? 'Refaire' : isStarted ? 'Continuer' : 'Commencer'}
                 </Link>
               </div>
 
@@ -158,7 +178,12 @@ export default function ProgramPage() {
                 {isOpen ? 'Masquer les exercices ︿' : 'Voir les exercices ﹀'}
               </button>
 
-              <div className={`session-progress-bar${isDone ? ' session-progress-bar-done' : ''}`} />
+              <div className="session-progress-bar">
+                <div
+                  className={`session-progress-fill${isDone ? ' session-progress-fill-done' : ''}`}
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
 
               {isOpen && (
                 <ul className="exercise-list">
