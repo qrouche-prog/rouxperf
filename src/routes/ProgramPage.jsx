@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import Tally from '../components/Tally'
 import Icon from '../components/onboarding/icons/Icon'
 import BottomNav from '../components/BottomNav'
+import TopNav from '../components/TopNav'
 
 export default function ProgramPage() {
   const { user } = useAuth()
@@ -71,6 +72,7 @@ export default function ProgramPage() {
   if (error) {
     return (
       <main>
+        <TopNav />
         <p role="alert">{error}</p>
       </main>
     )
@@ -79,6 +81,7 @@ export default function ProgramPage() {
   if (!program) {
     return (
       <main>
+        <TopNav />
         <p>Aucun programme actif pour l'instant.</p>
         <Link to="/dashboard">Retour au tableau de bord</Link>
       </main>
@@ -99,9 +102,7 @@ export default function ProgramPage() {
 
   return (
     <main>
-      <nav className="crumbs">
-        <Link to="/dashboard">Tableau de bord</Link> · <Link to="/progress">Ma progression</Link>
-      </nav>
+      <TopNav />
       <h1>Ton programme</h1>
 
       <div className="week-nav">
@@ -134,11 +135,7 @@ export default function ProgramPage() {
           const isOpen = openDayNumber === day.day_number
           return (
             <div key={day.day_number} className="session-card">
-              <button
-                type="button"
-                className="session-card-header"
-                onClick={() => setOpenDayNumber(isOpen ? null : day.day_number)}
-              >
+              <div className="session-card-row">
                 <span className={`session-status-badge${isDone ? ' session-status-done' : ''}`}>
                   <Icon name={isDone ? 'check' : 'bolt'} size={18} />
                 </span>
@@ -148,8 +145,19 @@ export default function ProgramPage() {
                   </strong>
                   <span className="eyebrow">{isDone ? 'Terminé' : 'Non commencé'}</span>
                 </span>
-                <span className="session-card-chevron">{isOpen ? '︿' : '﹀'}</span>
+                <Link to={`/session/${week.week_number}/${day.day_number}`} className="btn-primary session-start-btn">
+                  {isDone ? 'Refaire' : 'Commencer'}
+                </Link>
+              </div>
+
+              <button
+                type="button"
+                className="session-toggle"
+                onClick={() => setOpenDayNumber(isOpen ? null : day.day_number)}
+              >
+                {isOpen ? 'Masquer les exercices ︿' : 'Voir les exercices ﹀'}
               </button>
+
               <div className={`session-progress-bar${isDone ? ' session-progress-bar-done' : ''}`} />
 
               {isOpen && (

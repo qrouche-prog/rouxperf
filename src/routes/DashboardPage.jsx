@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Icon from '../components/onboarding/icons/Icon'
 import BottomNav from '../components/BottomNav'
+import TopNav from '../components/TopNav'
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
@@ -126,6 +127,7 @@ export default function DashboardPage() {
 
   return (
     <main>
+      <TopNav />
       <p className="eyebrow">{user?.email}</p>
       <h1>Tableau de bord</h1>
 

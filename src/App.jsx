@@ -11,6 +11,7 @@ import OnboardingPage from './routes/OnboardingPage'
 import DashboardPage from './routes/DashboardPage'
 import ProgramPage from './routes/ProgramPage'
 import ProgressPage from './routes/ProgressPage'
+import SessionRunnerPage from './routes/SessionRunnerPage'
 
 export default function App() {
   return (
@@ -56,6 +57,16 @@ export default function App() {
               <RequireAuth>
                 <RequireOnboarding>
                   <ProgressPage />
+                </RequireOnboarding>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/session/:weekNumber/:dayNumber"
+            element={
+              <RequireAuth>
+                <RequireOnboarding>
+                  <SessionRunnerPage />
                 </RequireOnboarding>
               </RequireAuth>
             }

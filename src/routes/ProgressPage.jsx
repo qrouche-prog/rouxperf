@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import MeasurementChart from '../components/progress/MeasurementChart'
 import AddMeasurementForm from '../components/progress/AddMeasurementForm'
 import LogWorkoutForm from '../components/progress/LogWorkoutForm'
 import BottomNav from '../components/BottomNav'
+import TopNav from '../components/TopNav'
 
 const MEASUREMENT_FIELDS = [
   { value: 'weight_kg', label: 'Poids' },
@@ -71,9 +71,7 @@ export default function ProgressPage() {
 
   return (
     <main>
-      <nav className="crumbs">
-        <Link to="/dashboard">Tableau de bord</Link> · <Link to="/program">Programme</Link>
-      </nav>
+      <TopNav />
       <h1>Ta progression</h1>
 
       <div className="card">

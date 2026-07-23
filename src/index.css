@@ -666,6 +666,54 @@ a.btn-primary {
   }
 }
 
+.session-runner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.session-runner-header a {
+  color: var(--iron);
+  font-size: 0.85rem;
+}
+
+.set-input-card {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.set-input-card .tally {
+  justify-content: center;
+  margin: 10px 0 4px;
+}
+
+.set-input-card form {
+  text-align: left;
+  margin-top: 16px;
+}
+
+.rest-timer {
+  text-align: center;
+  padding: 48px 24px;
+  margin-top: 40px;
+}
+
+.rest-countdown {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 4rem;
+  color: var(--flame-3);
+  margin: 8px 0 16px;
+  animation: ember-pulse 1.5s ease-in-out infinite;
+}
+
+.session-complete {
+  text-align: center;
+  margin-top: 60px;
+  padding: 48px 24px;
+}
+
 .week-nav {
   display: flex;
   align-items: center;
@@ -728,17 +776,30 @@ a.btn-primary {
   overflow: hidden;
 }
 
-.session-card-header {
+.session-card-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 14px 14px 10px;
+}
+
+.session-start-btn {
+  flex: none;
+  padding: 8px 14px;
+  font-size: 0.72rem;
+}
+
+.session-toggle {
+  display: block;
   width: 100%;
-  padding: 14px;
+  padding: 0 14px 12px;
   background: none;
   border: none;
   text-transform: none;
   letter-spacing: normal;
-  color: var(--ink);
+  font-size: 0.8rem;
+  color: var(--iron);
+  text-align: left;
 }
 
 .session-status-badge {
@@ -766,11 +827,6 @@ a.btn-primary {
   flex-direction: column;
   gap: 2px;
   text-align: left;
-}
-
-.session-card-chevron {
-  color: var(--iron);
-  font-size: 0.9rem;
 }
 
 .session-progress-bar {
@@ -879,6 +935,43 @@ a.btn-primary {
   flex: 1;
   height: 1px;
   background: var(--border);
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -32px -24px 24px;
+  padding: 14px 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+.top-nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.top-nav-links {
+  display: flex;
+  gap: 18px;
+}
+
+.top-nav-link {
+  color: var(--iron);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.top-nav-link-active {
+  color: var(--flame-2);
 }
 
 .bottom-nav {
