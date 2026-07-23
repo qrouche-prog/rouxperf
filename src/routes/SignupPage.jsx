@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import GoogleButton from '../components/GoogleButton'
 
 export default function SignupPage() {
   const { signUp } = useAuth()
@@ -40,6 +41,8 @@ export default function SignupPage() {
   return (
     <main>
       <h1>Créer un compte</h1>
+      <GoogleButton />
+      <p className="auth-divider">ou avec ton email</p>
       <form onSubmit={handleSubmit}>
         <label htmlFor="email">Email</label>
         <input

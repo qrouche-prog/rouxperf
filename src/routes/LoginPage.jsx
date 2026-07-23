@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import GoogleButton from '../components/GoogleButton'
 
 export default function LoginPage() {
   const { signIn } = useAuth()
@@ -34,6 +35,8 @@ export default function LoginPage() {
       {location.state?.justSignedUp && (
         <p>Compte créé. Vérifie tes emails pour confirmer ton adresse, puis connecte-toi.</p>
       )}
+      <GoogleButton />
+      <p className="auth-divider">ou avec ton email</p>
       <form onSubmit={handleSubmit}>
         <label htmlFor="email">Email</label>
         <input

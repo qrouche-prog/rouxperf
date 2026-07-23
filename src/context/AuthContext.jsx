@@ -45,6 +45,11 @@ export function AuthProvider({ children }) {
     refreshProfile: () => refreshProfile(session?.user?.id),
     signUp: (email, password) => supabase.auth.signUp({ email, password }),
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
+    signInWithGoogle: () =>
+      supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/dashboard` },
+      }),
     signOut: () => supabase.auth.signOut(),
     resetPasswordForEmail: (email) =>
       supabase.auth.resetPasswordForEmail(email, {

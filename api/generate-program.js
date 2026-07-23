@@ -203,7 +203,25 @@ export default async function handler(req, res) {
 Respecte strictement les blessures et limitations indiquées par l'utilisateur : si un mouvement pourrait les aggraver, ne le sélectionne pas.
 Adapte le volume, l'intensité et la complexité technique au niveau d'expérience indiqué.
 Choisis uniquement des exercices parmi la liste fournie, en les référençant par leur exercise_id exact — n'invente jamais d'exercice.
-Prévois une progression cohérente d'une semaine à l'autre (charge, volume ou intensité perçue) et indique-la dans le champ "notes" de chaque exercice.`
+Prévois une progression cohérente d'une semaine à l'autre (charge, volume ou intensité perçue) et indique-la dans le champ "notes" de chaque exercice.
+
+Le profil contient aussi des aspects à travailler (focus_areas), une éventuelle
+compétition à venir (upcoming_events, event_date) et des sports pour lesquels
+progresser (target_sports) — prends-les en compte concrètement, pas seulement
+en façade :
+- Si un focus est "cardio", "running", "aerobic" ou "anaerobic", inclus des
+  exercices de la catégorie "cardio" (conditionnement, intervalles) — le champ
+  "reps" peut alors exprimer une durée ("30s", "45s") ou une distance ("400m")
+  plutôt qu'un nombre de répétitions, exactement comme indiqué sur l'exercice.
+- Si une compétition est renseignée (Hyrox, Spartan/OCR, marathon, semi,
+  10km, 5km, triathlon), oriente une partie du programme vers la préparation
+  spécifique à cet effort (endurance, mouvements fonctionnels) ; si
+  event_date est fourni et proche, priorise le maintien/l'affûtage plutôt que
+  la surcharge.
+- Si un focus est "explosiveness"/"anaerobic" ou qu'un sport cible (target_sports)
+  est renseigné, inclus des mouvements pliométriques/explosifs pertinents pour
+  ce sport (ex. sauts pour le volleyball/basketball) quand la bibliothèque le
+  permet — sans jamais sortir de la liste d'exercices fournie.`
 
   const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${trainingProfile.days_per_week} séance(s) par semaine, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
