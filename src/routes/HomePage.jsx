@@ -6,7 +6,7 @@ const STEPS = [
   {
     n: 1,
     title: 'Ton profil',
-    body: "Mesures, objectif, expérience, matériel disponible — quelques minutes, sauvegardées au fur et à mesure.",
+    body: 'Mesures, objectif, expérience, matériel disponible — quelques minutes, sauvegardées au fur et à mesure.',
   },
   {
     n: 2,
@@ -20,18 +20,39 @@ const STEPS = [
   },
 ]
 
+const EMBERS = [
+  { left: '8%', delay: '0s', size: 4 },
+  { left: '22%', delay: '1.4s', size: 3 },
+  { left: '38%', delay: '0.6s', size: 5 },
+  { left: '55%', delay: '2.1s', size: 3 },
+  { left: '68%', delay: '0.9s', size: 4 },
+  { left: '82%', delay: '1.8s', size: 3 },
+  { left: '92%', delay: '0.3s', size: 4 },
+]
+
 export default function HomePage() {
   const { user } = useAuth()
 
   return (
     <>
       <section className="hero">
+        <div className="hero-embers" aria-hidden="true">
+          {EMBERS.map((ember, i) => (
+            <span
+              key={i}
+              className="ember-particle"
+              style={{ left: ember.left, animationDelay: ember.delay, width: ember.size, height: ember.size }}
+            />
+          ))}
+        </div>
         <div className="hero-inner">
           <p className="eyebrow">Programme généré par IA</p>
-          <h1>Chaque série compte.</h1>
+          <h1>
+            <span className="flame-text">Forge</span>-toi.
+          </h1>
           <p className="hero-sub">
-            Réponds à quelques questions sur ton niveau, ton matériel et tes objectifs. Rouxperf génère
-            ton programme d'entraînement complet — et compte avec toi à chaque séance.
+            Un programme d'entraînement généré pour toi, ancré sur une vraie bibliothèque d'exercices.
+            Pas de blabla motivationnel — juste ce qu'il faut pour progresser, séance après séance.
           </p>
           <div className="hero-actions">
             {user ? (
