@@ -61,30 +61,26 @@ export default function ProgressPage() {
 
       <MeasurementSummaryRow fields={MEASUREMENT_FIELDS} measurements={measurements} />
 
-      <div className="measurement-wide">
-        <div className="measurement-wide-inner">
+      <MeasurementCard
+        field={weightField.value}
+        label={weightField.label}
+        unit={weightField.unit}
+        data={measurements}
+        onAdded={loadMeasurements}
+        featured
+      />
+
+      <div className="measurement-grid">
+        {otherFields.map((field) => (
           <MeasurementCard
-            field={weightField.value}
-            label={weightField.label}
-            unit={weightField.unit}
+            key={field.value}
+            field={field.value}
+            label={field.label}
+            unit={field.unit}
             data={measurements}
             onAdded={loadMeasurements}
-            featured
           />
-
-          <div className="measurement-grid">
-            {otherFields.map((field) => (
-              <MeasurementCard
-                key={field.value}
-                field={field.value}
-                label={field.label}
-                unit={field.unit}
-                data={measurements}
-                onAdded={loadMeasurements}
-              />
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
 
       <h2>Séances récentes</h2>
