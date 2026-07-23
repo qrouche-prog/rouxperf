@@ -5,7 +5,7 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString('fr-CH', { day: '2-digit', month: '2-digit' })
 }
 
-export default function MeasurementChart({ points, unit, label }) {
+export default function MeasurementChart({ points, unit, label, height = 140 }) {
   const gradientId = `measurement-gradient-${useId()}`
 
   if (points.length === 0) {
@@ -13,7 +13,7 @@ export default function MeasurementChart({ points, unit, label }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={140}>
+    <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={points} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">

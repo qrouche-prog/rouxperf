@@ -7,7 +7,7 @@ function round(value) {
   return Math.round(value * 10) / 10
 }
 
-export default function MeasurementCard({ field, label, unit, data, onAdded }) {
+export default function MeasurementCard({ field, label, unit, data, onAdded, featured = false }) {
   const { user } = useAuth()
   const [value, setValue] = useState('')
   const [status, setStatus] = useState('idle')
@@ -43,7 +43,10 @@ export default function MeasurementCard({ field, label, unit, data, onAdded }) {
   }
 
   return (
-    <div className="card measurement-card">
+    <div
+      id={`measurement-${field}`}
+      className={`card measurement-card${featured ? ' measurement-card-featured' : ''}`}
+    >
       <div className="measurement-card-header">
         <div>
           <span className="eyebrow">{label}</span>
@@ -60,7 +63,7 @@ export default function MeasurementCard({ field, label, unit, data, onAdded }) {
         )}
       </div>
 
-      <MeasurementChart points={points} unit={unit} label={label} />
+      <MeasurementChart points={points} unit={unit} label={label} height={featured ? 200 : 140} />
 
       <form className="measurement-quick-add" onSubmit={handleSubmit}>
         <input

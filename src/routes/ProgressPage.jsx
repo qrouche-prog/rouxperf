@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import MeasurementCard from '../components/progress/MeasurementCard'
+import MeasurementSummaryRow from '../components/progress/MeasurementSummaryRow'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
@@ -51,22 +52,39 @@ export default function ProgressPage() {
 
   if (status === 'loading') return null
 
+  const [weightField, ...otherFields] = MEASUREMENT_FIELDS
+
   return (
     <main>
       <TopNav />
       <h1>Ta progression</h1>
 
-      <div className="measurement-grid">
-        {MEASUREMENT_FIELDS.map((field) => (
+      <MeasurementSummaryRow fields={MEASUREMENT_FIELDS} measurements={measurements} />
+
+      <div className="measurement-wide">
+        <div className="measurement-wide-inner">
           <MeasurementCard
-            key={field.value}
-            field={field.value}
-            label={field.label}
-            unit={field.unit}
+            field={weightField.value}
+            label={weightField.label}
+            unit={weightField.unit}
             data={measurements}
             onAdded={loadMeasurements}
+            featured
           />
-        ))}
+
+          <div className="measurement-grid">
+            {otherFields.map((field) => (
+              <MeasurementCard
+                key={field.value}
+                field={field.value}
+                label={field.label}
+                unit={field.unit}
+                data={measurements}
+                onAdded={loadMeasurements}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
       <h2>Séances récentes</h2>
