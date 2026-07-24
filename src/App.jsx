@@ -3,7 +3,7 @@ import { AuthProvider } from './context/AuthContext'
 import RequireAuth from './components/RequireAuth'
 import RequireOnboarding from './components/RequireOnboarding'
 import RequireAdmin from './components/RequireAdmin'
-import HomePage from './routes/HomePage'
+import RootRedirect from './routes/RootRedirect'
 import LoginPage from './routes/LoginPage'
 import SignupPage from './routes/SignupPage'
 import ResetPasswordPage from './routes/ResetPasswordPage'
@@ -21,7 +21,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
