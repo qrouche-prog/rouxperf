@@ -183,9 +183,7 @@ export default function ProgramPage() {
                   <Icon name={isDone ? 'check' : 'bolt'} size={18} />
                 </span>
                 <span className="session-card-title">
-                  <strong>
-                    Jour {day.day_number} — {day.name}
-                  </strong>
+                  <strong>{day.name}</strong>
                   <span className="eyebrow">
                     {isDone ? 'Terminé — 100%' : isStarted ? `${percent}% réalisé` : 'Non commencé'}
                   </span>
