@@ -24,7 +24,7 @@ export default function TopNav() {
     <header className="top-nav">
       <Link to="/dashboard" className="top-nav-brand">
         <LogoMark size={24} />
-        roux<span className="flame-text">perf</span>
+        rou<span className="flame-text">X</span>perf
       </Link>
       <nav className="top-nav-links">
         {links.map((link) => (

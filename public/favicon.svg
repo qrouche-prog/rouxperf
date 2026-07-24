@@ -1,17 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <defs>
-    <linearGradient id="rp-flame" gradientUnits="userSpaceOnUse" x1="0" y1="25" x2="0" y2="6">
-      <stop offset="0%" stop-color="#A8CC00" />
-      <stop offset="55%" stop-color="#D6FF23" />
-      <stop offset="100%" stop-color="#EAFF70" />
-    </linearGradient>
-  </defs>
-  <rect width="32" height="32" rx="7" fill="#0A0A0A" />
-  <g fill="none" stroke="url(#rp-flame)" stroke-width="2.6" stroke-linecap="round">
-    <line x1="8" y1="25" x2="8" y2="15" />
-    <line x1="13" y1="25" x2="13" y2="9" />
-    <line x1="18" y1="25" x2="18" y2="7" />
-    <line x1="23" y1="25" x2="23" y2="13" />
-    <line x1="5.5" y1="23" x2="26.5" y2="9.5" />
+  <rect width="32" height="32" fill="#0A0A0A" />
+  <path d="M16 2 L30 16 L16 30 L2 16 Z" fill="none" stroke="#D6FF23" stroke-width="1.8" stroke-linejoin="round" />
+  <g stroke="#D6FF23" stroke-width="3.2" stroke-linecap="round">
+    <line x1="12.5" y1="12.5" x2="19.5" y2="19.5" />
+    <line x1="19.5" y1="12.5" x2="12.5" y2="19.5" />
   </g>
 </svg>
