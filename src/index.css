@@ -846,6 +846,31 @@ a.btn-primary {
   margin-top: 16px;
 }
 
+.rpe-scale {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 16px;
+}
+
+.rpe-option {
+  flex: 1;
+  padding: 10px 0;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  background: var(--rpe-color);
+  opacity: 0.55;
+  color: #0a0a0a;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.rpe-option-selected {
+  opacity: 1;
+  border-color: var(--ink);
+  transform: scale(1.08);
+}
+
 .rest-timer {
   text-align: center;
   padding: 48px 24px;

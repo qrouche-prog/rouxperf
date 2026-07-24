@@ -5,6 +5,18 @@ import { useAuth } from '../context/AuthContext'
 import Tally from '../components/Tally'
 import Icon from '../components/onboarding/icons/Icon'
 
+const RPE_SCALE = Array.from({ length: 10 }, (_, i) => i + 1)
+
+function rpeColor(value) {
+  const hue = 120 - (value - 1) * (120 / 9)
+  return `hsl(${hue}, 70%, 45%)`
+}
+
+function parseTargetReps(repsText) {
+  const match = String(repsText ?? '').match(/\d+/)
+  return match ? Number(match[0]) : null
+}
+
 function countCompleted(entries, exerciseIndex, totalSets) {
   let n = 0
   for (let i = 0; i < totalSets; i += 1) {
@@ -46,7 +58,6 @@ export default function SessionRunnerPage() {
   const [selectedExerciseIndex, setSelectedExerciseIndex] = useState(null)
   const [phase, setPhase] = useState('hub')
   const [restRemaining, setRestRemaining] = useState(0)
-  const [reps, setReps] = useState('')
   const [weight, setWeight] = useState('')
   const [rpe, setRpe] = useState('')
   const [submitStatus, setSubmitStatus] = useState('idle')
@@ -256,8 +267,8 @@ export default function SessionRunnerPage() {
     function handleSetSubmit(e) {
       e.preventDefault()
       const key = `${selectedExerciseIndex}-${setIndexToFill}`
-      setEntries((current) => ({ ...current, [key]: { reps, weight_kg: weight, rpe } }))
-      setReps('')
+      const targetReps = parseTargetReps(exercise.reps)
+      setEntries((current) => ({ ...current, [key]: { reps: targetReps, weight_kg: weight, rpe } }))
       setWeight('')
       setRpe('')
 
@@ -316,9 +327,6 @@ export default function SessionRunnerPage() {
           )}
 
           <form onSubmit={handleSetSubmit}>
-            <label htmlFor="reps">Répétitions</label>
-            <input id="reps" type="number" value={reps} onChange={(e) => setReps(e.target.value)} required />
-
             <label htmlFor="weight">Poids (kg)</label>
             <input
               id="weight"
@@ -328,16 +336,21 @@ export default function SessionRunnerPage() {
               onChange={(e) => setWeight(e.target.value)}
             />
 
-            <label htmlFor="rpe">RPE (optionnel)</label>
-            <input
-              id="rpe"
-              type="number"
-              step="0.5"
-              min="1"
-              max="10"
-              value={rpe}
-              onChange={(e) => setRpe(e.target.value)}
-            />
+            <label>RPE — difficulté ressentie (optionnel)</label>
+            <div className="rpe-scale" role="radiogroup" aria-label="RPE, 1 facile à 10 difficile">
+              {RPE_SCALE.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`rpe-option${rpe === String(value) ? ' rpe-option-selected' : ''}`}
+                  style={{ '--rpe-color': rpeColor(value) }}
+                  aria-pressed={rpe === String(value)}
+                  onClick={() => setRpe(rpe === String(value) ? '' : String(value))}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
 
             <button type="submit">{isLastSetOfExercise ? "Terminer l'exercice" : 'Suivant'}</button>
           </form>
