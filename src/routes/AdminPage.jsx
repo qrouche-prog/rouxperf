@@ -167,7 +167,13 @@ export default function AdminPage() {
       current.map((week, wIdx) => {
         if (wIdx !== weekIndex) return week
         const nextDayNumber = (week.days.at(-1)?.day_number ?? 0) + 1
-        return { ...week, days: [...week.days, { day_number: nextDayNumber, name: 'Nouvelle séance', exercises: [] }] }
+        return {
+          ...week,
+          days: [
+            ...week.days,
+            { day_number: nextDayNumber, day_of_week: 1, slot: '', modality: 'strength', name: 'Nouvelle séance', exercises: [] },
+          ],
+        }
       })
     )
   }
@@ -306,6 +312,35 @@ export default function AdminPage() {
                         value={day.name}
                         onChange={(e) => updateDay(dIdx, { name: e.target.value })}
                         aria-label="Nom de la séance"
+                      />
+                      <select
+                        value={day.day_of_week ?? 1}
+                        onChange={(e) => updateDay(dIdx, { day_of_week: Number(e.target.value) })}
+                        aria-label="Jour de la semaine"
+                        title="Jour de la semaine"
+                      >
+                        {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map((label, i) => (
+                          <option key={label} value={i + 1}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={day.slot ?? ''}
+                        onChange={(e) => updateDay(dIdx, { slot: e.target.value })}
+                        aria-label="Moment de la journée"
+                        title="Moment de la journée"
+                      >
+                        <option value="">Seule ce jour-là</option>
+                        <option value="morning">Matin</option>
+                        <option value="evening">Soir</option>
+                      </select>
+                      <input
+                        value={day.modality ?? ''}
+                        onChange={(e) => updateDay(dIdx, { modality: e.target.value })}
+                        aria-label="Modalité"
+                        title="Modalité (ex. strength, running, cardio)"
+                        placeholder="modalité"
                       />
                       <button type="button" className="link-button" onClick={() => removeDay(dIdx)}>
                         Supprimer la séance

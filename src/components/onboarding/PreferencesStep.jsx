@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
@@ -12,15 +12,53 @@ const DAYS = [
   { value: 7, label: 'Dimanche' },
 ]
 
+const COMBINING_OPTIONS = [
+  { value: 'never', label: 'Non, je préfère répartir sur plus de jours si besoin' },
+  { value: 'if_needed', label: "Seulement si je n'ai pas assez de jours cochés" },
+  { value: 'allowed', label: 'Oui, ça peut m\'arranger même sans nécessité' },
+]
+
+// Dupliqué volontairement (même logique qu'api/generate-program.js et le
+// worker Deno) : pas de module partageable entre ces trois runtimes.
+function totalSessionsPerWeek(prefs) {
+  return Object.entries(prefs ?? {}).reduce((sum, [area, pref]) => {
+    if (area === 'strength') return sum + (pref.frequency ?? 0)
+    return pref.mode === 'integrated' ? sum : sum + (pref.frequency ?? 0)
+  }, 0)
+}
+
 export default function PreferencesStep({ onNext, onBack, initial, submitLabel = 'Continuer' }) {
   const { user } = useAuth()
   const [equipmentAccess, setEquipmentAccess] = useState(initial?.equipment_access ?? '')
-  const [daysPerWeek, setDaysPerWeek] = useState(initial?.days_per_week ?? '')
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState(initial?.session_duration_minutes ?? '')
   const [preferredDays, setPreferredDays] = useState(initial?.preferred_days ?? [])
   const [injuriesLimitations, setInjuriesLimitations] = useState(initial?.injuries_limitations ?? '')
+  const [sameDayCombining, setSameDayCombining] = useState(initial?.same_day_combining ?? 'if_needed')
+  const [focusAreaPreferences, setFocusAreaPreferences] = useState(initial?.focus_area_preferences ?? null)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (initial?.focus_area_preferences !== undefined) {
+      setFocusAreaPreferences(initial.focus_area_preferences)
+    }
+  }, [initial?.focus_area_preferences])
+
+  useEffect(() => {
+    if (initial !== undefined) return
+    async function load() {
+      const { data } = await supabase
+        .from('user_training_profile')
+        .select('focus_area_preferences')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      setFocusAreaPreferences(data?.focus_area_preferences ?? {})
+    }
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id])
+
+  const total = totalSessionsPerWeek(focusAreaPreferences)
 
   function toggleDay(day) {
     setPreferredDays((current) =>
@@ -32,8 +70,15 @@ export default function PreferencesStep({ onNext, onBack, initial, submitLabel =
     e.preventDefault()
     setError(null)
 
-    if (!equipmentAccess || !daysPerWeek || !sessionDurationMinutes) {
-      setError('Merci de compléter le matériel, les jours et la durée de séance.')
+    if (!equipmentAccess || !sessionDurationMinutes) {
+      setError('Merci de compléter le matériel et la durée de séance.')
+      return
+    }
+
+    if (sameDayCombining === 'never' && preferredDays.length > 0 && total > preferredDays.length) {
+      setError(
+        `Tu as ${total} séance(s) par semaine mais seulement ${preferredDays.length} jour(s) coché(s), sans autoriser les séances doublées. Coche plus de jours, réduis tes fréquences dans l'étape précédente, ou autorise les séances combinées.`
+      )
       return
     }
 
@@ -42,10 +87,10 @@ export default function PreferencesStep({ onNext, onBack, initial, submitLabel =
       {
         user_id: user.id,
         equipment_access: equipmentAccess,
-        days_per_week: Number(daysPerWeek),
         session_duration_minutes: Number(sessionDurationMinutes),
         preferred_days: preferredDays,
         injuries_limitations: injuriesLimitations.trim() || null,
+        same_day_combining: sameDayCombining,
       },
       { onConflict: 'user_id' }
     )
@@ -77,17 +122,6 @@ export default function PreferencesStep({ onNext, onBack, initial, submitLabel =
         <option value="commercial_gym">Salle de sport commerciale</option>
       </select>
 
-      <label htmlFor="daysPerWeek">Jours d'entraînement par semaine</label>
-      <input
-        id="daysPerWeek"
-        type="number"
-        min="1"
-        max="7"
-        value={daysPerWeek}
-        onChange={(e) => setDaysPerWeek(e.target.value)}
-        required
-      />
-
       <label htmlFor="sessionDurationMinutes">Durée de séance visée (minutes)</label>
       <input
         id="sessionDurationMinutes"
@@ -99,6 +133,10 @@ export default function PreferencesStep({ onNext, onBack, initial, submitLabel =
         onChange={(e) => setSessionDurationMinutes(e.target.value)}
         required
       />
+
+      {focusAreaPreferences !== null && (
+        <p className="eyebrow">D'après tes séances choisies : {total} séance(s) par semaine</p>
+      )}
 
       <fieldset>
         <legend>Jours préférés (optionnel)</legend>
@@ -113,6 +151,25 @@ export default function PreferencesStep({ onNext, onBack, initial, submitLabel =
             {day.label}
           </label>
         ))}
+      </fieldset>
+
+      <fieldset>
+        <legend>Deux séances le même jour ?</legend>
+        <div role="radiogroup" aria-label="Deux séances le même jour">
+          {COMBINING_OPTIONS.map((option) => (
+            <label key={option.value} style={{ display: 'block' }}>
+              <input
+                type="radio"
+                name="sameDayCombining"
+                value={option.value}
+                checked={sameDayCombining === option.value}
+                onChange={() => setSameDayCombining(option.value)}
+              />
+              {' '}
+              {option.label}
+            </label>
+          ))}
+        </div>
       </fieldset>
 
       <label htmlFor="injuriesLimitations">Blessures / limitations (optionnel)</label>

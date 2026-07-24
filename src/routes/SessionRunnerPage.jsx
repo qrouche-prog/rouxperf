@@ -391,7 +391,10 @@ export default function SessionRunnerPage() {
         <button type="button" className="link-button" onClick={handleCancelSession}>
           Annuler la séance
         </button>
-        <span className="eyebrow">{day.name}</span>
+        <span className="eyebrow">
+          {day.name}
+          {day.slot === 'morning' ? ' · matin' : day.slot === 'evening' ? ' · soir' : ''}
+        </span>
       </div>
 
       <div className="session-hub-progress">

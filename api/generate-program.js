@@ -20,17 +20,60 @@ const EQUIPMENT_TIERS = {
 
 const WEEKS_COUNT = 4
 
+const MODALITY_LABELS = {
+  strength: 'Musculation',
+  cardio: 'Cardio',
+  running: 'Course à pied',
+  aerobic: 'Endurance aérobie',
+  anaerobic: 'Capacité anaérobie',
+  explosiveness: 'Explosivité',
+  mobility: 'Mobilité',
+}
+
+// Dupliqué volontairement (même logique que PreferencesStep.jsx et le worker
+// Deno) : pas de module partageable entre ces trois runtimes.
+function buildModalityList(focusAreaPreferences) {
+  const list = []
+  for (const [area, pref] of Object.entries(focusAreaPreferences)) {
+    if (area !== 'strength' && pref.mode === 'integrated') continue
+    for (let i = 0; i < (pref.frequency ?? 0); i += 1) list.push(area)
+  }
+  return list
+}
+
+// Assigne un day_of_week (et un slot matin/soir si un jour porte 2 séances)
+// à chaque séance, en répartissant sur les jours préférés (ou toute la
+// semaine si aucun n'est coché), cap à 2 séances/jour.
+function assignDaySlots(totalSessions, preferredDays) {
+  const pool = (preferredDays.length > 0 ? preferredDays : [1, 2, 3, 4, 5, 6, 7]).slice().sort((a, b) => a - b)
+  const perDayCount = new Array(pool.length).fill(0)
+  const assignments = []
+  for (let i = 0; i < totalSessions; i += 1) {
+    const dayIndex = i % pool.length
+    if (perDayCount[dayIndex] >= 2) continue
+    perDayCount[dayIndex] += 1
+    assignments.push({ sessionIndex: i, dayIndex, rank: perDayCount[dayIndex] })
+  }
+  return assignments.map(({ sessionIndex, dayIndex, rank }) => ({
+    sessionIndex,
+    day_of_week: pool[dayIndex],
+    slot: perDayCount[dayIndex] === 2 ? (rank === 1 ? 'morning' : 'evening') : '',
+  }))
+}
+
 function buildMockProgram(availableExercises, trainingProfile) {
-  const daysPerWeek = trainingProfile.days_per_week ?? 3
+  const focusAreaPreferences = trainingProfile.focus_area_preferences ?? { strength: { frequency: 3 } }
+  const modalities = buildModalityList(focusAreaPreferences)
+  const daySlots = assignDaySlots(modalities.length, trainingProfile.preferred_days ?? [])
   const exercisesPerDay = Math.min(4, availableExercises.length)
   const weeks = []
 
   for (let weekNumber = 1; weekNumber <= WEEKS_COUNT; weekNumber += 1) {
-    const days = []
-    for (let dayNumber = 1; dayNumber <= daysPerWeek; dayNumber += 1) {
+    const days = daySlots.map((slotInfo, index) => {
+      const modality = modalities[slotInfo.sessionIndex]
       const exercises = []
       for (let i = 0; i < exercisesPerDay; i += 1) {
-        const exercise = availableExercises[(dayNumber - 1 + i) % availableExercises.length]
+        const exercise = availableExercises[(index + i) % availableExercises.length]
         exercises.push({
           exercise_id: exercise.id,
           sets: 3,
@@ -39,8 +82,15 @@ function buildMockProgram(availableExercises, trainingProfile) {
           notes: `Programme d'exemple (mode mock, semaine ${weekNumber}) — pas de vraie génération IA.`,
         })
       }
-      days.push({ day_number: dayNumber, name: `Séance ${dayNumber}`, exercises })
-    }
+      return {
+        day_number: index + 1,
+        day_of_week: slotInfo.day_of_week,
+        slot: slotInfo.slot,
+        modality,
+        name: `${MODALITY_LABELS[modality] ?? modality} ${index + 1}`,
+        exercises,
+      }
+    })
     weeks.push({ week_number: weekNumber, days })
   }
 

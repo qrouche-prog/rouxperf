@@ -66,7 +66,10 @@ function toggleValue(list, value, exclusiveValue) {
 export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 'Continuer' }) {
   const { user } = useAuth()
   const [focusAreas, setFocusAreas] = useState(initial?.focus_areas ?? [])
-  const [focusAreaPreferences, setFocusAreaPreferences] = useState(initial?.focus_area_preferences ?? {})
+  const [focusAreaPreferences, setFocusAreaPreferences] = useState({
+    strength: { frequency: 3 },
+    ...(initial?.focus_area_preferences ?? {}),
+  })
   const [events, setEvents] = useState(initial?.upcoming_events ?? [])
   const [eventDate, setEventDate] = useState(initial?.event_date ?? '')
   const [targetSports, setTargetSports] = useState(initial?.target_sports ?? [])
@@ -138,9 +141,25 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
       <label>Aspects à travailler</label>
       <SelectableCardGrid options={FOCUS_AREAS} selected={focusAreas} onToggle={toggleFocusArea} />
 
-      {schedulableSelected.length > 0 && (
-        <div className="focus-schedule-list">
-          {schedulableSelected.map((area) => {
+      <div className="focus-schedule-list">
+        <div className="focus-schedule-row">
+          <strong>Musculation</strong>
+
+          <label htmlFor="freq-strength">Combien de fois par semaine ?</label>
+          <select
+            id="freq-strength"
+            value={focusAreaPreferences.strength?.frequency ?? 3}
+            onChange={(e) => updateFocusAreaPreference('strength', { frequency: Number(e.target.value) })}
+          >
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((n) => (
+              <option key={n} value={n}>
+                {n}×
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {schedulableSelected.map((area) => {
             const areaLabel = FOCUS_AREAS.find((f) => f.value === area)?.label ?? area
             const pref = focusAreaPreferences[area] ?? { frequency: 2, mode: 'separate' }
             return (
@@ -178,7 +197,6 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
             )
           })}
         </div>
-      )}
 
       <label>Compétition à venir</label>
       <SelectableCardGrid

@@ -174,20 +174,19 @@ export default function DashboardPage() {
   const today = new Date()
   const todayIso = isoWeekday(today)
   const preferredDays = trainingProfile?.preferred_days ?? []
-  const sortedPreferred = [...preferredDays].sort((a, b) => a - b)
   const currentWeekData = program?.structure?.weeks?.find((w) => w.week_number === program.current_week)
 
-  const selectedIso = isoWeekday(selectedDate)
-  const selectedOccurrenceIndex = sortedPreferred.indexOf(selectedIso)
-  const isSelectedTrainingDay = selectedOccurrenceIndex !== -1
-  const selectedSession = isSelectedTrainingDay ? currentWeekData?.days[selectedOccurrenceIndex] : null
-
-  let selectedPercent = 0
-  if (program && selectedSession) {
-    const totalSets = selectedSession.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
-    const loggedSets = setsLoggedByDay[`${program.current_week}-${selectedSession.day_number}`] ?? 0
-    selectedPercent = totalSets > 0 ? Math.min(100, Math.round((loggedSets / totalSets) * 100)) : 0
+  function sessionPercent(session) {
+    if (!program || !session) return 0
+    const totalSets = session.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
+    const loggedSets = setsLoggedByDay[`${program.current_week}-${session.day_number}`] ?? 0
+    return totalSets > 0 ? Math.min(100, Math.round((loggedSets / totalSets) * 100)) : 0
   }
+
+  const selectedIso = isoWeekday(selectedDate)
+  const selectedSessions = currentWeekData?.days.filter((d) => d.day_of_week === selectedIso) ?? []
+  const selectedSession = selectedSessions[0] ?? null
+  const selectedPercent = sessionPercent(selectedSession)
   const selectedIsToday = isSameDay(selectedDate, today)
   const selectedIsPast = !selectedIsToday && selectedDate < today
   const selectedIsFuture = !selectedIsToday && selectedDate > today
@@ -266,72 +265,97 @@ export default function DashboardPage() {
         })}
       </div>
 
-      <Link
-        to={
-          program?.status === 'active' && selectedSession
-            ? `/session/${program.current_week}/${selectedSession.day_number}`
-            : '/program'
-        }
-        className="card session-of-day"
-      >
-        <Icon
-          name={
-            program?.status === 'generating' || program?.status === 'pending_approval'
-              ? 'bolt'
-              : selectedSession
-                ? 'bolt'
-                : 'stretch'
+      {program?.status === 'active' && selectedSessions.length === 2 ? (
+        <div className="card session-of-day session-of-day-multi">
+          <span className="eyebrow">{selectedIsToday ? "Aujourd'hui" : dayLabelFormatter.format(selectedDate)}</span>
+          {selectedSessions.map((session) => {
+            const percent = sessionPercent(session)
+            return (
+              <Link
+                key={session.day_number}
+                to={`/session/${program.current_week}/${session.day_number}`}
+                className="session-of-day-slot"
+              >
+                <Icon name="bolt" size={20} />
+                <span className="session-of-day-slot-info">
+                  <span className="eyebrow">{session.slot === 'morning' ? 'Matin' : 'Soir'}</span>
+                  <strong>{session.name}</strong>
+                </span>
+                <span className="btn-primary">
+                  {percent === 100 ? 'Revoir' : percent > 0 ? 'Continuer' : 'Voir'}
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+      ) : (
+        <Link
+          to={
+            program?.status === 'active' && selectedSession
+              ? `/session/${program.current_week}/${selectedSession.day_number}`
+              : '/program'
           }
-          size={26}
-        />
-        {program?.status === 'pending_approval' ? (
-          <>
-            <span className="eyebrow">En attente de validation</span>
-            <h3>Ta demande est en cours d'examen</h3>
-            <p>L'équipe rouXperf va valider ta demande sous peu.</p>
-          </>
-        ) : program?.status === 'generating' ? (
-          <>
-            <span className="eyebrow">Génération en cours</span>
-            <h3>Ton programme arrive</h3>
-            <p>Ça prend généralement moins d'une minute.</p>
-          </>
-        ) : program?.status === 'active' && selectedSession ? (
-          <>
-            <span className="eyebrow">
-              {selectedIsToday ? "Aujourd'hui" : dayLabelFormatter.format(selectedDate)}
-            </span>
-            <h3>{selectedSession.name}</h3>
-            <p>
-              {selectedPercent === 100
-                ? 'Terminée — 100%'
-                : selectedPercent > 0
-                  ? `${selectedPercent}% réalisé`
-                  : selectedIsFuture
-                    ? "Pas encore commencée."
-                    : selectedIsPast
-                      ? 'Non réalisée.'
-                      : "Pas encore loggée aujourd'hui."}
-            </p>
-            <span className="btn-primary">
-              {selectedPercent === 100 ? 'Revoir la séance' : selectedPercent > 0 ? 'Continuer' : 'Voir la séance'}
-            </span>
-          </>
-        ) : program ? (
-          <>
-            <span className="eyebrow">
-              {selectedIsToday ? "Aujourd'hui" : dayLabelFormatter.format(selectedDate)}
-            </span>
-            <h3>Jour de repos</h3>
-            <p>Pas de séance prévue ce jour-là selon tes préférences.</p>
-          </>
-        ) : (
-          <>
-            <h3>Pas encore de programme</h3>
-            <p>Termine ton onboarding pour générer ton programme.</p>
-          </>
-        )}
-      </Link>
+          className="card session-of-day"
+        >
+          <Icon
+            name={
+              program?.status === 'generating' || program?.status === 'pending_approval'
+                ? 'bolt'
+                : selectedSession
+                  ? 'bolt'
+                  : 'stretch'
+            }
+            size={26}
+          />
+          {program?.status === 'pending_approval' ? (
+            <>
+              <span className="eyebrow">En attente de validation</span>
+              <h3>Ta demande est en cours d'examen</h3>
+              <p>L'équipe rouXperf va valider ta demande sous peu.</p>
+            </>
+          ) : program?.status === 'generating' ? (
+            <>
+              <span className="eyebrow">Génération en cours</span>
+              <h3>Ton programme arrive</h3>
+              <p>Ça prend généralement moins d'une minute.</p>
+            </>
+          ) : program?.status === 'active' && selectedSession ? (
+            <>
+              <span className="eyebrow">
+                {selectedIsToday ? "Aujourd'hui" : dayLabelFormatter.format(selectedDate)}
+              </span>
+              <h3>{selectedSession.name}</h3>
+              <p>
+                {selectedPercent === 100
+                  ? 'Terminée — 100%'
+                  : selectedPercent > 0
+                    ? `${selectedPercent}% réalisé`
+                    : selectedIsFuture
+                      ? "Pas encore commencée."
+                      : selectedIsPast
+                        ? 'Non réalisée.'
+                        : "Pas encore loggée aujourd'hui."}
+              </p>
+              <span className="btn-primary">
+                {selectedPercent === 100 ? 'Revoir la séance' : selectedPercent > 0 ? 'Continuer' : 'Voir la séance'}
+              </span>
+            </>
+          ) : program ? (
+            <>
+              <span className="eyebrow">
+                {selectedIsToday ? "Aujourd'hui" : dayLabelFormatter.format(selectedDate)}
+              </span>
+              <h3>Jour de repos</h3>
+              <p>Pas de séance prévue ce jour-là selon tes préférences.</p>
+            </>
+          ) : (
+            <>
+              <h3>Pas encore de programme</h3>
+              <p>Termine ton onboarding pour générer ton programme.</p>
+            </>
+          )}
+        </Link>
+      )}
 
       <div className="stat-row">
         <Link to="/program" className="stat-tile">

@@ -13,6 +13,16 @@ const SITUATION_LABELS = {
   injury_rehab: 'rééducation / blessure en cours',
 }
 
+const WEEKDAY_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
+function daySlotLabel(day) {
+  const weekday = WEEKDAY_FULL[day.day_of_week - 1]
+  if (!weekday) return null
+  if (day.slot === 'morning') return `${weekday} · matin`
+  if (day.slot === 'evening') return `${weekday} · soir`
+  return weekday
+}
+
 export default function ProgramPage() {
   const { user } = useAuth()
   const [program, setProgram] = useState(null)
@@ -148,7 +158,10 @@ export default function ProgramPage() {
 
   const weeks = program.structure.weeks
   const week = weeks[weekIndex]
-  const days = week.days
+  const slotRank = (slot) => (slot === 'morning' ? 0 : slot === 'evening' ? 1 : 0)
+  const days = [...week.days].sort(
+    (a, b) => (a.day_of_week ?? 0) - (b.day_of_week ?? 0) || slotRank(a.slot) - slotRank(b.slot)
+  )
 
   function sessionPercent(day) {
     const totalSets = day.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
@@ -214,6 +227,7 @@ export default function ProgramPage() {
                   <Icon name={isDone ? 'check' : 'bolt'} size={18} />
                 </span>
                 <span className="session-card-title">
+                  {daySlotLabel(day) && <span className="eyebrow">{daySlotLabel(day)}</span>}
                   <strong>{day.name}</strong>
                   <span className="eyebrow">
                     {isDone ? 'Terminé — 100%' : isStarted ? `${percent}% réalisé` : 'Non commencé'}

@@ -607,6 +607,45 @@ a.btn-primary {
   margin-top: 10px;
 }
 
+.session-of-day-multi {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.session-of-day-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--flame-2);
+  text-decoration: none;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  transition: border-color 0.15s ease;
+}
+
+.session-of-day-slot:hover {
+  border-color: var(--flame-2);
+}
+
+.session-of-day-slot-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-of-day-slot-info strong {
+  display: block;
+  color: var(--ink);
+}
+
+.session-of-day-slot .btn-primary {
+  padding: 8px 14px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
 .goal-card {
   display: flex;
   align-items: center;
