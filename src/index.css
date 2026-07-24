@@ -1043,10 +1043,13 @@ a.btn-primary {
   padding: 14px 14px 10px;
 }
 
-.session-start-btn {
-  flex: none;
-  padding: 8px 14px;
-  font-size: 0.72rem;
+a.session-start-btn {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 4px 14px 10px;
+  text-align: center;
+  padding: 10px 14px;
+  font-size: 0.78rem;
 }
 
 .session-toggle {

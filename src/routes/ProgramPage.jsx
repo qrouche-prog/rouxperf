@@ -188,10 +188,11 @@ export default function ProgramPage() {
                     {isDone ? 'Terminé — 100%' : isStarted ? `${percent}% réalisé` : 'Non commencé'}
                   </span>
                 </span>
-                <Link to={`/session/${week.week_number}/${day.day_number}`} className="btn-primary session-start-btn">
-                  {isDone ? 'Refaire' : isStarted ? 'Continuer' : 'Commencer'}
-                </Link>
               </div>
+
+              <Link to={`/session/${week.week_number}/${day.day_number}`} className="btn-primary session-start-btn">
+                {isDone ? 'Refaire' : isStarted ? 'Continuer' : 'Commencer'}
+              </Link>
 
               <button
                 type="button"
