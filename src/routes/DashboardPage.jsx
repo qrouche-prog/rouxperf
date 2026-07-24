@@ -124,7 +124,7 @@ export default function DashboardPage() {
   }, [user.id])
 
   useEffect(() => {
-    if (!program || program.status !== 'generating') return undefined
+    if (!program || (program.status !== 'generating' && program.status !== 'pending_approval')) return undefined
 
     const interval = setInterval(async () => {
       const updated = await loadProgram()
@@ -204,6 +204,13 @@ export default function DashboardPage() {
       </p>
       <h1>Tableau de bord</h1>
 
+      {program?.status === 'pending_approval' && (
+        <p className="situation-disclaimer">
+          Ta demande de génération a bien été reçue et est en attente de validation par l'équipe rouXperf. Tu seras
+          averti ici dès qu'elle sera lancée.
+        </p>
+      )}
+
       {program?.status === 'generating' && (
         <p className="situation-disclaimer">
           Ton programme est en cours de génération — ça prend généralement moins d'une minute. Reste sur
@@ -267,8 +274,23 @@ export default function DashboardPage() {
         }
         className="card session-of-day"
       >
-        <Icon name={program?.status === 'generating' ? 'bolt' : selectedSession ? 'bolt' : 'stretch'} size={26} />
-        {program?.status === 'generating' ? (
+        <Icon
+          name={
+            program?.status === 'generating' || program?.status === 'pending_approval'
+              ? 'bolt'
+              : selectedSession
+                ? 'bolt'
+                : 'stretch'
+          }
+          size={26}
+        />
+        {program?.status === 'pending_approval' ? (
+          <>
+            <span className="eyebrow">En attente de validation</span>
+            <h3>Ta demande est en cours d'examen</h3>
+            <p>L'équipe rouXperf va valider ta demande sous peu.</p>
+          </>
+        ) : program?.status === 'generating' ? (
           <>
             <span className="eyebrow">Génération en cours</span>
             <h3>Ton programme arrive</h3>

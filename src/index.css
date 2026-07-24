@@ -1337,6 +1337,29 @@ a.session-start-btn {
   margin: 4px 0 16px;
 }
 
+.admin-pending-requests {
+  margin-top: 16px;
+}
+
+.admin-pending-items {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.admin-pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-pending-item span strong {
+  display: block;
+}
+
 .admin-layout {
   display: grid;
   gap: 20px;

@@ -104,6 +104,16 @@ export default function ProgramPage() {
     )
   }
 
+  if (program?.status === 'pending_approval') {
+    return (
+      <main>
+        <TopNav />
+        <p>Ta demande de génération a bien été reçue et est en attente de validation par l'équipe rouXperf.</p>
+        <Link to="/dashboard">Retour au tableau de bord</Link>
+      </main>
+    )
+  }
+
   if (program?.status === 'generating') {
     return (
       <main>

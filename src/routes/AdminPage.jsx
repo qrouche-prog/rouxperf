@@ -39,6 +39,10 @@ export default function AdminPage() {
   const [programError, setProgramError] = useState(null)
   const [saved, setSaved] = useState(false)
 
+  const [pendingRequests, setPendingRequests] = useState([])
+  const [approvingId, setApprovingId] = useState(null)
+  const [approveError, setApproveError] = useState(null)
+
   useEffect(() => {
     async function load() {
       try {
@@ -54,7 +58,33 @@ export default function AdminPage() {
       setStatus('idle')
     }
     load()
+    loadPendingRequests()
   }, [])
+
+  async function loadPendingRequests() {
+    try {
+      const body = await authedFetch('/api/admin/pending-generations')
+      setPendingRequests(body.requests)
+    } catch (err) {
+      setApproveError(err.message)
+    }
+  }
+
+  async function handleApprove(programId) {
+    setApproveError(null)
+    setApprovingId(programId)
+    try {
+      await authedFetch('/api/admin/approve-generation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ program_id: programId }),
+      })
+      setPendingRequests((current) => current.filter((r) => r.program_id !== programId))
+    } catch (err) {
+      setApproveError(err.message)
+    }
+    setApprovingId(null)
+  }
 
   async function openUser(user) {
     setSelectedUser(user)
@@ -179,6 +209,37 @@ export default function AdminPage() {
       <p>Modifie manuellement le programme actif de n'importe quel utilisateur.</p>
 
       {error && <p role="alert">{error}</p>}
+
+      <div className="admin-pending-requests card">
+        <h2>Demandes de génération en attente ({pendingRequests.length})</h2>
+        {approveError && <p role="alert">{approveError}</p>}
+        {pendingRequests.length === 0 ? (
+          <p>Aucune demande en attente.</p>
+        ) : (
+          <ul className="admin-pending-items">
+            {pendingRequests.map((r) => (
+              <li key={r.program_id} className="admin-pending-item">
+                <span>
+                  <strong>{r.full_name || r.email}</strong>
+                  <span className="eyebrow">
+                    {r.email}
+                    {r.goal_type && ` · ${r.goal_type}`}
+                    {' · demandé le '}
+                    {new Date(r.created_at).toLocaleDateString('fr-CH')}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleApprove(r.program_id)}
+                  disabled={approvingId === r.program_id}
+                >
+                  {approvingId === r.program_id ? 'Approbation...' : 'Approuver'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="admin-layout">
         <div className="admin-user-list card">

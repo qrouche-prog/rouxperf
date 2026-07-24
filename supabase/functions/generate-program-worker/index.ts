@@ -212,28 +212,17 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: 'Méthode non autorisée' }), { status: 405 })
   }
 
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Token manquant' }), { status: 401 })
+  // Appelée uniquement depuis notre propre backend (déclenchement initial ou
+  // approbation admin), jamais directement par le navigateur d'un
+  // utilisateur — donc un unique client service-role pour tout, plus besoin
+  // de forwarder le JWT d'un utilisateur final (l'admin qui approuve n'a de
+  // toute façon pas accès à celui de l'utilisateur cible).
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+
+  const { program_id, user_id } = await req.json().catch(() => ({}))
+  if (!program_id || !user_id) {
+    return new Response(JSON.stringify({ error: 'program_id ou user_id manquant' }), { status: 400 })
   }
-  const token = authHeader.slice(7)
-
-  const { program_id } = await req.json().catch(() => ({}))
-  if (!program_id) {
-    return new Response(JSON.stringify({ error: 'program_id manquant' }), { status: 400 })
-  }
-
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  })
-
-  // Client élevé utilisé uniquement pour créer/réutiliser les exercices
-  // "custom" proposés par l'IA — la table exercises n'a pas de policy insert
-  // pour les utilisateurs standards (bibliothèque en lecture seule côté client).
-  const serviceClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
 
   async function resolveCustomExercises(structure: any) {
     for (const week of structure.weeks) {
@@ -242,7 +231,7 @@ Deno.serve(async (req: Request) => {
           if (exercise.exercise_id !== CUSTOM_EXERCISE_SENTINEL) continue
 
           const name = exercise.custom_name.trim()
-          const { data: existing } = await serviceClient
+          const { data: existing } = await supabase
             .from('exercises')
             .select('id')
             .ilike('name', name)
@@ -252,7 +241,7 @@ Deno.serve(async (req: Request) => {
           if (existing) {
             exercise.exercise_id = existing.id
           } else {
-            const { data: created, error: createError } = await serviceClient
+            const { data: created, error: createError } = await supabase
               .from('exercises')
               .insert({
                 name,
@@ -280,20 +269,11 @@ Deno.serve(async (req: Request) => {
     return structure
   }
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token)
-
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Session invalide' }), { status: 401 })
-  }
-
   const { data: program } = await supabase
     .from('user_programs')
     .select('id, status')
     .eq('id', program_id)
-    .eq('user_id', user.id)
+    .eq('user_id', user_id)
     .maybeSingle()
 
   if (!program || program.status !== 'generating') {
@@ -304,20 +284,20 @@ Deno.serve(async (req: Request) => {
     try {
       const [{ data: profile }, { data: goal }, { data: trainingProfile }, { data: measurement }] =
         await Promise.all([
-          supabase.from('profiles').select('*').eq('user_id', user.id).single(),
+          supabase.from('profiles').select('*').eq('user_id', user_id).single(),
           supabase
             .from('goals')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', user_id)
             .eq('is_active', true)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
-          supabase.from('user_training_profile').select('*').eq('user_id', user.id).maybeSingle(),
+          supabase.from('user_training_profile').select('*').eq('user_id', user_id).maybeSingle(),
           supabase
             .from('body_measurements')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', user_id)
             .order('measured_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
@@ -443,7 +423,7 @@ ${JSON.stringify(
         .update({ status: 'active', structure, generation_prompt_snapshot: promptSnapshot })
         .eq('id', program_id)
 
-      await supabase.from('profiles').update({ onboarding_completed_at: new Date().toISOString() }).eq('user_id', user.id)
+      await supabase.from('profiles').update({ onboarding_completed_at: new Date().toISOString() }).eq('user_id', user_id)
     } catch (err) {
       await supabase
         .from('user_programs')

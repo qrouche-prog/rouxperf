@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { validateProgramStructure } from './_lib/validateProgram.js'
+import { sendEmail } from './_lib/sendEmail.js'
 
 const EQUIPMENT_TIERS = {
   bodyweight: ['bodyweight'],
@@ -134,13 +135,12 @@ export default async function handler(req, res) {
     return
   }
 
-  // Génération réelle : l'appel Claude (30-90s) dépasse le plafond de 10s des
-  // fonctions serverless Vercel Hobby. On crée un programme "generating" et on
-  // délègue le travail à une Supabase Edge Function (EdgeRuntime.waitUntil),
-  // qui écrit le résultat en base une fois terminé ; le client poll le statut.
+  // Génération réelle : coût IA payé de la poche de l'admin tant qu'il n'y a
+  // pas de paiement sur le site — le programme reste "pending_approval" et
+  // n'appelle pas Claude tant qu'un admin ne l'a pas validé depuis /admin.
   const { data: program, error: insertError } = await supabase
     .from('user_programs')
-    .insert({ user_id: user.id, status: 'generating', current_week: 1, structure: null })
+    .insert({ user_id: user.id, status: 'pending_approval', current_week: 1, structure: null })
     .select()
     .single()
 
@@ -149,31 +149,21 @@ export default async function handler(req, res) {
     return
   }
 
-  // Marque l'onboarding comme terminé dès le déclenchement plutôt qu'à la fin
-  // de la génération réelle : l'utilisateur a fini son profil, la génération
-  // n'est qu'une étape asynchrone en arrière-plan — pas de raison de le
-  // bloquer sur l'écran de génération en attendant qu'elle se termine.
+  // Marque l'onboarding comme terminé dès la demande plutôt qu'à la fin de la
+  // génération réelle : l'utilisateur a fini son profil, l'approbation puis
+  // la génération sont des étapes asynchrones — pas de raison de le bloquer
+  // sur l'écran de génération en attendant.
   await supabase.from('profiles').update({ onboarding_completed_at: new Date().toISOString() }).eq('user_id', user.id)
 
-  try {
-    const workerResponse = await fetch(`${process.env.VITE_SUPABASE_URL}/functions/v1/generate-program-worker`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ program_id: program.id }),
-      signal: AbortSignal.timeout(8000),
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL
+  if (adminEmail) {
+    await sendEmail({
+      to: adminEmail,
+      subject: `rouxperf — nouvelle demande de génération (${profile.full_name || user.email})`,
+      html: `<p><strong>${profile.full_name || user.email}</strong> souhaite générer son programme.</p>
+             <p>Objectif : ${goal.goal_type} — Niveau : ${trainingProfile.experience_level ?? 'non renseigné'}</p>
+             <p><a href="https://app.rouxperf.ch/admin">Voir et approuver dans /admin</a></p>`,
     })
-
-    if (!workerResponse.ok) {
-      const body = await workerResponse.json().catch(() => ({}))
-      throw new Error(body.error ?? `worker a répondu ${workerResponse.status}`)
-    }
-  } catch (err) {
-    await supabase
-      .from('user_programs')
-      .update({ status: 'failed', error_message: `Échec du déclenchement : ${err.message}` })
-      .eq('id', program.id)
-    res.status(502).json({ error: 'Échec du déclenchement de la génération.', detail: err.message })
-    return
   }
 
   res.status(200).json({ program })
