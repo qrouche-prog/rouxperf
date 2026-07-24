@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import Tally from '../components/Tally'
 import Icon from '../components/onboarding/icons/Icon'
 
 const RPE_SCALE = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -75,7 +74,7 @@ export default function SessionRunnerPage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase.from('exercises').select('id, name'),
+        supabase.from('exercises').select('id, name, instructions'),
       ])
       if (error) {
         setLoadError(error.message)
@@ -263,13 +262,14 @@ export default function SessionRunnerPage() {
     const completed = countCompleted(entries, selectedExerciseIndex, exercise.sets)
     const setIndexToFill = completed < exercise.sets ? completed : 0
     const isLastSetOfExercise = setIndexToFill === exercise.sets - 1
+    const restLabel =
+      exercise.rest_seconds >= 60 ? `${Math.round(exercise.rest_seconds / 60)}'` : `${exercise.rest_seconds}s`
 
     function handleSetSubmit(e) {
       e.preventDefault()
       const key = `${selectedExerciseIndex}-${setIndexToFill}`
       const targetReps = parseTargetReps(exercise.reps)
       setEntries((current) => ({ ...current, [key]: { reps: targetReps, weight_kg: weight, rpe } }))
-      setWeight('')
       setRpe('')
 
       if (isLastSetOfExercise) {
@@ -305,26 +305,42 @@ export default function SessionRunnerPage() {
 
         <div className="card set-input-card">
           <h2>{details?.name ?? 'Exercice'}</h2>
-          <p className="eyebrow">
-            Série {setIndexToFill + 1} / {exercise.sets} — cible : {exercise.reps}
-          </p>
-          <Tally count={exercise.sets} />
+          {details?.instructions && <p className="exercise-instructions">{details.instructions}</p>}
 
-          {completed > 0 && (
-            <ul className="completed-sets-list">
-              {Array.from({ length: completed }).map((_, i) => {
-                const done = entries[`${selectedExerciseIndex}-${i}`]
-                return (
-                  <li key={i}>
-                    <span className="eyebrow">Série {i + 1}</span>
-                    <span>
-                      {done.reps || '—'} reps · {done.weight_kg || '—'} kg · RPE {done.rpe || '—'}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+          <ul className="set-row-list">
+            {Array.from({ length: exercise.sets }).map((_, i) => {
+              const setEntry = entries[`${selectedExerciseIndex}-${i}`]
+              const isDone = Boolean(setEntry)
+              const isCurrent = !isDone && i === setIndexToFill
+              return (
+                <li
+                  key={i}
+                  className={`set-row${isDone ? ' set-row-done' : ''}${isCurrent ? ' set-row-current' : ''}`}
+                >
+                  <span
+                    className={`set-row-badge${isDone ? ' set-row-badge-done' : ''}${isCurrent ? ' set-row-badge-current' : ''}`}
+                  >
+                    {isDone ? <Icon name="check" size={14} /> : i + 1}
+                  </span>
+                  <span className="set-row-field">
+                    <span className="eyebrow">Rep</span>
+                    {exercise.reps}
+                  </span>
+                  <span className="set-row-field">
+                    <span className="eyebrow">Poids</span>
+                    {isDone ? `${setEntry.weight_kg || '—'} kg` : weight ? `${weight} kg` : '—'}
+                  </span>
+                  <span className="set-row-field">
+                    <span className="eyebrow">Repos</span>
+                    {restLabel}
+                  </span>
+                  <span className="set-row-status">
+                    {isDone ? <Icon name="check" size={16} /> : !isCurrent ? 'À venir' : null}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
 
           <form onSubmit={handleSetSubmit}>
             <label htmlFor="weight">Poids (kg)</label>
@@ -352,7 +368,7 @@ export default function SessionRunnerPage() {
               ))}
             </div>
 
-            <button type="submit">{isLastSetOfExercise ? "Terminer l'exercice" : 'Suivant'}</button>
+            <button type="submit">Valider la série {setIndexToFill + 1}</button>
           </form>
         </div>
       </main>
