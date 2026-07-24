@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <defs>
     <linearGradient id="rp-flame" gradientUnits="userSpaceOnUse" x1="0" y1="25" x2="0" y2="6">
-      <stop offset="0%" stop-color="#C81E1E" />
-      <stop offset="55%" stop-color="#FF6B00" />
-      <stop offset="100%" stop-color="#FFC72C" />
+      <stop offset="0%" stop-color="#A8CC00" />
+      <stop offset="55%" stop-color="#D6FF23" />
+      <stop offset="100%" stop-color="#EAFF70" />
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="7" fill="#0A0908" />
+  <rect width="32" height="32" rx="7" fill="#0A0A0A" />
   <g fill="none" stroke="url(#rp-flame)" stroke-width="2.6" stroke-linecap="round">
     <line x1="8" y1="25" x2="8" y2="15" />
     <line x1="13" y1="25" x2="13" y2="9" />
