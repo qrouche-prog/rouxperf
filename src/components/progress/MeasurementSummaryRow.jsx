@@ -9,45 +9,61 @@ function latestValue(measurements, field) {
   return null
 }
 
-function overallProgressPct(measurements, fields) {
-  const pcts = []
-  for (const field of fields) {
-    const points = measurements.filter((m) => m[field] != null).map((m) => Number(m[field]))
-    if (points.length >= 2 && points[0] !== 0) {
-      pcts.push(((points[points.length - 1] - points[0]) / points[0]) * 100)
-    }
+function durationLabel(days) {
+  if (days < 14) return `${days} jour${days > 1 ? 's' : ''}`
+  if (days < 60) {
+    const weeks = Math.round(days / 7)
+    return `${weeks} semaine${weeks > 1 ? 's' : ''}`
   }
-  if (pcts.length === 0) return null
-  return pcts.reduce((sum, p) => sum + p, 0) / pcts.length
+  const months = Math.round(days / 30)
+  return `${months} mois`
 }
 
-export default function MeasurementSummaryRow({ fields, measurements }) {
-  const progress = overallProgressPct(
-    measurements,
-    fields.map((field) => field.value)
-  )
+function weightProgress(measurements) {
+  const points = measurements
+    .filter((m) => m.weight_kg != null)
+    .map((m) => ({ date: m.measured_at, value: Number(m.weight_kg) }))
+
+  if (points.length < 2) return null
+
+  const first = points[0]
+  const last = points[points.length - 1]
+  const days = Math.round((new Date(last.date) - new Date(first.date)) / (1000 * 60 * 60 * 24))
+  if (days <= 0) return null
+
+  return { deltaKg: round(last.value - first.value), label: durationLabel(days) }
+}
+
+export default function MeasurementSummaryRow({ measurements }) {
+  const weight = latestValue(measurements, 'weight_kg')
+  const bodyFat = latestValue(measurements, 'body_fat_pct')
+  const progress = weightProgress(measurements)
 
   return (
     <div className="measurement-summary">
-      {fields.map((field) => {
-        const value = latestValue(measurements, field.value)
-        return (
-          <a key={field.value} href={`#measurement-${field.value}`} className="measurement-summary-item">
-            <span className="measurement-summary-value">
-              {value != null ? round(value) : '—'}
-              {value != null && <span className="measurement-unit">{field.unit}</span>}
-            </span>
-            <span className="measurement-summary-label">{field.label}</span>
-          </a>
-        )
-      })}
-      {progress != null && (
+      <a href="#measurement-weight_kg" className="measurement-summary-item">
+        <span className="measurement-summary-value">
+          {weight != null ? round(weight) : '—'}
+          {weight != null && <span className="measurement-unit">kg</span>}
+        </span>
+        <span className="measurement-summary-label">Poids</span>
+      </a>
+
+      <a href="#measurement-body_fat_pct" className="measurement-summary-item">
+        <span className="measurement-summary-value">
+          {bodyFat != null ? round(bodyFat) : '—'}
+          {bodyFat != null && <span className="measurement-unit">%</span>}
+        </span>
+        <span className="measurement-summary-label">Masse grasse</span>
+      </a>
+
+      {progress && (
         <span className="measurement-summary-progress">
           <span className="measurement-summary-value">
-            {progress > 0 ? '+' : ''}
-            {round(progress)}%
+            {progress.deltaKg > 0 ? '+' : ''}
+            {progress.deltaKg} kg
           </span>
-          <span className="measurement-summary-label">Progression</span>
+          <span className="measurement-summary-label">Progression en {progress.label}</span>
         </span>
       )}
     </div>

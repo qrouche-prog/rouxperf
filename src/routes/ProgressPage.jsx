@@ -59,7 +59,7 @@ export default function ProgressPage() {
       <TopNav />
       <h1>Ta progression</h1>
 
-      <MeasurementSummaryRow fields={MEASUREMENT_FIELDS} measurements={measurements} />
+      <MeasurementSummaryRow measurements={measurements} />
 
       <MeasurementCard
         field={weightField.value}
