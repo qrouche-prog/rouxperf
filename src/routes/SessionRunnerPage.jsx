@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Icon from '../components/onboarding/icons/Icon'
@@ -45,6 +45,7 @@ function buildEntriesFromLoggedSets(day, loggedSets) {
 export default function SessionRunnerPage() {
   const { weekNumber, dayNumber } = useParams()
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   const [program, setProgram] = useState(null)
   const [exercisesById, setExercisesById] = useState({})
@@ -375,10 +376,21 @@ export default function SessionRunnerPage() {
     )
   }
 
+  function handleCancelSession() {
+    if (
+      doneSets === 0 ||
+      window.confirm('Tu vas perdre la progression de cette séance, non sauvegardée. Annuler quand même ?')
+    ) {
+      navigate('/program')
+    }
+  }
+
   return (
     <main>
       <div className="session-runner-header">
-        <Link to="/program">‹ Programme</Link>
+        <button type="button" className="link-button" onClick={handleCancelSession}>
+          Annuler la séance
+        </button>
         <span className="eyebrow">{day.name}</span>
       </div>
 
