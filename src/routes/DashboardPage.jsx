@@ -54,66 +54,105 @@ export default function DashboardPage() {
   const [setsLoggedByDay, setSetsLoggedByDay] = useState({})
   const [status, setStatus] = useState('loading')
   const [selectedDate, setSelectedDate] = useState(() => new Date())
+  const [justReady, setJustReady] = useState(false)
+  const [retryStatus, setRetryStatus] = useState('idle')
+
+  async function loadProgram() {
+    const { data: programData } = await supabase
+      .from('user_programs')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    setProgram(programData)
+
+    if (programData) {
+      const { data: logs } = await supabase
+        .from('workout_logs')
+        .select('week_number, day_number, performed_at, workout_log_sets(exercise_id)')
+        .eq('user_id', user.id)
+        .eq('program_id', programData.id)
+        .order('performed_at', { ascending: false })
+
+      const latestByDay = {}
+      for (const log of logs ?? []) {
+        const key = `${log.week_number}-${log.day_number}`
+        if (!(key in latestByDay)) {
+          latestByDay[key] = log.workout_log_sets.length
+        }
+      }
+      setSetsLoggedByDay(latestByDay)
+    }
+
+    return programData
+  }
 
   useEffect(() => {
     async function load() {
-      const [{ data: programData }, { data: profileData }, { data: goalData }, { count }, { data: measurement }] =
-        await Promise.all([
-          supabase
-            .from('user_programs')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase.from('user_training_profile').select('*').eq('user_id', user.id).maybeSingle(),
-          supabase
-            .from('goals')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('is_active', true)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase.from('workout_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-          supabase
-            .from('body_measurements')
-            .select('weight_kg')
-            .eq('user_id', user.id)
-            .order('measured_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ])
+      const [{ data: profileData }, { data: goalData }, { count }, { data: measurement }] = await Promise.all([
+        supabase.from('user_training_profile').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase
+          .from('goals')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase.from('workout_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase
+          .from('body_measurements')
+          .select('weight_kg')
+          .eq('user_id', user.id)
+          .order('measured_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
 
-      setProgram(programData)
       setTrainingProfile(profileData)
       setGoal(goalData)
       setSessionCount(count ?? 0)
       setLatestWeight(measurement?.weight_kg ?? null)
 
-      if (programData) {
-        const { data: logs } = await supabase
-          .from('workout_logs')
-          .select('week_number, day_number, performed_at, workout_log_sets(exercise_id)')
-          .eq('user_id', user.id)
-          .eq('program_id', programData.id)
-          .order('performed_at', { ascending: false })
-
-        const latestByDay = {}
-        for (const log of logs ?? []) {
-          const key = `${log.week_number}-${log.day_number}`
-          if (!(key in latestByDay)) {
-            latestByDay[key] = log.workout_log_sets.length
-          }
-        }
-        setSetsLoggedByDay(latestByDay)
-      }
-
+      await loadProgram()
       setStatus('idle')
     }
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id])
+
+  useEffect(() => {
+    if (!program || program.status !== 'generating') return undefined
+
+    const interval = setInterval(async () => {
+      const updated = await loadProgram()
+      if (updated?.status === 'active') {
+        setJustReady(true)
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [program?.id, program?.status])
+
+  async function handleRetryGeneration() {
+    setRetryStatus('loading')
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    const response = await fetch('/api/generate-program', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    const body = await response.json().catch(() => ({}))
+    setRetryStatus('idle')
+    if (response.ok && body.program) {
+      setJustReady(false)
+      await loadProgram()
+    }
+  }
 
   useEffect(() => {
     if (!user) return
@@ -165,6 +204,31 @@ export default function DashboardPage() {
       </p>
       <h1>Tableau de bord</h1>
 
+      {program?.status === 'generating' && (
+        <p className="situation-disclaimer">
+          Ton programme est en cours de génération — ça prend généralement moins d'une minute. Reste sur
+          l'application ou reviens plus tard, un message t'avertira ici dès qu'il sera prêt.
+        </p>
+      )}
+
+      {justReady && (
+        <p className="generation-ready-banner">
+          🎉 Ton programme est prêt !
+          <button type="button" className="link-button" onClick={() => setJustReady(false)}>
+            Fermer
+          </button>
+        </p>
+      )}
+
+      {program?.status === 'failed' && (
+        <p role="alert">
+          La génération de ton programme a échoué{program.error_message ? ` : ${program.error_message}` : '.'}{' '}
+          <button type="button" onClick={handleRetryGeneration} disabled={retryStatus === 'loading'}>
+            {retryStatus === 'loading' ? 'Nouvelle tentative...' : 'Réessayer'}
+          </button>
+        </p>
+      )}
+
       {SITUATION_LABELS[trainingProfile?.special_situation] && (
         <p className="situation-disclaimer">
           Programme adapté à ta situation ({SITUATION_LABELS[trainingProfile.special_situation]}) — ça reste une
@@ -197,14 +261,20 @@ export default function DashboardPage() {
 
       <Link
         to={
-          program && selectedSession
+          program?.status === 'active' && selectedSession
             ? `/session/${program.current_week}/${selectedSession.day_number}`
             : '/program'
         }
         className="card session-of-day"
       >
-        <Icon name={selectedSession ? 'bolt' : 'stretch'} size={26} />
-        {program && selectedSession ? (
+        <Icon name={program?.status === 'generating' ? 'bolt' : selectedSession ? 'bolt' : 'stretch'} size={26} />
+        {program?.status === 'generating' ? (
+          <>
+            <span className="eyebrow">Génération en cours</span>
+            <h3>Ton programme arrive</h3>
+            <p>Ça prend généralement moins d'une minute.</p>
+          </>
+        ) : program?.status === 'active' && selectedSession ? (
           <>
             <span className="eyebrow">
               {selectedIsToday ? "Aujourd'hui" : dayLabelFormatter.format(selectedDate)}

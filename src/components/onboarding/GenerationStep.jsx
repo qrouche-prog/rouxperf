@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
-const POLL_INTERVAL_MS = 3000
-const POLL_TIMEOUT_MS = 3 * 60 * 1000
-const PROGRESS_TICK_MS = 400
+const PROGRESS_TICK_MS = 150
+const PROGRESS_STEP = 4
 const PROGRESS_CAP = 95
 
 export default function GenerationStep({ onBack }) {
@@ -14,21 +13,7 @@ export default function GenerationStep({ onBack }) {
   const [status, setStatus] = useState('idle')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
-  const pollTimer = useRef(null)
   const progressTimer = useRef(null)
-
-  function stopPolling() {
-    if (pollTimer.current) {
-      clearTimeout(pollTimer.current)
-      pollTimer.current = null
-    }
-  }
-
-  function startProgressAnimation() {
-    progressTimer.current = setInterval(() => {
-      setProgress((p) => p + (PROGRESS_CAP - p) * 0.03)
-    }, PROGRESS_TICK_MS)
-  }
 
   function stopProgressAnimation() {
     if (progressTimer.current) {
@@ -38,48 +23,35 @@ export default function GenerationStep({ onBack }) {
   }
 
   function resetToIdle(message) {
-    stopPolling()
     stopProgressAnimation()
     setProgress(0)
     setStatus('idle')
     setError(message)
   }
 
-  async function finishSuccess() {
-    stopPolling()
+  async function proceedToDashboard() {
     stopProgressAnimation()
-    setProgress(100)
     await refreshProfile()
-    setTimeout(() => navigate('/dashboard', { replace: true }), 400)
+    navigate('/dashboard', { replace: true })
   }
 
-  function pollProgram(programId, startedAt) {
-    pollTimer.current = setTimeout(async () => {
-      const { data: program } = await supabase
-        .from('user_programs')
-        .select('status, error_message')
-        .eq('id', programId)
-        .maybeSingle()
-
-      if (program?.status === 'active') {
-        await finishSuccess()
-        return
-      }
-
-      if (program?.status === 'failed') {
-        resetToIdle(program.error_message ?? 'La génération a échoué. Réessaie.')
-        return
-      }
-
-      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
-        resetToIdle(
-          "La génération prend plus longtemps que prévu. Retourne sur la page Programme dans quelques instants, elle devrait apparaître."
-        )
-        return
-      }
-
-      pollProgram(programId, startedAt)
-    }, POLL_INTERVAL_MS)
+  function startProgressAnimation() {
+    progressTimer.current = setInterval(() => {
+      setProgress((p) => {
+        const next = Math.min(PROGRESS_CAP, p + PROGRESS_STEP)
+        if (next >= PROGRESS_CAP) {
+          // Ne pas attendre la fin réelle de la génération (30-90s) : on
+          // relâche l'utilisateur sur le tableau de bord dès que la barre
+          // atteint 95%, pour qu'il ne reste pas bloqué sur cet écran et ne
+          // soit pas tenté de rafraîchir/relancer une génération en double
+          // pendant que celle-ci tourne encore en arrière-plan. Le tableau
+          // de bord prend le relais pour prévenir quand c'est vraiment prêt.
+          stopProgressAnimation()
+          proceedToDashboard()
+        }
+        return next
+      })
+    }, PROGRESS_TICK_MS)
   }
 
   async function handleGenerate() {
@@ -114,11 +86,13 @@ export default function GenerationStep({ onBack }) {
     const body = await response.json()
 
     if (body.program?.status === 'active') {
-      await finishSuccess()
-      return
+      // Mode mock : déjà prêt, pas besoin d'attendre l'animation.
+      stopProgressAnimation()
+      setProgress(100)
+      setTimeout(() => proceedToDashboard(), 400)
     }
-
-    pollProgram(body.program.id, Date.now())
+    // Sinon (status "generating"), l'animation déjà lancée continue seule
+    // jusqu'à 95% puis redirige — la génération se termine en arrière-plan.
   }
 
   const isLoading = status === 'loading'
@@ -127,8 +101,8 @@ export default function GenerationStep({ onBack }) {
     <div>
       <h2>Ton profil est complet</h2>
       <p>
-        Génère maintenant ton programme d'entraînement personnalisé. Ça prend généralement moins d'une minute
-        (le temps que l'IA construise un programme complet et cohérent).
+        Génère maintenant ton programme d'entraînement personnalisé. Tu seras redirigé vers ton tableau de bord dans
+        quelques secondes — un message t'avertira là-bas dès que ton programme sera prêt.
       </p>
 
       {isLoading && (
@@ -136,7 +110,7 @@ export default function GenerationStep({ onBack }) {
           <div className="generation-progress-bar">
             <div className="generation-progress-fill" style={{ width: `${Math.min(progress, 100)}%` }} />
           </div>
-          <p className="eyebrow">Génération en cours, ne quitte pas cette page...</p>
+          <p className="eyebrow">Génération en cours...</p>
         </div>
       )}
 

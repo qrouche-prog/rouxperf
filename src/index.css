@@ -1433,6 +1433,24 @@ a.session-start-btn {
   color: var(--iron);
 }
 
+.generation-ready-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--flame-2);
+  color: var(--ember-ink);
+  border-radius: 4px;
+  padding: 12px 14px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.generation-ready-banner .link-button {
+  color: var(--ember-ink);
+  text-decoration: underline;
+}
+
 .focus-schedule-list {
   display: flex;
   flex-direction: column;

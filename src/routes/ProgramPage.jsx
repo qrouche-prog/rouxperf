@@ -35,7 +35,6 @@ export default function ProgramPage() {
             .from('user_programs')
             .select('*')
             .eq('user_id', user.id)
-            .eq('status', 'active')
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
@@ -55,7 +54,7 @@ export default function ProgramPage() {
       setSpecialSituation(trainingProfile?.special_situation ?? null)
       setExercisesById(Object.fromEntries((exercises ?? []).map((exercise) => [exercise.id, exercise])))
 
-      if (programData) {
+      if (programData?.structure) {
         const totalWeeks = programData.structure.weeks.length
         setWeekIndex(Math.min(Math.max(programData.current_week - 1, 0), totalWeeks - 1))
 
@@ -105,7 +104,29 @@ export default function ProgramPage() {
     )
   }
 
-  if (!program) {
+  if (program?.status === 'generating') {
+    return (
+      <main>
+        <TopNav />
+        <p>Ton programme est en cours de génération — ça prend généralement moins d'une minute.</p>
+        <Link to="/dashboard">Retour au tableau de bord</Link>
+      </main>
+    )
+  }
+
+  if (program?.status === 'failed') {
+    return (
+      <main>
+        <TopNav />
+        <p role="alert">
+          La génération de ton programme a échoué{program.error_message ? ` : ${program.error_message}` : '.'}
+        </p>
+        <Link to="/dashboard">Retour au tableau de bord</Link>
+      </main>
+    )
+  }
+
+  if (!program?.structure) {
     return (
       <main>
         <TopNav />

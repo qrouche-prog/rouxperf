@@ -149,6 +149,12 @@ export default async function handler(req, res) {
     return
   }
 
+  // Marque l'onboarding comme terminé dès le déclenchement plutôt qu'à la fin
+  // de la génération réelle : l'utilisateur a fini son profil, la génération
+  // n'est qu'une étape asynchrone en arrière-plan — pas de raison de le
+  // bloquer sur l'écran de génération en attendant qu'elle se termine.
+  await supabase.from('profiles').update({ onboarding_completed_at: new Date().toISOString() }).eq('user_id', user.id)
+
   try {
     const workerResponse = await fetch(`${process.env.VITE_SUPABASE_URL}/functions/v1/generate-program-worker`, {
       method: 'POST',
