@@ -19,6 +19,10 @@
   --flame-3: #eaff70;
   --flame-gradient: linear-gradient(135deg, var(--flame-1) 0%, var(--flame-2) 55%, var(--flame-3) 100%);
   --moss: #d6ff23;
+  --badge-max-bg: #3a1a12;
+  --badge-max-ink: #ff8a5c;
+  --badge-mid-bg: #12263a;
+  --badge-mid-ink: #6cb6ff;
 
   --chart-surface: var(--card);
   --chart-line: var(--ember);
@@ -644,6 +648,97 @@ a.btn-primary {
   padding: 8px 14px;
   font-size: 0.75rem;
   white-space: nowrap;
+}
+
+/* --- Preview card (mise en page reprise du site marketing) --- */
+
+.preview-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.preview-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+
+.preview-row:last-child {
+  border-bottom: none;
+}
+
+.preview-row:hover {
+  background: rgba(245, 245, 240, 0.04);
+}
+
+.preview-day {
+  width: 76px;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--iron);
+}
+
+.preview-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-info strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.preview-info span {
+  font-size: 0.78rem;
+  color: var(--iron);
+}
+
+.badge {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  color: var(--iron);
+}
+
+.badge-high {
+  background: rgba(214, 255, 35, 0.12);
+  color: var(--flame-2);
+  border-color: transparent;
+}
+
+.badge-max {
+  background: var(--badge-max-bg);
+  color: var(--badge-max-ink);
+  border-color: transparent;
+}
+
+.badge-mid {
+  background: var(--badge-mid-bg);
+  color: var(--badge-mid-ink);
+  border-color: transparent;
 }
 
 .goal-card {
