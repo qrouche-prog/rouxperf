@@ -258,8 +258,8 @@ a.btn-primary {
 .field-label-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 6px;
 }
 
 .field-label-row label {
@@ -1749,6 +1749,92 @@ a.session-start-btn {
 .sport-category > .eyebrow {
   display: block;
   margin-bottom: 6px;
+}
+
+.segmented-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.segmented-tag {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--iron);
+}
+
+.segmented-option-active .segmented-tag {
+  color: var(--flame-2);
+}
+
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.chip {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 14px;
+  color: var(--iron);
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.chip-active {
+  border-color: var(--flame-2);
+  color: var(--flame-2);
+}
+
+.running-detail {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 10px;
+}
+
+.sport-accordion {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.sport-accordion-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: var(--card);
+  border: none;
+  padding: 12px 14px;
+  color: var(--ink);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.sport-accordion-count {
+  color: var(--flame-2);
+}
+
+.sport-accordion-chevron {
+  color: var(--iron);
+  font-size: 0.7rem;
+}
+
+.sport-accordion .card-grid {
+  padding: 0 14px 14px;
+}
+
+.sport-other-label {
+  margin: 16px 0 6px;
 }
 
 .select-card {

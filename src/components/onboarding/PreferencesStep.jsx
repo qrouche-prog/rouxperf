@@ -153,6 +153,13 @@ export default function PreferencesStep({ onNext, onBack, initial, submitLabel =
         ))}
       </fieldset>
 
+      {sameDayCombining !== 'never' && preferredDays.length > 0 && total > preferredDays.length && (
+        <p className="situation-disclaimer">
+          ⚠️ Tu as {total} séance(s) par semaine pour seulement {preferredDays.length} jour(s) coché(s) — certains
+          jours auront donc deux séances (une le matin, une le soir).
+        </p>
+      )}
+
       <fieldset>
         <legend>Deux séances le même jour ?</legend>
         <div role="radiogroup" aria-label="Deux séances le même jour">
@@ -172,12 +179,13 @@ export default function PreferencesStep({ onNext, onBack, initial, submitLabel =
         </div>
       </fieldset>
 
-      <label htmlFor="injuriesLimitations">Blessures / limitations (optionnel)</label>
+      <label htmlFor="injuriesLimitations">Informations supplémentaires (optionnel)</label>
       <textarea
         id="injuriesLimitations"
         value={injuriesLimitations}
         onChange={(e) => setInjuriesLimitations(e.target.value)}
         rows={3}
+        placeholder="Blessures, limitations, contraintes d'horaire, préférences d'exercices… tout ce qui peut aider à personnaliser ton programme."
       />
 
       {error && <p role="alert">{error}</p>}

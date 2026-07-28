@@ -33,6 +33,7 @@ const EVENT_GROUPS = [
       { value: '10km', label: '10 km', icon: 'run' },
       { value: 'semi_marathon', label: 'Semi-marathon', icon: 'run' },
       { value: 'marathon', label: 'Marathon', icon: 'run' },
+      { value: 'trail', label: 'Trail', icon: 'run' },
     ],
   },
   {
@@ -46,6 +47,13 @@ const EVENT_GROUPS = [
 ]
 
 const NONE_EVENT = { value: 'none', label: "Aucune pour l'instant", icon: 'dash' }
+
+const RUNNING_QUALITIES = [
+  { value: 'speed', label: 'Vitesse' },
+  { value: 'endurance', label: 'Endurance' },
+  { value: 'vma', label: 'VMA' },
+  { value: 'elevation', label: 'Dénivelé / côtes' },
+]
 
 const SPORT_GROUPS = [
   {
@@ -154,12 +162,38 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
   })
   const [events, setEvents] = useState(initial?.upcoming_events ?? [])
   const [eventDate, setEventDate] = useState(initial?.event_date ?? '')
+  const [trailKm, setTrailKm] = useState(initial?.event_details?.trail_km ?? '')
   const [targetSports, setTargetSports] = useState(initial?.target_sports ?? [])
   const [otherSportNotes, setOtherSportNotes] = useState(initial?.other_sport_notes ?? '')
+  const [openCategories, setOpenCategories] = useState(() => {
+    const open = {}
+    for (const group of SPORT_GROUPS) {
+      if (group.options.some((o) => (initial?.target_sports ?? []).includes(o.value))) {
+        open[group.category] = true
+      }
+    }
+    return open
+  })
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
 
   const hasEvent = events.length > 0 && !events.includes('none')
+  const hasTrail = events.includes('trail')
+
+  function toggleCategory(category) {
+    setOpenCategories((current) => ({ ...current, [category]: !current[category] }))
+  }
+
+  function toggleRunningQuality(quality) {
+    setFocusAreaPreferences((prefs) => {
+      const running = prefs.running ?? { frequency: 2, mode: 'separate' }
+      const qualities = running.qualities ?? []
+      const nextQualities = qualities.includes(quality)
+        ? qualities.filter((q) => q !== quality)
+        : [...qualities, quality]
+      return { ...prefs, running: { ...running, qualities: nextQualities } }
+    })
+  }
 
   function toggleFocusArea(value) {
     setFocusAreas((current) => {
@@ -195,6 +229,11 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
       return
     }
 
+    if (events.length === 0) {
+      setError("Sélectionne une compétition ou « Aucune pour l'instant » pour continuer.")
+      return
+    }
+
     setStatus('loading')
     const { error: upsertError } = await supabase.from('user_training_profile').upsert(
       {
@@ -203,6 +242,7 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
         focus_area_preferences: focusAreaPreferences,
         upcoming_events: events,
         event_date: hasEvent && eventDate ? eventDate : null,
+        event_details: hasTrail && trailKm ? { trail_km: Number(trailKm) } : null,
         target_sports: targetSports,
         other_sport_notes: otherSportNotes.trim() || null,
       },
@@ -282,6 +322,43 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
                   </label>
                 ))}
               </div>
+
+              {area === 'running' && (
+                <div className="running-detail onboarding-reveal">
+                  <label>Qualités à améliorer</label>
+                  <div className="chip-group" role="group" aria-label="Qualités de course à améliorer">
+                    {RUNNING_QUALITIES.map((q) => {
+                      const active = (pref.qualities ?? []).includes(q.value)
+                      return (
+                        <button
+                          key={q.value}
+                          type="button"
+                          className={`chip${active ? ' chip-active' : ''}`}
+                          aria-pressed={active}
+                          onClick={() => toggleRunningQuality(q.value)}
+                        >
+                          {q.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <label htmlFor="weekly-km">Kilométrage moyen visé par semaine (km)</label>
+                  <input
+                    id="weekly-km"
+                    type="number"
+                    min="0"
+                    max="300"
+                    value={pref.weekly_km ?? ''}
+                    onChange={(e) =>
+                      updateFocusAreaPreference('running', {
+                        weekly_km: e.target.value ? Number(e.target.value) : null,
+                      })
+                    }
+                    placeholder="ex. 30"
+                  />
+                </div>
+              )}
             </div>
           )
         })}
@@ -290,6 +367,11 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
       {showCompetition && (
         <div className="onboarding-reveal">
           <label>Compétition à venir</label>
+          {events.length === 0 && (
+            <p className="situation-disclaimer">
+              Sélectionne au moins une option — ou « Aucune pour l'instant » — pour aller plus loin.
+            </p>
+          )}
           {EVENT_GROUPS.map((group) => (
             <div key={group.category} className="sport-category">
               <span className="eyebrow">{group.category}</span>
@@ -309,6 +391,21 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
             />
           </div>
 
+          {hasTrail && (
+            <div className="onboarding-reveal">
+              <label htmlFor="trailKm">Distance du trail (km)</label>
+              <input
+                id="trailKm"
+                type="number"
+                min="0"
+                max="500"
+                value={trailKm}
+                onChange={(e) => setTrailKm(e.target.value)}
+                placeholder="ex. 21"
+              />
+            </div>
+          )}
+
           {hasEvent && (
             <div className="onboarding-reveal">
               <label htmlFor="eventDate">Date de la compétition (optionnel)</label>
@@ -321,26 +418,43 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
       {showSports && (
         <div className="onboarding-reveal">
           <label>Sport(s) pour lesquels progresser (optionnel)</label>
-          {SPORT_GROUPS.map((group) => (
-            <div key={group.category} className="sport-category">
-              <span className="eyebrow">{group.category}</span>
-              <SelectableCardGrid
-                options={group.options}
-                selected={targetSports}
-                onToggle={(value) => setTargetSports((current) => toggleValue(current, value))}
-              />
-            </div>
-          ))}
+          {SPORT_GROUPS.map((group) => {
+            const count = group.options.filter((o) => targetSports.includes(o.value)).length
+            const open = Boolean(openCategories[group.category])
+            return (
+              <div key={group.category} className="sport-accordion">
+                <button
+                  type="button"
+                  className="sport-accordion-summary"
+                  onClick={() => toggleCategory(group.category)}
+                  aria-expanded={open}
+                >
+                  <span>
+                    {group.category}
+                    {count > 0 && <span className="sport-accordion-count"> · {count}</span>}
+                  </span>
+                  <span className="sport-accordion-chevron">{open ? '▲' : '▼'}</span>
+                </button>
+                {open && (
+                  <div className="onboarding-reveal">
+                    <SelectableCardGrid
+                      options={group.options}
+                      selected={targetSports}
+                      onToggle={(value) => setTargetSports((current) => toggleValue(current, value))}
+                    />
+                  </div>
+                )}
+              </div>
+            )
+          })}
 
-          <label htmlFor="otherSportNotes">
-            Un autre sport, une discipline précise ou une information à préciser (optionnel)
-          </label>
+          <p className="sport-other-label">Un autre sport, une discipline précise ou une information à préciser ?</p>
           <textarea
             id="otherSportNotes"
             value={otherSportNotes}
             onChange={(e) => setOtherSportNotes(e.target.value)}
             rows={3}
-            placeholder="Ex. escrime, water-polo, danse, ou toute précision utile sur tes objectifs"
+            placeholder="Ex. escrime, water-polo, danse, ou toute précision utile sur tes objectifs (optionnel)"
           />
         </div>
       )}
@@ -353,7 +467,10 @@ export default function SportGoalsStep({ onNext, onBack, initial, submitLabel = 
             Retour
           </button>
         )}
-        <button type="submit" disabled={status === 'loading' || focusAreas.length === 0}>
+        <button
+          type="submit"
+          disabled={status === 'loading' || focusAreas.length === 0 || events.length === 0}
+        >
           {status === 'loading' ? 'Enregistrement...' : submitLabel}
         </button>
       </div>

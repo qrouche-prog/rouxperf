@@ -449,6 +449,31 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
         ? `\n\nPrécisions libres de l'utilisateur sur ses sports/objectifs : ${trainingProfile.other_sport_notes}`
         : ''
 
+      const runningPref = focusAreaPreferences.running
+      const RUNNING_QUALITY_LABELS: Record<string, string> = {
+        speed: 'vitesse',
+        endurance: 'endurance',
+        vma: 'VMA',
+        elevation: 'dénivelé / côtes',
+      }
+      const runningSection = runningPref
+        ? (() => {
+            const parts: string[] = []
+            const qualities = (runningPref.qualities ?? []).map((q: string) => RUNNING_QUALITY_LABELS[q] ?? q)
+            if (qualities.length > 0) {
+              parts.push(`qualités de course à développer en priorité : ${qualities.join(', ')}`)
+            }
+            if (runningPref.weekly_km) {
+              parts.push(`kilométrage hebdomadaire moyen visé : ${runningPref.weekly_km} km (construis des séances de course cohérentes avec ce volume : fractionné/VMA, seuil, sorties longues, récupération)`)
+            }
+            return parts.length > 0 ? `\n\nCourse à pied — ${parts.join(' ; ')}.` : ''
+          })()
+        : ''
+
+      const trailSection = trainingProfile.event_details?.trail_km
+        ? `\n\nL'utilisateur prépare un trail de ${trainingProfile.event_details.trail_km} km — intègre du travail spécifique (dénivelé, endurance, sorties longues) adapté à cette distance.`
+        : ''
+
       const durationMonths = goal.program_duration_months === 3 ? 3 : 1
       const blocks = durationMonths === 3 ? 3 : 1
       const durationSection =
@@ -463,7 +488,7 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
       const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${totalSessions} séance(s) par semaine au total, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
 Profil utilisateur :
-${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${daySection}${durationSection}${targetSection}${situationSection}${otherSportSection}
+${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${otherSportSection}
 
 Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
 ${JSON.stringify(

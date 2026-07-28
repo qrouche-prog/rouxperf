@@ -33,3 +33,8 @@ supabase/.branches
 
 .vercel
 .env*
+
+# Supabase CLI local state
+.temp/
+supabase/.temp/
+supabase/supabase/
