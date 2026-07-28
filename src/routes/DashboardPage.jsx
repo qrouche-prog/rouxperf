@@ -22,6 +22,7 @@ const GOAL_LABELS = {
   endurance: 'Endurance',
   general_fitness: 'Forme générale',
   recomposition: 'Recomposition corporelle',
+  hybrid: 'Hybride',
 }
 
 function isoWeekday(date) {

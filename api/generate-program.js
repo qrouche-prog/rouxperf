@@ -61,14 +61,18 @@ function assignDaySlots(totalSessions, preferredDays) {
   }))
 }
 
-function buildMockProgram(availableExercises, trainingProfile) {
+function buildMockProgram(availableExercises, trainingProfile, durationMonths = 1) {
   const focusAreaPreferences = trainingProfile.focus_area_preferences ?? { strength: { frequency: 3 } }
   const modalities = buildModalityList(focusAreaPreferences)
   const daySlots = assignDaySlots(modalities.length, trainingProfile.preferred_days ?? [])
   const exercisesPerDay = Math.min(4, availableExercises.length)
+  const blocks = durationMonths === 3 ? 3 : 1
+  const totalWeeks = blocks * WEEKS_COUNT
   const weeks = []
 
-  for (let weekNumber = 1; weekNumber <= WEEKS_COUNT; weekNumber += 1) {
+  for (let weekNumber = 1; weekNumber <= totalWeeks; weekNumber += 1) {
+    const block = Math.floor((weekNumber - 1) / WEEKS_COUNT)
+    const blockNote = block > 0 ? ` Bloc ${block + 1} : augmente la charge d'environ ${block * 5}%.` : ''
     const days = daySlots.map((slotInfo, index) => {
       const modality = modalities[slotInfo.sessionIndex]
       const exercises = []
@@ -79,7 +83,7 @@ function buildMockProgram(availableExercises, trainingProfile) {
           sets: 3,
           reps: '8-12',
           rest_seconds: 90,
-          notes: `Programme d'exemple (mode mock, semaine ${weekNumber}) — pas de vraie génération IA.`,
+          notes: `Programme d'exemple (mode mock, semaine ${weekNumber}) — pas de vraie génération IA.${blockNote}`,
         })
       }
       return {
@@ -162,7 +166,7 @@ export default async function handler(req, res) {
 
   // Mode mock : génération instantanée en local, pas d'appel IA payant.
   if (process.env.MOCK_PROGRAM_GENERATION === 'true') {
-    const structure = buildMockProgram(availableExercises, trainingProfile)
+    const structure = buildMockProgram(availableExercises, trainingProfile, goal.program_duration_months ?? 1)
     const validationError = validateProgramStructure(structure, new Set(availableExercises.map((e) => e.id)))
     if (validationError) {
       res.status(500).json({ error: `Programme mock invalide : ${validationError}` })

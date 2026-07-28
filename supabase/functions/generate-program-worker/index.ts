@@ -163,6 +163,31 @@ function validateProgramStructure(
   return null
 }
 
+// Répète un bloc (mésocycle) de N semaines `blocks` fois pour couvrir la durée
+// choisie, en décalant les week_number et en ajoutant une consigne de
+// progression de charge sur les blocs suivants.
+function expandBlocks(baseStructure: any, blocks: number): any {
+  if (blocks <= 1) return baseStructure
+  const baseWeeks = baseStructure.weeks
+  const weeks: any[] = []
+  for (let b = 0; b < blocks; b += 1) {
+    for (const w of baseWeeks) {
+      const cloned = JSON.parse(JSON.stringify(w))
+      cloned.week_number = b * baseWeeks.length + w.week_number
+      if (b > 0) {
+        const pct = b * 5
+        for (const day of cloned.days) {
+          for (const ex of day.exercises) {
+            ex.notes = `Bloc ${b + 1} : augmente la charge d'environ ${pct}% par rapport au 1er bloc (ou +1-2 répétitions si tu ne peux pas charger davantage). ${ex.notes ?? ''}`.trim()
+          }
+        }
+      }
+      weeks.push(cloned)
+    }
+  }
+  return { ...baseStructure, weeks }
+}
+
 const SYSTEM_PROMPT = `Tu es un coach sportif expérimenté qui conçoit des programmes d'entraînement personnalisés, sûrs et progressifs.
 Respecte strictement les blessures et limitations indiquées par l'utilisateur : si un mouvement pourrait les aggraver, ne le sélectionne pas.
 Adapte le volume, l'intensité et la complexité technique au niveau d'expérience indiqué.
@@ -424,10 +449,21 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
         ? `\n\nPrécisions libres de l'utilisateur sur ses sports/objectifs : ${trainingProfile.other_sport_notes}`
         : ''
 
+      const durationMonths = goal.program_duration_months === 3 ? 3 : 1
+      const blocks = durationMonths === 3 ? 3 : 1
+      const durationSection =
+        blocks > 1
+          ? `\n\nCe bloc de ${WEEKS_COUNT} semaines est un mésocycle qui sera répété ${blocks} fois pour couvrir ${durationMonths} mois d'entraînement, avec une montée progressive de la charge à chaque répétition (la répétition et l'augmentation entre blocs sont gérées automatiquement après ta génération). Conçois donc une progression cohérente et logique à l'intérieur de ces 4 semaines.`
+          : ''
+
+      const targetSection = goal.target_date
+        ? `\n\nL'utilisateur vise une échéance au ${goal.target_date}${goal.target_weight_kg ? ` avec un poids cible de ${goal.target_weight_kg} kg` : ''} — oriente la progression et l'intensité pour l'amener au mieux à cette date.`
+        : ''
+
       const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${totalSessions} séance(s) par semaine au total, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
 Profil utilisateur :
-${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${daySection}${situationSection}${otherSportSection}
+${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${daySection}${durationSection}${targetSection}${situationSection}${otherSportSection}
 
 Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
 ${JSON.stringify(
@@ -492,6 +528,10 @@ ${JSON.stringify(
       if (finalValidationError) {
         throw new Error(`Programme invalide après résolution des exercices personnalisés : ${finalValidationError}`)
       }
+
+      // Répète le mésocycle de 4 semaines pour couvrir la durée choisie, avec
+      // une directive de progression de charge à chaque bloc.
+      structure = expandBlocks(structure, blocks)
 
       await supabase
         .from('user_programs')

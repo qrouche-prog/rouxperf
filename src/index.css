@@ -1683,6 +1683,74 @@ a.session-start-btn {
   gap: 6px;
 }
 
+/* --- Onboarding : dévoilement progressif & contrôles --- */
+
+@keyframes onboarding-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.onboarding-reveal {
+  animation: onboarding-reveal-in 0.35s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-reveal {
+    animation: none;
+  }
+}
+
+.measurements-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-weight: 400;
+  margin: 6px 0 4px;
+}
+
+.measurements-toggle input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.segmented {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.segmented-option {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  color: var(--iron);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.segmented-option-active {
+  border-color: var(--flame-2);
+  color: var(--flame-2);
+}
+
+.sport-category {
+  margin-bottom: 14px;
+}
+
+.sport-category > .eyebrow {
+  display: block;
+  margin-bottom: 6px;
+}
+
 .select-card {
   display: flex;
   flex-direction: column;

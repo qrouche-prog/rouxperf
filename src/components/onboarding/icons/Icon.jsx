@@ -153,6 +153,50 @@ const PATHS = {
       <path d="M9 12l2 2 4-4" />
     </>
   ),
+  sport: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3v18M3 12h18" />
+    </>
+  ),
+  boxing: (
+    <>
+      <path d="M7 8a3 3 0 0 1 3-3h3a4 4 0 0 1 4 4v2a3 3 0 0 1-3 3H9a2 2 0 0 1-2-2V8Z" />
+      <path d="M7 10H5a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h2M10 16v3h5v-3" />
+    </>
+  ),
+  ski: (
+    <>
+      <circle cx="14" cy="4.5" r="1.6" />
+      <path d="M12 9l2-1 2 2 3 1M4 20l16-5M5 21l15-4.5" />
+      <path d="M13 9l-1 4 3 3" />
+    </>
+  ),
+  skating: (
+    <>
+      <circle cx="14" cy="4.5" r="1.6" />
+      <path d="M13 8l-2 4 3 2-1 5M6 20h4M8 21h4" />
+    </>
+  ),
+  archery: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="M12 12 21 3M18 3h3v3" />
+    </>
+  ),
+  gymnastics: (
+    <>
+      <circle cx="12" cy="4.5" r="1.6" />
+      <path d="M4 8h16M8 8l4 5 4-5M12 13v4l-3 4M12 17l3 4" />
+    </>
+  ),
+  dance: (
+    <>
+      <circle cx="13" cy="4.5" r="1.6" />
+      <path d="M13 7l-2 5 4 2M11 12l-3 3 1 5M15 14l2 6M6 9l5 1" />
+    </>
+  ),
 }
 
 export default function Icon({ name, size = 28 }) {

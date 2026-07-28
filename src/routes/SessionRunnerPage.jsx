@@ -63,6 +63,7 @@ export default function SessionRunnerPage() {
   const [submitStatus, setSubmitStatus] = useState('idle')
   const [submitError, setSubmitError] = useState(null)
   const [finalPercent, setFinalPercent] = useState(null)
+  const [carryoverByExercise, setCarryoverByExercise] = useState({})
 
   useEffect(() => {
     async function load() {
@@ -110,6 +111,30 @@ export default function SessionRunnerPage() {
               setPersistedKeys(new Set(Object.keys(resumedEntries)))
               setResumeLogId(existingLog.id)
             }
+          }
+
+          // Reprise des poids : dernière séance complétée d'une semaine
+          // antérieure pour le même jour, pour pré-remplir série par série.
+          const { data: priorLog } = await supabase
+            .from('workout_logs')
+            .select('week_number, workout_log_sets(exercise_id, set_number, weight_kg)')
+            .eq('user_id', user.id)
+            .eq('program_id', programData.id)
+            .eq('day_number', Number(dayNumber))
+            .lt('week_number', Number(weekNumber))
+            .order('week_number', { ascending: false })
+            .order('performed_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (priorLog) {
+            const map = {}
+            for (const set of priorLog.workout_log_sets) {
+              if (set.weight_kg == null) continue
+              map[set.exercise_id] = map[set.exercise_id] ?? {}
+              map[set.exercise_id][set.set_number] = set.weight_kg
+            }
+            setCarryoverByExercise(map)
           }
         }
       }
@@ -164,6 +189,12 @@ export default function SessionRunnerPage() {
   const doneSets = day.exercises.reduce((sum, exercise, i) => sum + countCompleted(entries, i, exercise.sets), 0)
   const overallPercent = totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 0
   const allDone = doneSets === totalSets
+
+  // Poids repris de la semaine précédente pour un exercice/série (set_number 1-based).
+  function carryoverFor(exerciseId, setIndex0) {
+    const w = carryoverByExercise[exerciseId]?.[setIndex0 + 1]
+    return w != null ? String(w) : ''
+  }
 
   async function finalizeSession() {
     setSubmitStatus('loading')
@@ -278,6 +309,11 @@ export default function SessionRunnerPage() {
         setSelectedExerciseIndex(null)
         return
       }
+
+      // Pré-remplit la série suivante avec le poids repris s'il existe, sinon
+      // le poids courant est conservé (report classique).
+      const nextCarry = carryoverFor(exercise.exercise_id, setIndexToFill + 1)
+      if (nextCarry) setWeight(nextCarry)
 
       const restSeconds = exercise.rest_seconds || 0
       if (restSeconds > 0) {
@@ -420,6 +456,7 @@ export default function SessionRunnerPage() {
               onClick={() => {
                 setSelectedExerciseIndex(i)
                 setPhase('exercise')
+                setWeight(carryoverFor(exercise.exercise_id, completed))
               }}
             >
               <span className={`session-status-badge${done ? ' session-status-done' : ''}`}>

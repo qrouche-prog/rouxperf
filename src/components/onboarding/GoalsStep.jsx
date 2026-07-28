@@ -9,6 +9,12 @@ const GOAL_TYPES = [
   { value: 'endurance', label: 'Endurance' },
   { value: 'general_fitness', label: 'Forme générale' },
   { value: 'recomposition', label: 'Recomposition corporelle' },
+  { value: 'hybrid', label: 'Hybride' },
+]
+
+const DURATIONS = [
+  { value: 1, label: '1 mois' },
+  { value: 3, label: '3 mois' },
 ]
 
 export default function GoalsStep({ onNext, onBack, initial, submitLabel = 'Continuer' }) {
@@ -16,6 +22,7 @@ export default function GoalsStep({ onNext, onBack, initial, submitLabel = 'Cont
   const [goalType, setGoalType] = useState(initial?.goal_type ?? '')
   const [targetWeightKg, setTargetWeightKg] = useState(initial?.target_weight_kg ?? '')
   const [targetDate, setTargetDate] = useState(initial?.target_date ?? '')
+  const [durationMonths, setDurationMonths] = useState(initial?.program_duration_months ?? 1)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState(null)
 
@@ -29,6 +36,26 @@ export default function GoalsStep({ onNext, onBack, initial, submitLabel = 'Cont
     }
 
     setStatus('loading')
+
+    const values = {
+      goal_type: goalType,
+      target_weight_kg: targetWeightKg ? Number(targetWeightKg) : null,
+      target_date: targetDate || null,
+      program_duration_months: Number(durationMonths),
+    }
+
+    // Idempotent : si un objectif actif existe déjà (retour arrière), on le met
+    // à jour au lieu d'empiler une nouvelle ligne à chaque passage.
+    if (initial?.id) {
+      const { error: updateError } = await supabase.from('goals').update(values).eq('id', initial.id)
+      setStatus('idle')
+      if (updateError) {
+        setError(updateError.message)
+        return
+      }
+      onNext()
+      return
+    }
 
     const { error: deactivateError } = await supabase
       .from('goals')
@@ -44,9 +71,7 @@ export default function GoalsStep({ onNext, onBack, initial, submitLabel = 'Cont
 
     const { error: insertError } = await supabase.from('goals').insert({
       user_id: user.id,
-      goal_type: goalType,
-      target_weight_kg: targetWeightKg ? Number(targetWeightKg) : null,
-      target_date: targetDate || null,
+      ...values,
       is_active: true,
     })
     setStatus('idle')
@@ -73,6 +98,21 @@ export default function GoalsStep({ onNext, onBack, initial, submitLabel = 'Cont
         ))}
       </select>
 
+      <label>Durée du programme</label>
+      <div className="segmented" role="radiogroup" aria-label="Durée du programme">
+        {DURATIONS.map((d) => (
+          <button
+            key={d.value}
+            type="button"
+            className={`segmented-option${durationMonths === d.value ? ' segmented-option-active' : ''}`}
+            aria-pressed={durationMonths === d.value}
+            onClick={() => setDurationMonths(d.value)}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
       <label htmlFor="targetWeightKg">Poids cible (kg, optionnel)</label>
       <input
         id="targetWeightKg"
@@ -84,6 +124,10 @@ export default function GoalsStep({ onNext, onBack, initial, submitLabel = 'Cont
 
       <label htmlFor="targetDate">Date cible (optionnel)</label>
       <input id="targetDate" type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
+
+      {targetDate && (
+        <p className="eyebrow">L'IA calera la progression de ton programme sur cette échéance.</p>
+      )}
 
       {error && <p role="alert">{error}</p>}
 
