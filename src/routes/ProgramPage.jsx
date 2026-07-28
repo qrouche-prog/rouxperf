@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { withResolvedDayOfWeek } from '../lib/programDays'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
@@ -13,18 +14,28 @@ const SITUATION_LABELS = {
 
 const WEEKDAY_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
-function daySlotLabel(day) {
+function mondayOf(dateLike) {
+  const d = new Date(dateLike)
+  const iso = d.getDay() === 0 ? 7 : d.getDay()
+  d.setDate(d.getDate() - (iso - 1))
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function dayLabel(day, date) {
   const weekday = WEEKDAY_FULL[day.day_of_week - 1]
-  if (!weekday) return null
-  if (day.slot === 'morning') return `${weekday} · matin`
-  if (day.slot === 'evening') return `${weekday} · soir`
-  return weekday
+  if (!weekday) return `Séance ${day.day_number}`
+  const base = date ? `${weekday} ${date.getDate()}` : weekday
+  if (day.slot === 'morning') return `${base} · matin`
+  if (day.slot === 'evening') return `${base} · soir`
+  return base
 }
 
 export default function ProgramPage() {
   const { user } = useAuth()
   const [program, setProgram] = useState(null)
   const [specialSituation, setSpecialSituation] = useState(null)
+  const [preferredDays, setPreferredDays] = useState([])
   const [setsLoggedByDay, setSetsLoggedByDay] = useState({})
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
@@ -42,7 +53,11 @@ export default function ProgramPage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase.from('user_training_profile').select('special_situation').eq('user_id', user.id).maybeSingle(),
+        supabase
+          .from('user_training_profile')
+          .select('special_situation, preferred_days')
+          .eq('user_id', user.id)
+          .maybeSingle(),
       ])
 
       if (cancelled) return
@@ -55,6 +70,7 @@ export default function ProgramPage() {
 
       setProgram(programData)
       setSpecialSituation(trainingProfile?.special_situation ?? null)
+      setPreferredDays(trainingProfile?.preferred_days ?? [])
 
       if (programData?.structure) {
         const totalWeeks = programData.structure.weeks.length
@@ -143,10 +159,18 @@ export default function ProgramPage() {
 
   const weeks = program.structure.weeks
   const week = weeks[weekIndex]
+  const week1Monday = mondayOf(program.created_at)
   const slotRank = (slot) => (slot === 'morning' ? 0 : slot === 'evening' ? 1 : 0)
-  const days = [...week.days].sort(
-    (a, b) => (a.day_of_week ?? 0) - (b.day_of_week ?? 0) || slotRank(a.slot) - slotRank(b.slot)
-  )
+  const days = withResolvedDayOfWeek(week.days, preferredDays)
+    .slice()
+    .sort((a, b) => (a.day_of_week ?? 0) - (b.day_of_week ?? 0) || slotRank(a.slot) - slotRank(b.slot))
+
+  function dayDate(day) {
+    if (!Number.isInteger(day.day_of_week)) return null
+    const d = new Date(week1Monday)
+    d.setDate(week1Monday.getDate() + (week.week_number - 1) * 7 + (day.day_of_week - 1))
+    return d
+  }
 
   function sessionPercent(day) {
     const totalSets = day.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
@@ -212,18 +236,18 @@ export default function ProgramPage() {
             <Link
               key={day.day_number}
               to={`/session/${week.week_number}/${day.day_number}`}
-              className="preview-row"
+              className="preview-row preview-row-stacked"
             >
-              <span className="preview-day">{daySlotLabel(day) ?? `Jour ${day.day_number}`}</span>
-              <span className="preview-info">
-                <strong>{day.name}</strong>
-                <span>
+              <span className="preview-day">{dayLabel(day, dayDate(day))}</span>
+              <strong className="preview-row-name">{day.name}</strong>
+              <span className="preview-row-foot">
+                <span className="preview-row-meta">
                   {day.exercises.length} exercice{day.exercises.length > 1 ? 's' : ''} · {totalSets} série
                   {totalSets > 1 ? 's' : ''}
                 </span>
-              </span>
-              <span className={`badge${isDone ? ' badge-high' : isStarted ? ' badge-mid' : ''}`}>
-                {isDone ? 'Terminée' : isStarted ? `${percent}%` : 'À faire'}
+                <span className={`badge${isDone ? ' badge-high' : isStarted ? ' badge-mid' : ''}`}>
+                  {isDone ? 'Terminée' : isStarted ? `${percent}%` : 'À faire'}
+                </span>
               </span>
             </Link>
           )

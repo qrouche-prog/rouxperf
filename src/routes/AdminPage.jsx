@@ -42,6 +42,7 @@ export default function AdminPage() {
   const [pendingRequests, setPendingRequests] = useState([])
   const [approvingId, setApprovingId] = useState(null)
   const [approveError, setApproveError] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -84,6 +85,35 @@ export default function AdminPage() {
       setApproveError(err.message)
     }
     setApprovingId(null)
+  }
+
+  async function handleDeleteUser(user) {
+    if (
+      !window.confirm(
+        `Supprimer définitivement ${user.full_name || user.email} ? Son compte, son programme et tous ses historiques seront perdus. Cette action est irréversible.`
+      )
+    ) {
+      return
+    }
+    setError(null)
+    setDeletingId(user.id)
+    try {
+      await authedFetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id }),
+      })
+      setUsers((current) => current.filter((u) => u.id !== user.id))
+      setPendingRequests((current) => current.filter((r) => r.user_id !== user.id))
+      if (selectedUser?.id === user.id) {
+        setSelectedUser(null)
+        setProgram(null)
+        setWeeks([])
+      }
+    } catch (err) {
+      setError(err.message)
+    }
+    setDeletingId(null)
   }
 
   async function openUser(user) {
@@ -252,7 +282,7 @@ export default function AdminPage() {
           <h2>Utilisateurs ({users.length})</h2>
           <ul className="admin-user-items">
             {users.map((u) => (
-              <li key={u.id}>
+              <li key={u.id} className="admin-user-row">
                 <button
                   type="button"
                   className={`admin-user-item${selectedUser?.id === u.id ? ' admin-user-item-active' : ''}`}
@@ -265,6 +295,18 @@ export default function AdminPage() {
                     {!u.onboarding_completed_at && ' · onboarding incomplet'}
                   </span>
                 </button>
+                {!u.is_admin && (
+                  <button
+                    type="button"
+                    className="admin-user-delete"
+                    onClick={() => handleDeleteUser(u)}
+                    disabled={deletingId === u.id}
+                    aria-label={`Supprimer ${u.full_name || u.email}`}
+                    title="Supprimer cet utilisateur"
+                  >
+                    {deletingId === u.id ? '…' : '🗑'}
+                  </button>
+                )}
               </li>
             ))}
           </ul>

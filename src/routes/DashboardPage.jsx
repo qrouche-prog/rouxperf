@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { withResolvedDayOfWeek } from '../lib/programDays'
 import Icon from '../components/onboarding/icons/Icon'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
@@ -172,7 +173,6 @@ export default function DashboardPage() {
   const totalWeeks = program?.structure?.weeks?.length ?? null
   const weekDates = getCurrentWeekDates()
   const today = new Date()
-  const todayIso = isoWeekday(today)
   const preferredDays = trainingProfile?.preferred_days ?? []
   const currentWeekData = program?.structure?.weeks?.find((w) => w.week_number === program.current_week)
 
@@ -183,8 +183,9 @@ export default function DashboardPage() {
     return totalSets > 0 ? Math.min(100, Math.round((loggedSets / totalSets) * 100)) : 0
   }
 
+  const resolvedDays = withResolvedDayOfWeek(currentWeekData?.days ?? [], preferredDays)
   const selectedIso = isoWeekday(selectedDate)
-  const selectedSessions = currentWeekData?.days.filter((d) => d.day_of_week === selectedIso) ?? []
+  const selectedSessions = resolvedDays.filter((d) => d.day_of_week === selectedIso)
   const selectedSession = selectedSessions[0] ?? null
   const selectedPercent = sessionPercent(selectedSession)
   const selectedIsToday = isSameDay(selectedDate, today)
@@ -249,7 +250,10 @@ export default function DashboardPage() {
           const iso = i + 1
           const isToday = isSameDay(date, today)
           const isSelected = isSameDay(date, selectedDate)
-          const isTraining = preferredDays.includes(iso)
+          const isTraining =
+            program?.status === 'active'
+              ? resolvedDays.some((d) => d.day_of_week === iso)
+              : preferredDays.includes(iso)
           return (
             <button
               key={i}

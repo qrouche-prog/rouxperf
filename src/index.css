@@ -686,6 +686,29 @@ a.btn-primary {
   background: rgba(245, 245, 240, 0.04);
 }
 
+.preview-row-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.preview-row-name {
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.preview-row-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.preview-row-meta {
+  font-size: 0.78rem;
+  color: var(--iron);
+}
+
 .preview-day {
   width: 76px;
   flex: 0 0 auto;
@@ -1453,7 +1476,7 @@ a.session-start-btn {
   text-decoration: none;
   font-size: 0.68rem;
   letter-spacing: 0.02em;
-  padding: 4px 14px;
+  padding: 4px 10px;
 }
 
 .bottom-nav-item-active {
@@ -1515,16 +1538,23 @@ a.session-start-btn {
   overflow-y: auto;
 }
 
+.admin-user-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
 .admin-user-item {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   text-align: left;
   background: none;
   border: none;
-  border-bottom: 1px solid var(--border);
   padding: 10px 4px;
   text-transform: none;
   letter-spacing: normal;
@@ -1533,6 +1563,21 @@ a.session-start-btn {
 
 .admin-user-item-active {
   color: var(--flame-2);
+}
+
+.admin-user-delete {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.admin-user-delete:hover:not(:disabled) {
+  opacity: 1;
 }
 
 .admin-day-card {
