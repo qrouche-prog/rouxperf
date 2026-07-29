@@ -38,3 +38,9 @@ supabase/.branches
 .temp/
 supabase/.temp/
 supabase/supabase/
+
+# Cache du build de la bibliothèque d'exercices
+.cache/
+
+# Archive d'upload, non versionnée
+files.zip

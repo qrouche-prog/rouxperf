@@ -15,6 +15,7 @@ import ProgressPage from './routes/ProgressPage'
 import SessionRunnerPage from './routes/SessionRunnerPage'
 import SettingsPage from './routes/SettingsPage'
 import AdminPage from './routes/AdminPage'
+import CreditsPage from './routes/CreditsPage'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/update-password" element={<UpdatePasswordPage />} />
+          <Route path="/credits" element={<CreditsPage />} />
           <Route
             path="/onboarding/:step"
             element={

@@ -984,6 +984,45 @@ a.btn-primary {
   margin: 4px 0 20px;
 }
 
+/* --- Illustration animée d'exercice (bibliothèque libre) ---
+   Les dessins sont des tracés noirs. Chargés en <img>, les SVG n'héritent pas
+   de la couleur du parent (document isolé) et les rasters ne sont pas
+   recolorisables du tout — on les pose donc sur un panneau clair, ce qui rend
+   vecteur et raster lisibles de façon uniforme. */
+
+.exercise-loop {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1 / 1;
+  margin: 8px auto 4px;
+  background: #f5f5f0;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.exercise-loop-frame {
+  position: absolute;
+  inset: 10px;
+  width: calc(100% - 20px);
+  height: calc(100% - 20px);
+  object-fit: contain;
+  transition: opacity 0.5s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-loop-frame {
+    transition: none;
+  }
+}
+
+.exercise-attribution {
+  text-align: center;
+  color: var(--iron);
+  font-size: 0.68rem;
+  margin: 0 0 12px;
+}
+
 .set-row-list {
   list-style: none;
   margin: 0 0 20px;

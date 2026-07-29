@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { mediaForSlug } from '../lib/exerciseMedia'
+import ExerciseLoop from '../components/ExerciseLoop'
+import ExerciseAttribution from '../components/ExerciseAttribution'
 import Icon from '../components/onboarding/icons/Icon'
 
 const RPE_SCALE = Array.from({ length: 10 }, (_, i) => i + 1)
@@ -76,7 +79,7 @@ export default function SessionRunnerPage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase.from('exercises').select('id, name, instructions'),
+        supabase.from('exercises').select('id, name, instructions, illustration_slug'),
       ])
       if (error) {
         setLoadError(error.message)
@@ -342,6 +345,15 @@ export default function SessionRunnerPage() {
 
         <div className="card set-input-card">
           <h2>{details?.name ?? 'Exercice'}</h2>
+          {(() => {
+            const media = mediaForSlug(details?.illustration_slug)
+            return media ? (
+              <>
+                <ExerciseLoop media={media} label={details?.name ?? 'Exercice'} />
+                <ExerciseAttribution media={media} />
+              </>
+            ) : null
+          })()}
           {details?.instructions && <p className="exercise-instructions">{details.instructions}</p>}
 
           <ul className="set-row-list">
