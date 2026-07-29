@@ -19,5 +19,18 @@ update public.exercises set illustration_slug = 'dumbbell-lateral-raise' where n
 update public.exercises set illustration_slug = 'triceps-kickback'     where name = 'Extension triceps haltère';
 update public.exercises set illustration_slug = 'lunges-dumbbell'      where name = 'Fentes avant';
 update public.exercises set illustration_slug = 'lunges-dumbbell'      where name = 'Fentes sautées';
-update public.exercises set illustration_slug = 'shoulder-press-one-arm' where name = 'Développé épaules haltères';
+update public.exercises set illustration_slug = 'dumbbellshoulderpress' where name = 'Développé épaules haltères';
 update public.exercises set illustration_slug = 't-bar-row'           where name = 'Rowing barre';
+
+-- Lot 2 — mouvements de la salle couverts par la bibliothèque.
+update public.exercises set illustration_slug = 'dumbbellbenchpress'        where name = 'Développé couché haltères';
+update public.exercises set illustration_slug = 'dumbbellinclinebenchpress' where name = 'Développé incliné haltères';
+update public.exercises set illustration_slug = 'seatedmilitaryshoulderpress' where name = 'Développé militaire barre';
+update public.exercises set illustration_slug = 'inclinechestpress'         where name = 'Développé assis machine';
+update public.exercises set illustration_slug = 'chinups'                   where name = 'Tractions';
+update public.exercises set illustration_slug = 'deadlifts'                 where name = 'Soulevé de terre barre';
+update public.exercises set illustration_slug = 'deadlifts'                 where name = 'Soulevé de terre roumain haltères';
+update public.exercises set illustration_slug = 'widegriplatpulldown'       where name = 'Tirage vertical poulie';
+update public.exercises set illustration_slug = 'cableseatedrows'          where name = 'Rowing poulie basse';
+update public.exercises set illustration_slug = 'seatedlegcurl'            where name = 'Leg curl machine';
+update public.exercises set illustration_slug = 'walkinglunges'            where name = 'Goblet lunge kettlebell';
