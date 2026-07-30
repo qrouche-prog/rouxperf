@@ -37,6 +37,8 @@ const FEDB_URL =
 const TMP = '.cache/opentraining';
 const OUT_SVG = 'public/exercises';
 const OUT_DATA = 'data';
+/** Carte cliente slim (slug → média) consommée par l'app rouxperf. */
+const OUT_CLIENT_MAP = 'src/data/exerciseMedia.json';
 
 const ATTRIBUTION =
   'Illustrations : Everkinetic — CC BY-SA 3.0, via le projet OpenTraining';
@@ -284,6 +286,20 @@ function build(otAll: OtExercise[], fedb: any[]): { exercises: Exercise[]; repor
   const exercises: Exercise[] = [];
   const review: string[] = ['slug,nom_opentraining,candidat_fedb,confiance'];
 
+  // Préserve le travail éditorial d'un build précédent : nameFr, instructionsFr
+  // et reviewed sont saisis à la main et ne doivent JAMAIS être écrasés par une
+  // régénération. Rapprochement par slug (piège le plus probable, cf. CLAUDE.md).
+  const prevBySlug = new Map<string, Exercise>();
+  const prevPath = join(OUT_DATA, 'exercises.json');
+  if (existsSync(prevPath)) {
+    try {
+      const prev: Exercise[] = JSON.parse(readFileSync(prevPath, 'utf8'));
+      for (const p of prev) prevBySlug.set(p.slug, p);
+    } catch {
+      console.warn('  ! exercises.json existant illisible, aucun champ éditorial préservé.');
+    }
+  }
+
   const usedSlugs = new Set<string>();
   let withMedia = 0;
   let high = 0;
@@ -331,11 +347,13 @@ function build(otAll: OtExercise[], fedb: any[]): { exercises: Exercise[]; repor
         ? [translate(matched.equipment, EQUIPMENT_EN_FR, missing)]
         : [];
 
+    const prev = prevBySlug.get(slug);
+
     exercises.push({
       slug,
-      // Le nom français reste à écrire : c'est ta voix éditoriale, pas une
-      // traduction automatique. On amorce avec l'anglais.
-      nameFr: label,
+      // Champs éditoriaux (voix rouxperf) : repris tels quels d'un build
+      // précédent s'ils existent, sinon amorcés (nom = anglais, reste vide).
+      nameFr: prev ? prev.nameFr : label,
       nameEn: ot.nameEn,
       primaryMuscles: primary,
       secondaryMuscles: (matched?.secondaryMuscles ?? []).map((m: string) =>
@@ -346,11 +364,11 @@ function build(otAll: OtExercise[], fedb: any[]): { exercises: Exercise[]; repor
       level: matched ? translate(matched.level, LEVEL_EN_FR, missing) : null,
       force: matched?.force ? translate(matched.force, FORCE_EN_FR, missing) : null,
       mechanic: matched?.mechanic ? translate(matched.mechanic, MECHANIC_EN_FR, missing) : null,
-      instructionsFr: [],
+      instructionsFr: prev ? prev.instructionsFr : [],
       instructionsEn: matched?.instructions ?? [],
       media,
       matchConfidence: matched ? Number(bestScore.toFixed(2)) : 0,
-      reviewed: false,
+      reviewed: prev ? prev.reviewed : false,
     });
   }
 
@@ -385,7 +403,17 @@ async function main(): Promise<void> {
 
   writeFileSync(join(OUT_DATA, 'exercises.json'), JSON.stringify(exercises, null, 2), 'utf8');
 
+  // Carte cliente slim, régénérée automatiquement pour rester synchronisée avec
+  // la bibliothèque — plus d'étape manuelle. Le slug est l'identité stable, le
+  // média l'attribut interchangeable.
+  const mediaMap: Record<string, ExerciseMedia> = {};
+  for (const ex of exercises) if (ex.media) mediaMap[ex.slug] = ex.media;
+  const clientDir = OUT_CLIENT_MAP.slice(0, OUT_CLIENT_MAP.lastIndexOf('/'));
+  mkdirSync(clientDir, { recursive: true });
+  writeFileSync(OUT_CLIENT_MAP, JSON.stringify(mediaMap), 'utf8');
+
   console.log('\n─── Bibliothèque construite ───');
+  console.log(`Carte cliente            ${Object.keys(mediaMap).length} slugs → ${OUT_CLIENT_MAP}`);
   console.log(`Exercices OpenTraining   ${report.totalOpenTraining}`);
   console.log(`Fiches free-exercise-db  ${report.totalFedb}`);
   console.log(`Avec illustration SVG    ${report.withMedia}`);
