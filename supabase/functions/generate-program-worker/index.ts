@@ -508,7 +508,10 @@ ${JSON.stringify(
 
       const stream = anthropic.messages.stream({
         model: 'claude-sonnet-5',
-        max_tokens: 16000,
+        // La réflexion adaptive et la sortie JSON partagent ce plafond : un
+        // budget large évite la troncature sur les blocs de 4 semaines chargés
+        // (plusieurs séances/semaine, notes de progression).
+        max_tokens: 32000,
         thinking: { type: 'adaptive' },
         output_config: {
           effort: 'medium',
