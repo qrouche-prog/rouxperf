@@ -2,6 +2,17 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      /* rouxperf — anti-flash de thème : applique data-theme avant le premier rendu */
+      (function () {
+        try {
+          var stored = localStorage.getItem("rouxperf-theme");
+          if (stored === "light" || stored === "dark") {
+            document.documentElement.setAttribute("data-theme", stored);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -23,6 +34,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Polices du système de thèmes rouxperf : Inter (--font-sans) + Archivo (--font-display) -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500&family=Inter:wght@400;500&display=swap"
       rel="stylesheet"
     />
   </head>

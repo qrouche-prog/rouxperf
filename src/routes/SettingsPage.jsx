@@ -9,6 +9,7 @@ import SpecialSituationStep from '../components/onboarding/SpecialSituationStep'
 import PreferencesStep from '../components/onboarding/PreferencesStep'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
+import { ThemePicker } from '../components/theme'
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -57,6 +58,11 @@ export default function SettingsPage() {
         Modifie tes informations, ton objectif et tes préférences à tout moment — ça n'affecte pas ton programme
         déjà généré, seules les prochaines générations en tiendront compte.
       </p>
+
+      <section id="apparence" className="card settings-section">
+        <h2>Apparence</h2>
+        <ThemePicker />
+      </section>
 
       <section id="infos" className="card settings-section">
         <PersonalInfoStep submitLabel="Enregistrer" onNext={() => flashSaved('infos')} />

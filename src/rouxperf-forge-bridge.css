@@ -1,0 +1,114 @@
+/* ==========================================================================
+   rouxperf — passerelle FORGE
+   À importer APRÈS index.css ET APRÈS rouxperf-theme.css.
+   Rôle : faire pointer les variables FORGE existantes vers les nouveaux tokens,
+   pour que l'app entière devienne thématisable sans toucher aux composants.
+   Ce fichier est temporaire — il se vide à mesure que les composants migrent.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Tokens manquants
+   Le système roux est mono-accent ; FORGE avait une famille bleue (badges
+   « moyen ») et un badge « intense » distinct. On les ajoute proprement
+   plutôt que de les rabattre sur le roux, sinon les trois niveaux de badge
+   deviennent indistinguables.
+   -------------------------------------------------------------------------- */
+:root,
+[data-theme="light"] {
+  --info:            #2B6CB0;
+  --info-soft:       #E8F0F9;
+  --info-soft-border:#C2D8EE;
+  --info-soft-fg:    #1E4E80;
+
+  --intense-soft:    #FBEDE6;
+  --intense-soft-fg: #8A3A1C;
+}
+
+[data-theme="dark"] {
+  --info:            #6CB6FF;
+  --info-soft:       #12263A;
+  --info-soft-border:#1E3E5C;
+  --info-soft-fg:    #8FC8FF;
+
+  --intense-soft:    #3A1A12;
+  --intense-soft-fg: #FF8A5C;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --info:            #6CB6FF;
+    --info-soft:       #12263A;
+    --info-soft-border:#1E3E5C;
+    --info-soft-fg:    #8FC8FF;
+    --intense-soft:    #3A1A12;
+    --intense-soft-fg: #FF8A5C;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. Polices — on restaure celles de FORGE
+   Anton et IBM Plex sont déjà chargés et portent mieux l'identité que les
+   polices proposées à l'installation. Ce bloc annule cette substitution.
+   -------------------------------------------------------------------------- */
+:root {
+  --font-sans:    'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Anton', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  --font-body:    var(--font-sans);
+}
+
+/* --------------------------------------------------------------------------
+   3. Alias FORGE — tokens
+   Chaque variable ci-dessous est consommée par des composants existants.
+   Elle devient un simple pointeur : le composant n'a pas besoin d'être touché,
+   il suit désormais le thème actif.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Surfaces et texte */
+  --page-bg: var(--bg);
+  --ink:     var(--text);
+  --card:    var(--surface);
+  --iron:    var(--text-muted);
+
+  /* Accent — toute la famille lime converge vers le roux */
+  --ember:     var(--accent);
+  --ember-ink: var(--accent-fg);
+  --flame-1:   var(--accent-active);
+  --flame-2:   var(--accent);
+  --flame-3:   var(--accent-hover);
+  --moss:      var(--accent);
+  --flame-gradient: linear-gradient(135deg, var(--accent), var(--accent-hover));
+
+  /* États */
+  --error: var(--danger);
+
+  /* Badges */
+  --badge-max-bg:  var(--intense-soft);
+  --badge-max-ink: var(--intense-soft-fg);
+  --badge-mid-bg:  var(--info-soft);
+  --badge-mid-ink: var(--info-soft-fg);
+
+  /* Graphiques */
+  --chart-surface: var(--surface);
+  --chart-line:    var(--accent);
+  --chart-grid:    var(--border);
+  --chart-axis:    var(--border-strong);
+  --chart-muted:   var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   4. Note sur --border, --font-display, --font-mono
+   Ces trois noms existent dans les deux systèmes. Aucun alias n'est possible
+   (une variable ne peut pas se référencer elle-même) : c'est la définition du
+   thème qui s'applique, et c'est le comportement voulu. Rien à faire ici.
+   -------------------------------------------------------------------------- */
+
+/* --------------------------------------------------------------------------
+   5. Retrait progressif
+   Quand un composant est migré (var(--ember) → var(--accent), etc.), retirer
+   la ligne d'alias correspondante ci-dessus et vérifier qu'aucun autre fichier
+   ne la consomme :
+       grep -rn "var(--ember)" src/
+   Le jour où la section 3 est vide, supprimer ce fichier et son import.
+   -------------------------------------------------------------------------- */

@@ -1,0 +1,326 @@
+/* ==========================================================================
+   rouxperf — système de thèmes
+   Deux thèmes, un seul jeu de tokens sémantiques.
+   Les composants n'utilisent QUE les tokens de la section 2.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Rampes brutes — ne pas utiliser directement dans les composants
+   -------------------------------------------------------------------------- */
+:root {
+  /* Roux — la couleur de marque */
+  --roux-50:  #FBEDE6;
+  --roux-100: #F5D5C4;
+  --roux-200: #E8C4B2;
+  --roux-300: #E8A583;
+  --roux-400: #E2703A; /* accent en thème sombre */
+  --roux-500: #C4552B; /* accent en thème clair */
+  --roux-600: #A5441F;
+  --roux-700: #8A3A1C;
+  --roux-900: #2A1206;
+
+  /* Neutres chauds — clair */
+  --craie-0:  #FFFFFF;
+  --craie-50: #FAF8F5;
+  --craie-100:#F2EEE8;
+  --craie-200:#EBE5DC;
+  --craie-300:#DDD6CC;
+  --craie-400:#A9A29A;
+  --craie-600:#77716A;
+  --craie-900:#1C1B19;
+
+  /* Neutres chauds — sombre */
+  --nuit-0:   #0C0B0E;
+  --nuit-50:  #111013;
+  --nuit-100: #1B191D;
+  --nuit-200: #232025;
+  --nuit-300: #2E2A2E;
+  --nuit-400: #3B363B;
+  --nuit-500: #6E6862;
+  --nuit-600: #A19A93;
+  --nuit-900: #F4F1EE;
+
+  /* Sémantique d'état — deux valeurs par rôle (clair / sombre) */
+  --vert-clair:  #2F7A4F;
+  --vert-sombre: #5FBF8B;
+  --rouge-clair: #B3392F;
+  --rouge-sombre:#F08078;
+}
+
+/* --------------------------------------------------------------------------
+   2. Tokens sémantiques — thème clair (défaut)
+   -------------------------------------------------------------------------- */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:              var(--craie-50);
+  --surface:         var(--craie-0);
+  --surface-sunken:  var(--craie-100);
+  --surface-hover:   var(--craie-100);
+
+  --border:          var(--craie-200);
+  --border-strong:   var(--craie-300);
+
+  --text:            var(--craie-900);
+  --text-muted:      var(--craie-600);
+  --text-subtle:     var(--craie-400);
+
+  --accent:          var(--roux-500);
+  --accent-hover:    var(--roux-600);
+  --accent-active:   var(--roux-700);
+  --accent-fg:       #FFFFFF;
+  --accent-soft:     var(--roux-50);
+  --accent-soft-border: var(--roux-200);
+  --accent-soft-fg:  var(--roux-700);
+
+  --success:         var(--vert-clair);
+  --danger:          var(--rouge-clair);
+
+  --focus-ring:      0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* --------------------------------------------------------------------------
+   3. Tokens sémantiques — thème sombre
+   -------------------------------------------------------------------------- */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:              var(--nuit-50);
+  --surface:         var(--nuit-100);
+  --surface-sunken:  var(--nuit-300);
+  --surface-hover:   var(--nuit-200);
+
+  --border:          var(--nuit-300);
+  --border-strong:   var(--nuit-400);
+
+  --text:            var(--nuit-900);
+  --text-muted:      var(--nuit-600);
+  --text-subtle:     var(--nuit-500);
+
+  /* Le roux est éclairci : le #C4552B ne passe pas le contraste sur fond noir */
+  --accent:          var(--roux-400);
+  --accent-hover:    var(--roux-300);
+  --accent-active:   var(--roux-200);
+  --accent-fg:       var(--roux-900);
+  --accent-soft:     color-mix(in srgb, var(--roux-400) 14%, var(--nuit-100));
+  --accent-soft-border: color-mix(in srgb, var(--roux-400) 40%, var(--nuit-100));
+  --accent-soft-fg:  var(--roux-300);
+
+  --success:         var(--vert-sombre);
+  --danger:          var(--rouge-sombre);
+}
+
+/* Suivi de la préférence système quand l'utilisateur n'a rien choisi */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg:              var(--nuit-50);
+    --surface:         var(--nuit-100);
+    --surface-sunken:  var(--nuit-300);
+    --surface-hover:   var(--nuit-200);
+    --border:          var(--nuit-300);
+    --border-strong:   var(--nuit-400);
+    --text:            var(--nuit-900);
+    --text-muted:      var(--nuit-600);
+    --text-subtle:     var(--nuit-500);
+    --accent:          var(--roux-400);
+    --accent-hover:    var(--roux-300);
+    --accent-active:   var(--roux-200);
+    --accent-fg:       var(--roux-900);
+    --accent-soft:     color-mix(in srgb, var(--roux-400) 14%, var(--nuit-100));
+    --accent-soft-border: color-mix(in srgb, var(--roux-400) 40%, var(--nuit-100));
+    --accent-soft-fg:  var(--roux-300);
+    --success:         var(--vert-sombre);
+    --danger:          var(--rouge-sombre);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   4. Échelle — identique dans les deux thèmes
+   -------------------------------------------------------------------------- */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius-sm:  8px;
+  --radius:     12px;
+  --radius-lg:  20px;
+  --radius-full: 999px;
+
+  --control-h: 48px; /* cible tactile en salle */
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo", var(--font-sans);
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --------------------------------------------------------------------------
+   5. Base
+   -------------------------------------------------------------------------- */
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Transition douce au changement de thème, sans traîner sur les interactions */
+html.theme-switching,
+html.theme-switching * {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-switching,
+  html.theme-switching * {
+    transition: none !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   6. Composants — aucune valeur codée en dur, tout passe par les tokens
+   -------------------------------------------------------------------------- */
+
+.rx-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+}
+
+.rx-card--active {
+  border-color: var(--accent);
+  border-width: 1.5px;
+}
+
+.rx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition), border-color var(--transition);
+}
+
+.rx-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Un seul bouton plein par écran */
+.rx-btn--primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.rx-btn--primary:hover:not(:disabled)  { background: var(--accent-hover); }
+.rx-btn--primary:active:not(:disabled) { background: var(--accent-active); }
+
+.rx-btn--secondary {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.rx-btn--secondary:hover:not(:disabled) { background: var(--surface-hover); }
+
+.rx-btn--ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+.rx-btn--ghost:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); }
+
+/* Champ de série : rempli / en cours / vide */
+.rx-set {
+  flex: 1;
+  text-align: center;
+  padding: var(--space-2) 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: var(--surface-sunken);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.rx-set--current {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft-border);
+  color: var(--accent-soft-fg);
+}
+
+.rx-set--empty {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-subtle);
+}
+
+.rx-progress {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.rx-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+
+.rx-badge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.rx-input {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+}
+.rx-input::placeholder { color: var(--text-subtle); }
+.rx-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
