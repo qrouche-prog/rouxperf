@@ -40,9 +40,13 @@ Accent : `--accent`, `--accent-hover`, `--accent-active`, `--accent-fg`,
 Échelle : `--space-1` à `--space-7`, `--radius-sm|--radius|--radius-lg|--radius-full`,
 `--text-xs` à `--text-2xl`, `--control-h`
 
-L'accent n'a pas la même valeur dans les deux thèmes (`#C4552B` en clair,
-`#E2703A` en sombre) : le roux clair ne passe pas le contraste sur fond blanc.
-Ne jamais unifier les deux.
+L'accent est le roux à pleine force dans les deux thèmes (`#C4552B`, décision
+produit : le roux sombre doit être aussi franc que le roux « sélection » du mode
+clair). Le contraste sur fond sombre est géré par les tokens, pas par un accent
+délavé : le texte posé **sur** le remplissage accent est blanc (`--accent-fg`),
+et le texte-accent **sur** une surface sombre passe par `--accent-soft-fg`
+(roux-300, très lisible). Ne jamais colorer du texte directement avec `--accent`
+sur `--bg` en sombre — utiliser `--accent-soft-fg`.
 
 ### Règles de composition
 

@@ -98,11 +98,13 @@
   --text-muted:      var(--nuit-600);
   --text-subtle:     var(--nuit-500);
 
-  /* Le roux est éclairci : le #C4552B ne passe pas le contraste sur fond noir */
-  --accent:          var(--roux-400);
-  --accent-hover:    var(--roux-300);
-  --accent-active:   var(--roux-200);
-  --accent-fg:       var(--roux-900);
+  /* Roux à pleine force, comme en clair. Le remplissage étant plus foncé,
+     le texte posé dessus passe en blanc ; le texte-accent sur fond sombre
+     utilise, lui, --accent-soft-fg (roux-300, largement contrasté). */
+  --accent:          var(--roux-500);
+  --accent-hover:    var(--roux-400);
+  --accent-active:   var(--roux-600);
+  --accent-fg:       #FFFFFF;
   --accent-soft:     color-mix(in srgb, var(--roux-400) 14%, var(--nuit-100));
   --accent-soft-border: color-mix(in srgb, var(--roux-400) 40%, var(--nuit-100));
   --accent-soft-fg:  var(--roux-300);
@@ -124,10 +126,10 @@
     --text:            var(--nuit-900);
     --text-muted:      var(--nuit-600);
     --text-subtle:     var(--nuit-500);
-    --accent:          var(--roux-400);
-    --accent-hover:    var(--roux-300);
-    --accent-active:   var(--roux-200);
-    --accent-fg:       var(--roux-900);
+    --accent:          var(--roux-500);
+    --accent-hover:    var(--roux-400);
+    --accent-active:   var(--roux-600);
+    --accent-fg:       #FFFFFF;
     --accent-soft:     color-mix(in srgb, var(--roux-400) 14%, var(--nuit-100));
     --accent-soft-border: color-mix(in srgb, var(--roux-400) 40%, var(--nuit-100));
     --accent-soft-fg:  var(--roux-300);
