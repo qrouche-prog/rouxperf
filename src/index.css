@@ -54,6 +54,7 @@ html {
 
 body {
   margin: 0;
+  min-height: 100dvh;
   background: var(--page-bg);
   color: var(--ink);
   font: 16px/1.55 var(--font-body);
@@ -62,12 +63,15 @@ body {
   -webkit-tap-highlight-color: transparent;
   position: relative;
   overflow-x: hidden;
+  /* Ressenti app : pas de rebond ni de pull-to-refresh qui recharge la page */
+  overscroll-behavior-y: none;
 }
 
 #root {
   position: relative;
   z-index: 1;
-  max-width: min(1000px, 85vw);
+  max-width: 1000px;
+  width: 100%;
   margin: 0 auto;
   padding: 32px 24px 64px;
 }
@@ -1523,7 +1527,7 @@ a.session-start-btn {
 }
 
 .bottom-nav-spacer {
-  height: 76px;
+  height: calc(72px + env(safe-area-inset-bottom));
 }
 
 .card-grid {
@@ -1939,4 +1943,129 @@ a.session-start-btn {
 
 .tally .tally-empty {
   color: var(--border);
+}
+
+/* ==========================================================================
+   Ressenti application sur smartphone
+   Rendre l'app homogène et « native » une fois ajoutée à l'écran d'accueil.
+   ========================================================================== */
+
+/* Chrome de l'app (nav, boutons) : pas de sélection de texte ni de menu
+   long-press iOS — ça doit réagir comme des contrôles, pas comme du texte. */
+.top-nav,
+.bottom-nav,
+button,
+.btn,
+.rx-btn,
+.bottom-nav-item,
+.top-nav-link {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Retour tactile immédiat au doigt (remplace le :hover, absent sur mobile) */
+.bottom-nav-item:active,
+button:active,
+.btn:active,
+.rx-btn:active {
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  /* Pleine largeur : plus de colonne centrée à gouttières, on remplit l'écran */
+  #root {
+    padding: 24px 16px calc(72px + env(safe-area-inset-bottom));
+  }
+
+  /* La barre du haut suit le nouveau padding pour toucher les bords d'écran */
+  .top-nav {
+    margin: -24px -16px 20px;
+    padding: max(14px, env(safe-area-inset-top)) 16px 14px;
+  }
+
+  /* iOS zoome sur un champ dont la police fait moins de 16px : on force 16px
+     pour supprimer le zoom automatique au focus (tell « web » classique). */
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Invite d'installation (InstallPrompt) — bandeau flottant discret,
+   posé au-dessus de la barre de navigation. */
+.install-prompt {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 30;
+  width: min(560px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28);
+  animation: install-prompt-in 220ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .install-prompt {
+    animation: none;
+  }
+}
+
+@keyframes install-prompt-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.install-prompt-text {
+  flex: 1;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.install-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.install-prompt-cta {
+  border: none;
+  background: var(--ember);
+  color: var(--ember-ink);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.install-prompt-close {
+  border: none;
+  background: transparent;
+  color: var(--iron);
+  font-size: 1.4rem;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
 }

@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext'
 import RequireAuth from './components/RequireAuth'
 import RequireOnboarding from './components/RequireOnboarding'
 import RequireAdmin from './components/RequireAdmin'
+import InstallPrompt from './components/InstallPrompt'
 import RootRedirect from './routes/RootRedirect'
 import LoginPage from './routes/LoginPage'
 import SignupPage from './routes/SignupPage'
@@ -97,6 +98,7 @@ export default function App() {
             }
           />
         </Routes>
+        <InstallPrompt />
       </AuthProvider>
     </BrowserRouter>
   )

@@ -63,11 +63,24 @@ export function ThemeProvider({ children }) {
     return () => query.removeEventListener('change', onChange)
   }, [theme])
 
-  // Applique le thème au document
+  // Applique le thème au document + aligne le chrome de l'app (barre système,
+  // couleur d'onglet) sur le fond réel du thème, pour un rendu homogène.
   useEffect(() => {
     const root = document.documentElement
     if (theme === 'system') root.removeAttribute('data-theme')
     else root.setAttribute('data-theme', theme)
+
+    // Lire le fond effectif après application du thème (recalc synchrone)
+    const bg = getComputedStyle(document.body).backgroundColor
+    if (bg) {
+      let meta = document.querySelector('meta[name="theme-color"]')
+      if (!meta) {
+        meta = document.createElement('meta')
+        meta.setAttribute('name', 'theme-color')
+        document.head.appendChild(meta)
+      }
+      meta.setAttribute('content', bg)
+    }
   }, [theme, resolvedTheme])
 
   const setTheme = useCallback((next) => {
