@@ -426,7 +426,9 @@ export default function SessionRunnerPage() {
       return false
     })
 
-    if (mode === 'guided' && stillSomething) {
+    // Chrono de repos après chaque série validée, dans les deux modes
+    // (en Libre, il reste passable via « Passer le repos »).
+    if (stillSomething) {
       const rest = exercise.rest_seconds || 0
       if (rest > 0) {
         // Cible affichée pendant le repos
