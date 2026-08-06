@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { withResolvedDayOfWeek } from '../lib/programDays'
+import { withResolvedDayOfWeek, withStableDayNumbers } from '../lib/programDays'
 import Icon from '../components/onboarding/icons/Icon'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
@@ -184,7 +184,7 @@ export default function DashboardPage() {
     return totalSets > 0 ? Math.min(100, Math.round((loggedSets / totalSets) * 100)) : 0
   }
 
-  const resolvedDays = withResolvedDayOfWeek(currentWeekData?.days ?? [], preferredDays)
+  const resolvedDays = withStableDayNumbers(withResolvedDayOfWeek(currentWeekData?.days ?? [], preferredDays))
   const selectedIso = isoWeekday(selectedDate)
   const selectedSessions = resolvedDays.filter((d) => d.day_of_week === selectedIso)
   const selectedSession = selectedSessions[0] ?? null

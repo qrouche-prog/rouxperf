@@ -2069,3 +2069,199 @@ button:active,
   cursor: pointer;
   flex-shrink: 0;
 }
+
+/* ==========================================================================
+   Séance : sélecteur de mode, écran de lancement, vue compacte d'exercice
+   ========================================================================== */
+
+.settings-hint {
+  color: var(--iron);
+  font-size: 0.85rem;
+  margin: 0 0 12px;
+}
+
+/* Sélecteur Guidé / Libre (Réglages + écran de lancement) */
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mode-toggle-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--page-bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--transition, 150ms), background var(--transition, 150ms);
+}
+
+.mode-toggle-option strong {
+  font-size: 0.95rem;
+}
+
+.mode-toggle-option span {
+  font-size: 0.78rem;
+  color: var(--iron);
+  line-height: 1.35;
+}
+
+.mode-toggle-option-active {
+  border-color: var(--ember);
+  background: color-mix(in srgb, var(--ember) 10%, var(--page-bg));
+}
+
+/* Écran de lancement */
+.session-launch {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.session-launch h1 {
+  margin: 4px 0 0;
+}
+
+.session-launch-meta {
+  color: var(--iron);
+  margin: 0 0 8px;
+}
+
+.session-launch-q {
+  text-align: left;
+  font-weight: 500;
+  margin: 8px 0 2px;
+}
+
+.session-launch .mode-toggle-option {
+  text-align: center;
+  align-items: center;
+}
+
+.session-launch-start {
+  margin-top: 14px;
+}
+
+/* Barre + état d'enregistrement */
+.session-run-bar {
+  margin: 6px 0 14px;
+}
+
+.session-save-state {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Carte compacte d'exercice */
+.session-exo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.session-exo-name {
+  margin: 0;
+}
+
+.session-exo-media {
+  max-height: 150px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.session-exo-media img,
+.session-exo-media canvas,
+.session-exo-media > * {
+  max-height: 150px;
+}
+
+/* Puces de séries */
+.set-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.set-chip {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--page-bg);
+  color: var(--iron);
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.set-chip-done {
+  border-color: var(--ember);
+  background: color-mix(in srgb, var(--ember) 16%, var(--page-bg));
+  color: var(--ember);
+}
+
+.set-chip-active {
+  border-color: var(--ember);
+  border-width: 2px;
+  color: var(--ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ember) 22%, transparent);
+}
+
+/* Zone de remplissage de la série courante */
+.set-fill {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.set-fill-target {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--iron);
+}
+
+.set-fill-target strong {
+  color: var(--ink);
+}
+
+.set-fill-done {
+  margin: 0;
+  color: var(--ember);
+  font-weight: 500;
+}
+
+.set-fill label {
+  font-size: 0.8rem;
+  color: var(--iron);
+  margin-top: 4px;
+}
+
+.set-fill input[type='number'] {
+  width: 100%;
+}
+
+.session-exo-instructions {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.session-exo-instructions summary {
+  cursor: pointer;
+  color: var(--iron);
+  font-size: 0.85rem;
+}
+
+.session-exo-instructions p {
+  margin: 8px 0 0;
+  color: var(--iron);
+  font-size: 0.9rem;
+}

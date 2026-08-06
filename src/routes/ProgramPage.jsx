@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { withResolvedDayOfWeek } from '../lib/programDays'
+import { withResolvedDayOfWeek, withStableDayNumbers } from '../lib/programDays'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
@@ -161,7 +161,7 @@ export default function ProgramPage() {
   const week = weeks[weekIndex]
   const week1Monday = mondayOf(program.created_at)
   const slotRank = (slot) => (slot === 'morning' ? 0 : slot === 'evening' ? 1 : 0)
-  const days = withResolvedDayOfWeek(week.days, preferredDays)
+  const days = withStableDayNumbers(withResolvedDayOfWeek(week.days, preferredDays))
     .slice()
     .sort((a, b) => (a.day_of_week ?? 0) - (b.day_of_week ?? 0) || slotRank(a.slot) - slotRank(b.slot))
 
