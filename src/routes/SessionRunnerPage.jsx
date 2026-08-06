@@ -633,12 +633,8 @@ export default function SessionRunnerPage() {
   return (
     <main className="session-run">
       <div className="session-runner-header">
-        <button
-          type="button"
-          className="link-button"
-          onClick={() => (mode === 'free' ? setPhase('list') : quitSession())}
-        >
-          {mode === 'free' ? '‹ Liste' : '× Quitter'}
+        <button type="button" className="link-button" onClick={() => setPhase('list')}>
+          ‹ Exercices
         </button>
         <span className="eyebrow session-save-state">
           {saveState === 'saving' ? 'Enregistrement…' : saveState === 'saved' ? 'Enregistré ✓' : saveState === 'error' ? '⚠ non enregistré' : `${overallPercent}%`}

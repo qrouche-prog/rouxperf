@@ -2205,8 +2205,8 @@ button:active,
 
 .set-chip-done {
   border-color: var(--ember);
-  background: color-mix(in srgb, var(--ember) 16%, var(--page-bg));
-  color: var(--ember);
+  background: var(--ember);
+  color: var(--ember-ink);
 }
 
 .set-chip-active {
