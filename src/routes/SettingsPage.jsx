@@ -12,20 +12,11 @@ import BottomNav from '../components/BottomNav'
 import { ThemePicker } from '../components/theme'
 
 export default function SettingsPage() {
-  const { user, profile, refreshProfile } = useAuth()
+  const { user } = useAuth()
   const [goal, setGoal] = useState(null)
   const [trainingProfile, setTrainingProfile] = useState(null)
   const [status, setStatus] = useState('loading')
   const [savedSection, setSavedSection] = useState(null)
-
-  const sessionMode = profile?.session_mode ?? 'guided'
-
-  async function updateSessionMode(mode) {
-    if (mode === sessionMode) return
-    await supabase.from('profiles').update({ session_mode: mode }).eq('user_id', user.id)
-    await refreshProfile()
-    flashSaved('seance')
-  }
 
   async function loadGoal() {
     const { data } = await supabase
@@ -71,36 +62,6 @@ export default function SettingsPage() {
       <section id="apparence" className="card settings-section">
         <h2>Apparence</h2>
         <ThemePicker />
-      </section>
-
-      <section id="seance" className="card settings-section">
-        <h2>Déroulé de séance</h2>
-        <p className="settings-hint">
-          Ton mode par défaut. Tu peux toujours le changer au lancement de chaque séance.
-        </p>
-        <div className="mode-toggle" role="radiogroup" aria-label="Mode de séance par défaut">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={sessionMode === 'guided'}
-            className={`mode-toggle-option${sessionMode === 'guided' ? ' mode-toggle-option-active' : ''}`}
-            onClick={() => updateSessionMode('guided')}
-          >
-            <strong>Guidé</strong>
-            <span>Tout s'enchaîne : série, repos, exercice suivant. Tu suis, c'est tout.</span>
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={sessionMode === 'free'}
-            className={`mode-toggle-option${sessionMode === 'free' ? ' mode-toggle-option-active' : ''}`}
-            onClick={() => updateSessionMode('free')}
-          >
-            <strong>Libre</strong>
-            <span>Tu navigues entre les exercices et gères ta séance à ta façon.</span>
-          </button>
-        </div>
-        {savedSection === 'seance' && <p className="settings-saved">Enregistré ✓</p>}
       </section>
 
       <section id="infos" className="card settings-section">

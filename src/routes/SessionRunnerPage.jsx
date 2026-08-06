@@ -9,7 +9,6 @@ import ExerciseAttribution from '../components/ExerciseAttribution'
 import Icon from '../components/onboarding/icons/Icon'
 
 const RPE_SCALE = Array.from({ length: 10 }, (_, i) => i + 1)
-const MODE_KEY = 'rouxperf-session-mode'
 
 function rpeColor(value) {
   const hue = 120 - (value - 1) * (120 / 9)
@@ -59,7 +58,7 @@ function buildFromLoggedSets(day, loggedSets) {
 
 export default function SessionRunnerPage() {
   const { weekNumber, dayNumber } = useParams()
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   const [program, setProgram] = useState(null)
@@ -70,8 +69,7 @@ export default function SessionRunnerPage() {
   const [entries, setEntries] = useState({})
   const [carryoverByExercise, setCarryoverByExercise] = useState({})
 
-  const [mode, setMode] = useState('guided')
-  const [phase, setPhase] = useState('launch') // launch | list | exercise | resting | summary
+  const [phase, setPhase] = useState('exercise') // exercise | list | resting | summary
   const [selectedExerciseIndex, setSelectedExerciseIndex] = useState(null)
   const [activeSetIndex, setActiveSetIndex] = useState(0)
   const [editingDoneSet, setEditingDoneSet] = useState(false)
@@ -203,10 +201,8 @@ export default function SessionRunnerPage() {
             .limit(1)
             .maybeSingle()
 
-          let resumed = {}
           if (existingLog && existingLog.workout_log_sets.length > 0) {
             const built = buildFromLoggedSets(theDay, existingLog.workout_log_sets)
-            resumed = built.entries
             entriesRef.current = built.entries
             rowIdsRef.current = built.rowIds
             logIdRef.current = existingLog.id
@@ -237,23 +233,10 @@ export default function SessionRunnerPage() {
             setCarryoverByExercise(map)
           }
 
-          // Mode : dernier choix mémorisé, sinon défaut du compte.
-          let chosen = null
-          try {
-            chosen = localStorage.getItem(MODE_KEY)
-          } catch {
-            chosen = null
-          }
-          const resolvedMode = chosen === 'guided' || chosen === 'free' ? chosen : profile?.session_mode ?? 'guided'
-          setMode(resolvedMode)
-
-          // Reprise en cours → on rouvre directement sur l'exercice courant.
-          const hasProgress = Object.keys(resumed).length > 0
           setStatus('idle')
-          if (hasProgress) {
-            // openCurrent lit entriesRef (déjà à jour)
-            queueMicrotask(() => openCurrent(theDay))
-          }
+          // Ouvre directement la 1re série à faire (début de séance ou reprise
+          // sur l'exercice en cours après une interruption).
+          queueMicrotask(() => openCurrent(theDay))
           return
         }
       }
@@ -264,7 +247,7 @@ export default function SessionRunnerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, weekNumber, dayNumber])
 
-  // Décompte du repos (mode guidé)
+  // Décompte du repos entre les séries
   useEffect(() => {
     if (phase !== 'resting') return undefined
     if (restRemaining <= 0) {
@@ -387,16 +370,6 @@ export default function SessionRunnerPage() {
     setSaveState('saved')
   }
 
-  function startSession() {
-    try {
-      localStorage.setItem(MODE_KEY, mode)
-    } catch {
-      // ignore
-    }
-    if (mode === 'guided') openCurrent()
-    else setPhase('list')
-  }
-
   function submitSet(idx) {
     const exercise = day.exercises[selectedExerciseIndex]
     const entry = {
@@ -455,55 +428,6 @@ export default function SessionRunnerPage() {
   function quitSession() {
     // Tout est déjà sauvegardé série par série : on peut sortir sans risque.
     navigate('/program')
-  }
-
-  // ---- Écran : lancement ----
-  if (phase === 'launch') {
-    return (
-      <main className="session-run">
-        <div className="card session-launch">
-          <p className="eyebrow">
-            {day.name}
-            {slotLabel}
-          </p>
-          <h1>Prêt pour la séance ?</h1>
-          <p className="session-launch-meta">
-            {day.exercises.length} exercice{day.exercises.length > 1 ? 's' : ''} · {totalSets} séries
-          </p>
-
-          <p className="session-launch-q">Comment veux-tu la vivre ?</p>
-          <div className="mode-toggle" role="radiogroup" aria-label="Mode de séance">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={mode === 'guided'}
-              className={`mode-toggle-option${mode === 'guided' ? ' mode-toggle-option-active' : ''}`}
-              onClick={() => setMode('guided')}
-            >
-              <strong>▶ Guidé</strong>
-              <span>Tout s'enchaîne, tu suis.</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={mode === 'free'}
-              className={`mode-toggle-option${mode === 'free' ? ' mode-toggle-option-active' : ''}`}
-              onClick={() => setMode('free')}
-            >
-              <strong>⇄ Libre</strong>
-              <span>Tu gères tes exercices.</span>
-            </button>
-          </div>
-
-          <button type="button" className="btn-primary session-launch-start" onClick={startSession}>
-            Commencer
-          </button>
-          <button type="button" className="link-button" onClick={quitSession}>
-            Retour
-          </button>
-        </div>
-      </main>
-    )
   }
 
   // ---- Écran : résumé ----
