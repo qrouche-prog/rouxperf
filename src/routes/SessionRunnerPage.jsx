@@ -74,6 +74,7 @@ export default function SessionRunnerPage() {
   const [activeSetIndex, setActiveSetIndex] = useState(0)
   const [editingDoneSet, setEditingDoneSet] = useState(false)
   const [restRemaining, setRestRemaining] = useState(0)
+  const [restEndAt, setRestEndAt] = useState(null)
   const [restNext, setRestNext] = useState('')
 
   const [weight, setWeight] = useState('')
@@ -87,6 +88,10 @@ export default function SessionRunnerPage() {
   const rowIdsRef = useRef({})
   const selectedExRef = useRef(null)
   const wakeLockRef = useRef(null)
+  const audioCtxRef = useRef(null)
+  const restFiredRef = useRef(false)
+
+  const REST_KEY = `rouxperf-rest-${weekNumber}-${dayNumber}`
 
   const week = program?.structure?.weeks?.find((w) => w.week_number === Number(weekNumber))
   const days = withStableDayNumbers(week?.days ?? [])
@@ -233,11 +238,31 @@ export default function SessionRunnerPage() {
             setCarryoverByExercise(map)
           }
 
+          let storedRest = null
+          try {
+            storedRest = JSON.parse(localStorage.getItem(REST_KEY) || 'null')
+          } catch {
+            storedRest = null
+          }
+          const hasProgress = Object.keys(entriesRef.current).length > 0
           setStatus('idle')
-          // Reprise en cours → on rouvre directement sur l'exercice courant.
-          // Nouvelle séance → on affiche la liste des exercices (bouton Commencer).
-          if (Object.keys(entriesRef.current).length > 0) openCurrent(theDay)
-          else setPhase('list')
+          if (hasProgress && storedRest && typeof storedRest.end === 'number' && storedRest.end > Date.now()) {
+            // Un repos était en cours (app fermée entre-temps) : on le reprend.
+            restFiredRef.current = false
+            setRestNext(storedRest.label || '')
+            setRestRemaining(Math.max(0, Math.round((storedRest.end - Date.now()) / 1000)))
+            setRestEndAt(storedRest.end)
+            setPhase('resting')
+          } else if (hasProgress) {
+            try {
+              localStorage.removeItem(REST_KEY)
+            } catch {
+              // ignore
+            }
+            openCurrent(theDay)
+          } else {
+            setPhase('list')
+          }
           return
         }
       }
@@ -248,17 +273,28 @@ export default function SessionRunnerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, weekNumber, dayNumber])
 
-  // Décompte du repos entre les séries
+  // Décompte du repos, basé sur l'heure de fin (restEndAt) plutôt qu'un
+  // compteur décrémenté : les timers sont gelés en arrière-plan, mais recalculer
+  // depuis un timestamp donne toujours la bonne valeur au retour dans l'app.
   useEffect(() => {
-    if (phase !== 'resting') return undefined
-    if (restRemaining <= 0) {
-      openCurrent()
-      return undefined
+    if (phase !== 'resting' || restEndAt == null) return undefined
+    function tick() {
+      const remaining = Math.max(0, Math.round((restEndAt - Date.now()) / 1000))
+      setRestRemaining(remaining)
+      if (remaining <= 0) finishRest()
     }
-    const timer = setTimeout(() => setRestRemaining((r) => r - 1), 1000)
-    return () => clearTimeout(timer)
+    function onVisible() {
+      if (document.visibilityState === 'visible') tick()
+    }
+    tick()
+    const id = setInterval(tick, 500)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, restRemaining])
+  }, [phase, restEndAt])
 
   // Garde l'écran allumé pendant la séance (Wake Lock, si supporté)
   useEffect(() => {
@@ -417,13 +453,122 @@ export default function SessionRunnerPage() {
             }
           }
         }
-        setRestNext(label)
-        setRestRemaining(rest)
-        setPhase('resting')
+        startRest(rest, label)
         return
       }
     }
     openCurrent(day)
+  }
+
+  // Débloque l'audio (doit être appelé depuis un geste utilisateur, ex. Valider).
+  function unlockAudio() {
+    try {
+      if (!audioCtxRef.current) {
+        const Ctx = window.AudioContext || window.webkitAudioContext
+        if (Ctx) audioCtxRef.current = new Ctx()
+      }
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume()
+      }
+    } catch {
+      // audio indisponible
+    }
+  }
+
+  // Bip sonore + vibration à la fin du repos.
+  function playRestDoneCue() {
+    try {
+      const ctx = audioCtxRef.current
+      if (ctx) {
+        if (ctx.state === 'suspended') ctx.resume()
+        const start = ctx.currentTime
+        for (const offset of [0, 0.28]) {
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.type = 'sine'
+          osc.frequency.value = 880
+          gain.gain.setValueAtTime(0.0001, start + offset)
+          gain.gain.exponentialRampToValueAtTime(0.35, start + offset + 0.02)
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.22)
+          osc.connect(gain).connect(ctx.destination)
+          osc.start(start + offset)
+          osc.stop(start + offset + 0.24)
+        }
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      navigator.vibrate?.([200, 100, 200])
+    } catch {
+      // ignore
+    }
+  }
+
+  // Notification système quand le repos se termine alors que l'app est en fond.
+  function notifyRestDone() {
+    try {
+      if (
+        'Notification' in window &&
+        Notification.permission === 'granted' &&
+        document.visibilityState !== 'visible'
+      ) {
+        const notif = new Notification('Repos terminé 💪', {
+          body: restNext ? `À suivre : ${restNext}` : 'Reprends ta série.',
+          tag: 'rouxperf-rest',
+        })
+        setTimeout(() => notif.close(), 8000)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  function startRest(seconds, label) {
+    const end = Date.now() + seconds * 1000
+    restFiredRef.current = false
+    setRestNext(label)
+    setRestRemaining(seconds)
+    setRestEndAt(end)
+    try {
+      localStorage.setItem(REST_KEY, JSON.stringify({ end, label }))
+    } catch {
+      // ignore
+    }
+    unlockAudio()
+    try {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission()
+      }
+    } catch {
+      // ignore
+    }
+    setPhase('resting')
+  }
+
+  function finishRest() {
+    if (restFiredRef.current) return
+    restFiredRef.current = true
+    try {
+      localStorage.removeItem(REST_KEY)
+    } catch {
+      // ignore
+    }
+    playRestDoneCue()
+    notifyRestDone()
+    setRestEndAt(null)
+    openCurrent()
+  }
+
+  function skipRest() {
+    restFiredRef.current = true
+    try {
+      localStorage.removeItem(REST_KEY)
+    } catch {
+      // ignore
+    }
+    setRestEndAt(null)
+    openCurrent()
   }
 
   function quitSession() {
@@ -460,7 +605,7 @@ export default function SessionRunnerPage() {
           <p className="eyebrow">Repos</p>
           <span className="rest-countdown">{restRemaining}s</span>
           <p>À suivre : {restNext}</p>
-          <button type="button" className="btn-secondary" onClick={() => openCurrent()}>
+          <button type="button" className="btn-secondary" onClick={skipRest}>
             Passer le repos
           </button>
         </div>
