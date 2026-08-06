@@ -234,9 +234,10 @@ export default function SessionRunnerPage() {
           }
 
           setStatus('idle')
-          // Ouvre directement la 1re série à faire (début de séance ou reprise
-          // sur l'exercice en cours après une interruption).
-          queueMicrotask(() => openCurrent(theDay))
+          // Reprise en cours → on rouvre directement sur l'exercice courant.
+          // Nouvelle séance → on affiche la liste des exercices (bouton Commencer).
+          if (Object.keys(entriesRef.current).length > 0) openCurrent(theDay)
+          else setPhase('list')
           return
         }
       }
@@ -491,6 +492,8 @@ export default function SessionRunnerPage() {
           </p>
         </div>
 
+        <p className="session-list-hint">Lance la séance, ou choisis directement un exercice.</p>
+
         <div className="session-exercise-list">
           {day.exercises.map((exercise, i) => {
             const details = exercisesById[exercise.exercise_id]
@@ -518,9 +521,13 @@ export default function SessionRunnerPage() {
           })}
         </div>
 
-        {overallPercent === 100 && (
+        {overallPercent === 100 ? (
           <button type="button" className="btn-primary session-finish-btn" onClick={() => setPhase('summary')}>
             Voir le résumé
+          </button>
+        ) : (
+          <button type="button" className="btn-primary session-finish-btn" onClick={() => openCurrent()}>
+            {doneSets > 0 ? 'Reprendre la séance' : 'Commencer'}
           </button>
         )}
       </main>

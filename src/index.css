@@ -2080,6 +2080,12 @@ button:active,
   margin: 0 0 12px;
 }
 
+.session-list-hint {
+  color: var(--iron);
+  font-size: 0.85rem;
+  margin: 0 0 10px;
+}
+
 /* Sélecteur Guidé / Libre (Réglages + écran de lancement) */
 .mode-toggle {
   display: grid;
