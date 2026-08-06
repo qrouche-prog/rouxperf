@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { withStableDayNumbers } from '../lib/programDays'
+import { withStableDayNumbers, programSchedule } from '../lib/programDays'
 import { mediaForSlug } from '../lib/exerciseMedia'
 import ExerciseLoop from '../components/ExerciseLoop'
 import ExerciseAttribution from '../components/ExerciseAttribution'
@@ -344,6 +344,15 @@ export default function SessionRunnerPage() {
     return (
       <main>
         <p>Séance introuvable.</p>
+        <Link to="/program">Retour au programme</Link>
+      </main>
+    )
+  }
+
+  if (programSchedule(program)?.expired) {
+    return (
+      <main>
+        <p>Ce programme est arrivé à échéance et n'est plus disponible.</p>
         <Link to="/program">Retour au programme</Link>
       </main>
     )

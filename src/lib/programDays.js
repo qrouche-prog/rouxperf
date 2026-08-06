@@ -26,3 +26,33 @@ export function withStableDayNumbers(days) {
   if (!Array.isArray(days)) return []
   return days.map((d, i) => ({ ...d, day_number: i + 1 }))
 }
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const MS_PER_WEEK = 7 * MS_PER_DAY
+
+// Lundi (00:00) de la semaine contenant la date donnée.
+export function mondayOf(dateLike) {
+  const d = new Date(dateLike)
+  d.setHours(0, 0, 0, 0)
+  const iso = d.getDay() === 0 ? 7 : d.getDay()
+  d.setDate(d.getDate() - (iso - 1))
+  return d
+}
+
+// Calendrier réel du programme : la semaine 1 démarre le lundi de la semaine de
+// création, puis chaque semaine du programme suit une semaine calendaire.
+//   currentWeek  : semaine du programme correspondant à aujourd'hui (bornée 1..N)
+//   weeksElapsed : nombre de semaines pleines écoulées depuis le départ
+//   expired      : le programme a couvert toutes ses semaines (plus disponible)
+//   endDate      : dernier jour couvert (dimanche de la dernière semaine)
+export function programSchedule(program) {
+  if (!program) return null
+  const totalWeeks = program.structure?.weeks?.length ?? 0
+  const startMonday = mondayOf(program.created_at)
+  const todayMonday = mondayOf(new Date())
+  const weeksElapsed = Math.floor((todayMonday.getTime() - startMonday.getTime()) / MS_PER_WEEK)
+  const currentWeek = Math.min(Math.max(weeksElapsed + 1, 1), Math.max(totalWeeks, 1))
+  const expired = totalWeeks > 0 && weeksElapsed >= totalWeeks
+  const endDate = new Date(startMonday.getTime() + totalWeeks * MS_PER_WEEK - MS_PER_DAY)
+  return { totalWeeks, startMonday, weeksElapsed, currentWeek, expired, endDate }
+}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { withResolvedDayOfWeek, withStableDayNumbers } from '../lib/programDays'
+import { withResolvedDayOfWeek, withStableDayNumbers, programSchedule } from '../lib/programDays'
 import Icon from '../components/onboarding/icons/Icon'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
@@ -175,12 +175,15 @@ export default function DashboardPage() {
   const weekDates = getCurrentWeekDates()
   const today = new Date()
   const preferredDays = trainingProfile?.preferred_days ?? []
-  const currentWeekData = program?.structure?.weeks?.find((w) => w.week_number === program.current_week)
+  const schedule = programSchedule(program)
+  const currentWeek = schedule?.currentWeek ?? 1
+  const expired = program?.status === 'active' && schedule?.expired
+  const currentWeekData = program?.structure?.weeks?.find((w) => w.week_number === currentWeek)
 
   function sessionPercent(session) {
     if (!program || !session) return 0
     const totalSets = session.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
-    const loggedSets = setsLoggedByDay[`${program.current_week}-${session.day_number}`] ?? 0
+    const loggedSets = setsLoggedByDay[`${currentWeek}-${session.day_number}`] ?? 0
     return totalSets > 0 ? Math.min(100, Math.round((loggedSets / totalSets) * 100)) : 0
   }
 
@@ -194,6 +197,9 @@ export default function DashboardPage() {
   const selectedIsFuture = !selectedIsToday && selectedDate > today
 
   const dayLabelFormatter = new Intl.DateTimeFormat('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' })
+  const endDateLabel = schedule?.endDate
+    ? new Intl.DateTimeFormat('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' }).format(schedule.endDate)
+    : ''
 
   return (
     <main>
@@ -270,7 +276,25 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {program?.status === 'active' && selectedSessions.length === 2 ? (
+      {expired ? (
+        <div className="card session-of-day">
+          <Icon name="stretch" size={26} />
+          <span className="eyebrow">Programme terminé</span>
+          <h3>Ton programme est arrivé à échéance</h3>
+          <p>
+            Il a couvert ses {totalWeeks} semaine{totalWeeks > 1 ? 's' : ''}
+            {schedule?.endDate ? ` (jusqu'au ${endDateLabel})` : ''}. Génère un nouveau programme pour continuer.
+          </p>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleRetryGeneration}
+            disabled={retryStatus === 'loading'}
+          >
+            {retryStatus === 'loading' ? 'Génération…' : 'Générer un nouveau programme'}
+          </button>
+        </div>
+      ) : program?.status === 'active' && selectedSessions.length === 2 ? (
         <div className="card session-of-day session-of-day-multi">
           <span className="eyebrow">{selectedIsToday ? "Aujourd'hui" : dayLabelFormatter.format(selectedDate)}</span>
           {selectedSessions.map((session) => {
@@ -278,7 +302,7 @@ export default function DashboardPage() {
             return (
               <Link
                 key={session.day_number}
-                to={`/session/${program.current_week}/${session.day_number}`}
+                to={`/session/${currentWeek}/${session.day_number}`}
                 className="session-of-day-slot"
               >
                 <Icon name="bolt" size={20} />
@@ -297,7 +321,7 @@ export default function DashboardPage() {
         <Link
           to={
             program?.status === 'active' && selectedSession
-              ? `/session/${program.current_week}/${selectedSession.day_number}`
+              ? `/session/${currentWeek}/${selectedSession.day_number}`
               : '/program'
           }
           className="card session-of-day"
@@ -365,7 +389,7 @@ export default function DashboardPage() {
       <div className="stat-row">
         <Link to="/program" className="stat-tile">
           <span className="stat-value">
-            {program ? program.current_week : '—'}
+            {program ? currentWeek : '—'}
             {totalWeeks && <span className="stat-unit">/{totalWeeks}</span>}
           </span>
           <span className="stat-label">Semaine</span>

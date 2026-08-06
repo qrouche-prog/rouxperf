@@ -2086,6 +2086,12 @@ button:active,
   margin: 0 0 10px;
 }
 
+.preview-row-disabled {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
+
 /* Sélecteur Guidé / Libre (Réglages + écran de lancement) */
 .mode-toggle {
   display: grid;

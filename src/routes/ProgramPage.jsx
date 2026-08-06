@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { withResolvedDayOfWeek, withStableDayNumbers } from '../lib/programDays'
+import { withResolvedDayOfWeek, withStableDayNumbers, programSchedule } from '../lib/programDays'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
@@ -74,7 +74,8 @@ export default function ProgramPage() {
 
       if (programData?.structure) {
         const totalWeeks = programData.structure.weeks.length
-        setWeekIndex(Math.min(Math.max(programData.current_week - 1, 0), totalWeeks - 1))
+        const sched = programSchedule(programData)
+        setWeekIndex(Math.min(Math.max((sched?.currentWeek ?? 1) - 1, 0), totalWeeks - 1))
 
         const { data: logs } = await supabase
           .from('workout_logs')
@@ -159,6 +160,8 @@ export default function ProgramPage() {
 
   const weeks = program.structure.weeks
   const week = weeks[weekIndex]
+  const schedule = programSchedule(program)
+  const expired = schedule?.expired
   const week1Monday = mondayOf(program.created_at)
   const slotRank = (slot) => (slot === 'morning' ? 0 : slot === 'evening' ? 1 : 0)
   const days = withStableDayNumbers(withResolvedDayOfWeek(week.days, preferredDays))
@@ -190,6 +193,13 @@ export default function ProgramPage() {
     <main>
       <TopNav />
       <h1>Ton programme</h1>
+
+      {expired && (
+        <p className="situation-disclaimer">
+          Ce programme est arrivé à échéance et n'est plus disponible. Retourne au{' '}
+          <Link to="/dashboard">tableau de bord</Link> pour générer un nouveau programme.
+        </p>
+      )}
 
       {SITUATION_LABELS[specialSituation] && (
         <p className="situation-disclaimer">
@@ -232,12 +242,8 @@ export default function ProgramPage() {
           const isDone = percent === 100
           const isStarted = percent > 0
           const totalSets = day.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
-          return (
-            <Link
-              key={day.day_number}
-              to={`/session/${week.week_number}/${day.day_number}`}
-              className="preview-row preview-row-stacked"
-            >
+          const inner = (
+            <>
               <span className="preview-day">{dayLabel(day, dayDate(day))}</span>
               <strong className="preview-row-name">{day.name}</strong>
               <span className="preview-row-foot">
@@ -246,9 +252,22 @@ export default function ProgramPage() {
                   {totalSets > 1 ? 's' : ''}
                 </span>
                 <span className={`badge${isDone ? ' badge-high' : isStarted ? ' badge-mid' : ''}`}>
-                  {isDone ? 'Terminée' : isStarted ? `${percent}%` : 'À faire'}
+                  {expired ? 'Indisponible' : isDone ? 'Terminée' : isStarted ? `${percent}%` : 'À faire'}
                 </span>
               </span>
+            </>
+          )
+          return expired ? (
+            <div key={day.day_number} className="preview-row preview-row-stacked preview-row-disabled">
+              {inner}
+            </div>
+          ) : (
+            <Link
+              key={day.day_number}
+              to={`/session/${week.week_number}/${day.day_number}`}
+              className="preview-row preview-row-stacked"
+            >
+              {inner}
             </Link>
           )
         })}
