@@ -174,14 +174,32 @@ export default function NutritionPage() {
         throw new Error(msg)
       }
       if (data?.error) throw new Error(data.error)
-      const items = (data?.items ?? []).map((it) => ({
-        name: it.name ?? '',
-        quantity_g: it.quantity_g ?? '',
-        kcal: Math.round(it.kcal ?? 0),
-        protein_g: Math.round(it.protein_g ?? 0),
-        carbs_g: Math.round(it.carbs_g ?? 0),
-        fat_g: Math.round(it.fat_g ?? 0),
-      }))
+      const items = (data?.items ?? []).map((it) => {
+        const qty = Number(it.quantity_g) > 0 ? Number(it.quantity_g) : 100
+        const macros = {
+          kcal: Number(it.kcal ?? 0),
+          protein_g: Number(it.protein_g ?? 0),
+          carbs_g: Number(it.carbs_g ?? 0),
+          fat_g: Number(it.fat_g ?? 0),
+        }
+        // Densité par 100 g : sert de base pour recalculer les macros quand on
+        // ajuste la portion.
+        const per100 = {
+          kcal: (macros.kcal / qty) * 100,
+          protein_g: (macros.protein_g / qty) * 100,
+          carbs_g: (macros.carbs_g / qty) * 100,
+          fat_g: (macros.fat_g / qty) * 100,
+        }
+        return {
+          name: it.name ?? '',
+          quantity_g: qty,
+          kcal: Math.round(macros.kcal),
+          protein_g: Math.round(macros.protein_g),
+          carbs_g: Math.round(macros.carbs_g),
+          fat_g: Math.round(macros.fat_g),
+          per100,
+        }
+      })
       setReview(items)
       setReviewNote(data?.note ?? '')
     } catch (err) {
@@ -192,7 +210,35 @@ export default function NutritionPage() {
   }
 
   function updateReviewItem(index, key, value) {
-    setReview((r) => r.map((it, i) => (i === index ? { ...it, [key]: value } : it)))
+    setReview((r) =>
+      r.map((it, i) => {
+        if (i !== index) return it
+        if (key === 'name') return { ...it, name: value }
+
+        if (key === 'quantity_g') {
+          // La portion pilote les macros : on recalcule depuis la densité/100 g.
+          const qty = Number(value)
+          const next = { ...it, quantity_g: value }
+          if (Number.isFinite(qty) && qty >= 0) {
+            next.kcal = Math.round((it.per100.kcal * qty) / 100)
+            next.protein_g = Math.round((it.per100.protein_g * qty) / 100)
+            next.carbs_g = Math.round((it.per100.carbs_g * qty) / 100)
+            next.fat_g = Math.round((it.per100.fat_g * qty) / 100)
+          }
+          return next
+        }
+
+        // Édition directe d'un macro → on met à jour sa densité pour rester
+        // cohérent lors des prochains changements de portion.
+        const next = { ...it, [key]: value }
+        const qty = Number(it.quantity_g)
+        const v = Number(value)
+        if (Number.isFinite(qty) && qty > 0 && Number.isFinite(v)) {
+          next.per100 = { ...it.per100, [key]: (v / qty) * 100 }
+        }
+        return next
+      })
+    )
   }
 
   function removeReviewItem(index) {
