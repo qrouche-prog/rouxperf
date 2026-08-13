@@ -5,6 +5,7 @@ import Icon from './onboarding/icons/Icon'
 const ITEMS = [
   { to: '/dashboard', icon: 'home', label: 'Accueil' },
   { to: '/program', icon: 'dumbbell', label: 'Programme' },
+  { to: '/nutrition', icon: 'meal', label: 'Nutrition' },
   { to: '/progress', icon: 'run', label: 'Progrès' },
   { to: '/settings', icon: 'settings', label: 'Réglages' },
 ]

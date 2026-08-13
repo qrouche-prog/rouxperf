@@ -13,6 +13,7 @@ import OnboardingPage from './routes/OnboardingPage'
 import DashboardPage from './routes/DashboardPage'
 import ProgramPage from './routes/ProgramPage'
 import ProgressPage from './routes/ProgressPage'
+import NutritionPage from './routes/NutritionPage'
 import SessionRunnerPage from './routes/SessionRunnerPage'
 import SettingsPage from './routes/SettingsPage'
 import AdminPage from './routes/AdminPage'
@@ -63,6 +64,16 @@ export default function App() {
               <RequireAuth>
                 <RequireOnboarding>
                   <ProgressPage />
+                </RequireOnboarding>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/nutrition"
+            element={
+              <RequireAuth>
+                <RequireOnboarding>
+                  <NutritionPage />
                 </RequireOnboarding>
               </RequireAuth>
             }
