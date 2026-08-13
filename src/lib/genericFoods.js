@@ -1,4 +1,15 @@
-import FOODS from '../data/foods_fr'
+// Recherche d'aliments génériques dans la table CIQUAL 2020 (ANSES, ~2300
+// aliments). Le jeu de données est chargé dynamiquement (chunk séparé) au
+// premier usage puis mis en cache — il reste hors du bundle initial.
+
+let cache = null
+async function loadFoods() {
+  if (!cache) {
+    const mod = await import('../data/ciqual.json')
+    cache = mod.default
+  }
+  return cache
+}
 
 function normalize(s) {
   return String(s ?? '')
@@ -7,27 +18,29 @@ function normalize(s) {
     .replace(/[̀-ͯ]/g, '') // enlève les accents
 }
 
-// Recherche locale d'aliments génériques (banane, riz, œuf…). Tous les mots de
-// la requête doivent apparaître dans le nom. Classement : correspondance exacte,
-// puis début de mot, puis inclusion.
-export function searchGenericFoods(query) {
+// Tous les mots de la requête doivent apparaître dans le nom. Classement :
+// correspondance exacte, préfixe, début de mot, puis inclusion ; à score égal,
+// le nom le plus court d'abord (souvent l'aliment le plus simple).
+export async function searchGenericFoods(query) {
   const q = normalize(query).trim()
   if (!q) return []
   const tokens = q.split(/\s+/)
+  const foods = await loadFoods()
 
   const scored = []
-  for (const food of FOODS) {
+  for (const food of foods) {
     const n = normalize(food.name)
     if (!tokens.every((t) => n.includes(t))) continue
+    const words = n.split(/[\s,]+/)
     let score = 10
     if (n === q) score = 100
     else if (n.startsWith(q)) score = 60
-    else if (n.split(/\s+/).some((w) => w.startsWith(q))) score = 40
-    scored.push({ score, food })
+    else if (tokens.every((t) => words.some((w) => w.startsWith(t)))) score = 40
+    scored.push({ score, food, len: n.length })
   }
 
-  scored.sort((a, b) => b.score - a.score || a.food.name.length - b.food.name.length)
-  return scored.slice(0, 8).map(({ food }) => ({
+  scored.sort((a, b) => b.score - a.score || a.len - b.len)
+  return scored.slice(0, 10).map(({ food }) => ({
     name: food.name,
     kind: 'generic',
     per100: {

@@ -243,8 +243,8 @@ export default function NutritionPage() {
     if (!q) return
     setSearching(true)
     setSearchError(null)
-    // Aliments génériques (banane, riz…) d'abord, en local et instantané.
-    const generics = searchGenericFoods(q)
+    // Aliments génériques CIQUAL (banane, riz…) d'abord.
+    const generics = await searchGenericFoods(q)
     setSearchResults(generics)
     try {
       const url =
