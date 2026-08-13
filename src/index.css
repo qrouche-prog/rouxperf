@@ -2313,6 +2313,28 @@ button:active,
 
 .search-result-name {
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.search-result-tag {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--iron);
+}
+
+.search-result-tag-generic {
+  background: color-mix(in srgb, var(--ember) 16%, var(--card));
+  border-color: var(--ember);
+  color: var(--ember);
 }
 
 .food-scan-btn {

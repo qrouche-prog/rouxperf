@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { computeMacroTargets, sessionsPerWeekFrom, sumEntries } from '../lib/nutrition'
+import { searchGenericFoods } from '../lib/genericFoods'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import BarcodeScanner from '../components/BarcodeScanner'
@@ -242,20 +243,27 @@ export default function NutritionPage() {
     if (!q) return
     setSearching(true)
     setSearchError(null)
-    setSearchResults([])
+    // Aliments génériques (banane, riz…) d'abord, en local et instantané.
+    const generics = searchGenericFoods(q)
+    setSearchResults(generics)
     try {
       const url =
         'https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=12' +
         '&fields=product_name,brands,nutriments&search_terms=' +
         encodeURIComponent(q)
       const res = await fetch(url)
-      if (!res.ok) throw new Error('Recherche indisponible')
-      const json = await res.json()
-      const results = (json.products ?? []).map(mapOffProduct).filter(Boolean).slice(0, 10)
-      setSearchResults(results)
-      if (results.length === 0) setSearchError('Aucun produit trouvé.')
-    } catch (err) {
-      setSearchError(err.message || 'Recherche impossible')
+      const json = res.ok ? await res.json() : { products: [] }
+      const offResults = (json.products ?? [])
+        .map(mapOffProduct)
+        .filter(Boolean)
+        .map((r) => ({ ...r, kind: 'off' }))
+        .slice(0, 8)
+      const all = [...generics, ...offResults]
+      setSearchResults(all)
+      if (all.length === 0) setSearchError('Aucun aliment trouvé.')
+    } catch {
+      // OFF indisponible : on garde au moins les aliments génériques.
+      if (generics.length === 0) setSearchError('Recherche indisponible.')
     } finally {
       setSearching(false)
     }
@@ -436,7 +444,12 @@ export default function NutritionPage() {
             {searchResults.map((r, i) => (
               <li key={i}>
                 <button type="button" className="search-result" onClick={() => addFromSearch(r)}>
-                  <span className="search-result-name">{r.name}</span>
+                  <span className="search-result-name">
+                    {r.name}
+                    <span className={`search-result-tag${r.kind === 'generic' ? ' search-result-tag-generic' : ''}`}>
+                      {r.kind === 'generic' ? 'aliment' : 'produit'}
+                    </span>
+                  </span>
                   <span className="eyebrow">
                     {Math.round(r.per100.kcal)} kcal · P {Math.round(r.per100.protein_g)} · G{' '}
                     {Math.round(r.per100.carbs_g)} · L {Math.round(r.per100.fat_g)} / 100 g
