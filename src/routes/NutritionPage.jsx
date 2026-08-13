@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { computeMacroTargets, sessionsPerWeekFrom, sumEntries } from '../lib/nutrition'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
+import BarcodeScanner from '../components/BarcodeScanner'
 
 function todayIso() {
   const d = new Date()
@@ -85,6 +86,7 @@ export default function NutritionPage() {
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState(null)
+  const [showScanner, setShowScanner] = useState(false)
 
   const day = todayIso()
 
@@ -259,6 +261,29 @@ export default function NutritionPage() {
     }
   }
 
+  async function handleBarcode(code) {
+    setShowScanner(false)
+    setSearchError(null)
+    try {
+      const res = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,nutriments`
+      )
+      const json = await res.json()
+      if (json.status !== 1 || !json.product) {
+        setSearchError(`Code ${code} introuvable dans Open Food Facts.`)
+        return
+      }
+      const mapped = mapOffProduct(json.product)
+      if (!mapped) {
+        setSearchError('Produit trouvé mais sans données nutritionnelles.')
+        return
+      }
+      addFromSearch(mapped)
+    } catch (err) {
+      setSearchError(err.message || 'Lecture du code-barres impossible')
+    }
+  }
+
   function addFromSearch(result) {
     const item = {
       name: result.name,
@@ -395,6 +420,16 @@ export default function NutritionPage() {
             {searching ? '…' : 'Chercher'}
           </button>
         </form>
+        <button
+          type="button"
+          className="btn-secondary food-scan-btn"
+          onClick={() => {
+            setSearchError(null)
+            setShowScanner(true)
+          }}
+        >
+          🔦 Scanner un code-barres
+        </button>
         {searchError && <p className="eyebrow">{searchError}</p>}
         {searchResults.length > 0 && (
           <ul className="search-results">
@@ -549,6 +584,8 @@ export default function NutritionPage() {
           </ul>
         )}
       </section>
+
+      {showScanner && <BarcodeScanner onDetected={handleBarcode} onClose={() => setShowScanner(false)} />}
 
       <div className="bottom-nav-spacer" />
       <BottomNav />
