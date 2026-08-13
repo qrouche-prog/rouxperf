@@ -14,6 +14,19 @@ function todayIso() {
 
 const EMPTY_FORM = { name: '', quantity_g: '', kcal: '', protein_g: '', carbs_g: '', fat_g: '' }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result)
+      const comma = result.indexOf(',')
+      resolve({ base64: result.slice(comma + 1), mediaType: file.type || 'image/jpeg' })
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 function MacroBar({ label, unit, consumed, target }) {
   const pct = target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0
   const over = target > 0 && consumed > target
@@ -43,6 +56,10 @@ export default function NutritionPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [review, setReview] = useState(null)
+  const [reviewNote, setReviewNote] = useState('')
+  const [analyzeError, setAnalyzeError] = useState(null)
 
   const day = todayIso()
 
@@ -133,6 +150,84 @@ export default function NutritionPage() {
     await loadEntries()
   }
 
+  async function handlePhoto(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // permet de re-sélectionner la même photo
+    if (!file) return
+    setAnalyzing(true)
+    setAnalyzeError(null)
+    setReview(null)
+    setReviewNote('')
+    try {
+      const { base64, mediaType } = await fileToBase64(file)
+      const { data, error: fnError } = await supabase.functions.invoke('analyze-meal', {
+        body: { image_base64: base64, media_type: mediaType },
+      })
+      if (fnError) {
+        let msg = fnError.message
+        try {
+          const body = await fnError.context?.json?.()
+          if (body?.error) msg = body.error
+        } catch {
+          // ignore
+        }
+        throw new Error(msg)
+      }
+      if (data?.error) throw new Error(data.error)
+      const items = (data?.items ?? []).map((it) => ({
+        name: it.name ?? '',
+        quantity_g: it.quantity_g ?? '',
+        kcal: Math.round(it.kcal ?? 0),
+        protein_g: Math.round(it.protein_g ?? 0),
+        carbs_g: Math.round(it.carbs_g ?? 0),
+        fat_g: Math.round(it.fat_g ?? 0),
+      }))
+      setReview(items)
+      setReviewNote(data?.note ?? '')
+    } catch (err) {
+      setAnalyzeError(err.message || 'Analyse impossible')
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  function updateReviewItem(index, key, value) {
+    setReview((r) => r.map((it, i) => (i === index ? { ...it, [key]: value } : it)))
+  }
+
+  function removeReviewItem(index) {
+    setReview((r) => r.filter((_, i) => i !== index))
+  }
+
+  async function saveReview() {
+    if (!review || review.length === 0) {
+      setReview(null)
+      return
+    }
+    setSaving(true)
+    setError(null)
+    const rows = review.map((it) => ({
+      user_id: user.id,
+      consumed_on: day,
+      name: (it.name || 'Aliment').trim(),
+      quantity_g: it.quantity_g ? Number(it.quantity_g) : null,
+      kcal: Number(it.kcal || 0),
+      protein_g: Number(it.protein_g || 0),
+      carbs_g: Number(it.carbs_g || 0),
+      fat_g: Number(it.fat_g || 0),
+      source: 'photo',
+    }))
+    const { error: insErr } = await supabase.from('food_entries').insert(rows)
+    setSaving(false)
+    if (insErr) {
+      setError(insErr.message)
+      return
+    }
+    setReview(null)
+    setReviewNote('')
+    await loadEntries()
+  }
+
   const field = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
   return (
@@ -160,6 +255,81 @@ export default function NutritionPage() {
             <Link to="/progress">Progression</Link> pour calculer tes cibles de macros.
           </p>
         </div>
+      )}
+
+      <section className="card">
+        <h2>Ajouter par photo</h2>
+        <p className="eyebrow">
+          Prends ton repas en photo : l'IA estime les aliments et les macros. Tu ajustes avant d'enregistrer.
+        </p>
+        <label className={`btn-primary photo-btn${analyzing ? ' photo-btn-loading' : ''}`}>
+          {analyzing ? 'Analyse en cours…' : '📷 Photographier un repas'}
+          <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} disabled={analyzing} hidden />
+        </label>
+        {analyzeError && <p role="alert">{analyzeError}</p>}
+      </section>
+
+      {review !== null && (
+        <section className="card">
+          <h2>Vérifie l'estimation</h2>
+          {reviewNote && <p className="eyebrow">{reviewNote}</p>}
+          {review.length === 0 ? (
+            <p>Aucun aliment détecté sur la photo.</p>
+          ) : (
+            <ul className="review-list">
+              {review.map((it, i) => (
+                <li key={i} className="review-item">
+                  <div className="review-item-head">
+                    <input
+                      className="review-name"
+                      value={it.name}
+                      onChange={(e) => updateReviewItem(i, 'name', e.target.value)}
+                      placeholder="Aliment"
+                    />
+                    <button
+                      type="button"
+                      className="food-entry-delete"
+                      onClick={() => removeReviewItem(i)}
+                      aria-label="Retirer"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                  <div className="review-macros">
+                    <label>
+                      <span>g</span>
+                      <input type="number" inputMode="decimal" value={it.quantity_g} onChange={(e) => updateReviewItem(i, 'quantity_g', e.target.value)} />
+                    </label>
+                    <label>
+                      <span>kcal</span>
+                      <input type="number" inputMode="decimal" value={it.kcal} onChange={(e) => updateReviewItem(i, 'kcal', e.target.value)} />
+                    </label>
+                    <label>
+                      <span>P</span>
+                      <input type="number" inputMode="decimal" value={it.protein_g} onChange={(e) => updateReviewItem(i, 'protein_g', e.target.value)} />
+                    </label>
+                    <label>
+                      <span>G</span>
+                      <input type="number" inputMode="decimal" value={it.carbs_g} onChange={(e) => updateReviewItem(i, 'carbs_g', e.target.value)} />
+                    </label>
+                    <label>
+                      <span>L</span>
+                      <input type="number" inputMode="decimal" value={it.fat_g} onChange={(e) => updateReviewItem(i, 'fat_g', e.target.value)} />
+                    </label>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="review-actions">
+            <button type="button" className="btn-primary" onClick={saveReview} disabled={saving || review.length === 0}>
+              {saving ? 'Enregistrement…' : `Enregistrer${review.length > 1 ? ` (${review.length})` : ''}`}
+            </button>
+            <button type="button" className="link-button" onClick={() => { setReview(null); setReviewNote('') }}>
+              Annuler
+            </button>
+          </div>
+        </section>
       )}
 
       <section className="card">

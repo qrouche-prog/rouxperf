@@ -2208,6 +2208,70 @@ button:active,
   padding: 4px;
 }
 
+.photo-btn {
+  display: inline-flex;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.photo-btn-loading {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.review-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.review-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-macros {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.review-macros label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.7rem;
+  color: var(--iron);
+  text-align: center;
+}
+
+.review-macros input {
+  width: 100%;
+  padding: 6px 4px;
+  text-align: center;
+}
+
+.review-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* Sélecteur Guidé / Libre (Réglages + écran de lancement) */
 .mode-toggle {
   display: grid;
