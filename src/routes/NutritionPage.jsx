@@ -459,7 +459,10 @@ export default function NutritionPage() {
             ))}
           </ul>
         )}
-        <p className="nutrition-disclaimer">Source : Open Food Facts. Ajoute un produit, puis ajuste la portion.</p>
+        <p className="nutrition-disclaimer">
+          Sources : table CIQUAL (ANSES) pour les aliments génériques, Open Food Facts pour les produits de
+          marque. Ajoute un aliment, puis ajuste la portion.
+        </p>
       </section>
 
       {review !== null && (
