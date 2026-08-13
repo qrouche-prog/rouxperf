@@ -14,6 +14,27 @@ function todayIso() {
 
 const EMPTY_FORM = { name: '', quantity_g: '', kcal: '', protein_g: '', carbs_g: '', fat_g: '' }
 
+// Convertit un produit Open Food Facts en densité macros / 100 g.
+function mapOffProduct(p) {
+  if (!p?.product_name) return null
+  const n = p.nutriments || {}
+  let kcal100 = Number(n['energy-kcal_100g'])
+  if (!Number.isFinite(kcal100)) {
+    const kj = Number(n['energy_100g'])
+    kcal100 = Number.isFinite(kj) ? kj / 4.184 : 0
+  }
+  const brand = String(p.brands ?? '').split(',')[0]?.trim()
+  return {
+    name: [p.product_name, brand].filter(Boolean).join(' · '),
+    per100: {
+      kcal: Number.isFinite(kcal100) ? kcal100 : 0,
+      protein_g: Number(n['proteins_100g']) || 0,
+      carbs_g: Number(n['carbohydrates_100g']) || 0,
+      fat_g: Number(n['fat_100g']) || 0,
+    },
+  }
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -60,6 +81,10 @@ export default function NutritionPage() {
   const [review, setReview] = useState(null)
   const [reviewNote, setReviewNote] = useState('')
   const [analyzeError, setAnalyzeError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState(null)
 
   const day = todayIso()
 
@@ -209,6 +234,47 @@ export default function NutritionPage() {
     }
   }
 
+  async function searchFood(e) {
+    if (e) e.preventDefault()
+    const q = searchQuery.trim()
+    if (!q) return
+    setSearching(true)
+    setSearchError(null)
+    setSearchResults([])
+    try {
+      const url =
+        'https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=12' +
+        '&fields=product_name,brands,nutriments&search_terms=' +
+        encodeURIComponent(q)
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('Recherche indisponible')
+      const json = await res.json()
+      const results = (json.products ?? []).map(mapOffProduct).filter(Boolean).slice(0, 10)
+      setSearchResults(results)
+      if (results.length === 0) setSearchError('Aucun produit trouvé.')
+    } catch (err) {
+      setSearchError(err.message || 'Recherche impossible')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  function addFromSearch(result) {
+    const item = {
+      name: result.name,
+      quantity_g: 100,
+      kcal: Math.round(result.per100.kcal),
+      protein_g: Math.round(result.per100.protein_g),
+      carbs_g: Math.round(result.per100.carbs_g),
+      fat_g: Math.round(result.per100.fat_g),
+      per100: { ...result.per100 },
+    }
+    setReview((r) => [...(r ?? []), item])
+    setReviewNote('')
+    setSearchResults([])
+    setSearchQuery('')
+  }
+
   function updateReviewItem(index, key, value) {
     setReview((r) =>
       r.map((it, i) => {
@@ -315,9 +381,42 @@ export default function NutritionPage() {
         {analyzeError && <p role="alert">{analyzeError}</p>}
       </section>
 
+      <section className="card">
+        <h2>Rechercher un aliment</h2>
+        <form className="food-search" onSubmit={searchFood}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ex. yaourt nature, banane…"
+            autoComplete="off"
+          />
+          <button type="submit" className="btn-primary" disabled={searching || !searchQuery.trim()}>
+            {searching ? '…' : 'Chercher'}
+          </button>
+        </form>
+        {searchError && <p className="eyebrow">{searchError}</p>}
+        {searchResults.length > 0 && (
+          <ul className="search-results">
+            {searchResults.map((r, i) => (
+              <li key={i}>
+                <button type="button" className="search-result" onClick={() => addFromSearch(r)}>
+                  <span className="search-result-name">{r.name}</span>
+                  <span className="eyebrow">
+                    {Math.round(r.per100.kcal)} kcal · P {Math.round(r.per100.protein_g)} · G{' '}
+                    {Math.round(r.per100.carbs_g)} · L {Math.round(r.per100.fat_g)} / 100 g
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="nutrition-disclaimer">Source : Open Food Facts. Ajoute un produit, puis ajuste la portion.</p>
+      </section>
+
       {review !== null && (
         <section className="card">
-          <h2>Vérifie l'estimation</h2>
+          <h2>À enregistrer</h2>
           {reviewNote && <p className="eyebrow">{reviewNote}</p>}
           {review.length === 0 ? (
             <p>Aucun aliment détecté sur la photo.</p>

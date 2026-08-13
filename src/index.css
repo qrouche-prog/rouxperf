@@ -2272,6 +2272,49 @@ button:active,
   gap: 12px;
 }
 
+.food-search {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.food-search input {
+  flex: 1;
+  min-width: 0;
+}
+.food-search button {
+  flex-shrink: 0;
+}
+
+.search-results {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-result {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+.search-result:hover {
+  border-color: var(--ember);
+}
+
+.search-result-name {
+  font-weight: 500;
+}
+
 /* Sélecteur Guidé / Libre (Réglages + écran de lancement) */
 .mode-toggle {
   display: grid;
