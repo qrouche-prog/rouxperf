@@ -2198,6 +2198,52 @@ button:active,
   color: var(--iron);
 }
 
+.target-edit-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.target-editor {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.target-kcal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.target-split {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.target-split label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.target-split span,
+.target-kcal span {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.target-sum {
+  margin: 10px 0 0;
+  font-size: var(--text-xs);
+  color: var(--success);
+}
+
+.target-sum-bad {
+  color: var(--danger);
+}
+
 .meal-plan-total {
   margin: 0 0 12px;
 }

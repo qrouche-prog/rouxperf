@@ -79,6 +79,29 @@ export function computeMacroTargets({ sex, birthDate, heightCm, weightKg, goalTy
   return { kcal, protein_g: proteinG, carbs_g: carbsG, fat_g: fatG }
 }
 
+// Cibles en grammes à partir d'un total calorique et d'une répartition en %
+// (protéines/glucides = 4 kcal/g, lipides = 9 kcal/g).
+export function macrosFromSplit(kcal, { protein_pct, carbs_pct, fat_pct }) {
+  const k = Number(kcal) || 0
+  return {
+    kcal: Math.round(k),
+    protein_g: Math.round((k * (Number(protein_pct) || 0)) / 100 / 4),
+    carbs_g: Math.round((k * (Number(carbs_pct) || 0)) / 100 / 4),
+    fat_g: Math.round((k * (Number(fat_pct) || 0)) / 100 / 9),
+  }
+}
+
+// Répartition en % (arrondie à 100) déduite de cibles en grammes.
+// Sert à préremplir l'éditeur depuis les cibles calculées automatiquement.
+export function splitFromMacros(targets) {
+  const kcal = Number(targets?.kcal)
+  if (!kcal || kcal <= 0) return { protein_pct: 30, carbs_pct: 40, fat_pct: 30 }
+  const protein_pct = Math.round(((Number(targets.protein_g) || 0) * 4) / kcal * 100)
+  const fat_pct = Math.round(((Number(targets.fat_g) || 0) * 9) / kcal * 100)
+  const carbs_pct = Math.max(0, 100 - protein_pct - fat_pct)
+  return { protein_pct, carbs_pct, fat_pct }
+}
+
 export function sumEntries(entries) {
   return (entries ?? []).reduce(
     (acc, e) => ({

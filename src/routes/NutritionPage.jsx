@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { computeMacroTargets, sessionsPerWeekFrom, sumEntries } from '../lib/nutrition'
+import {
+  computeMacroTargets,
+  sessionsPerWeekFrom,
+  sumEntries,
+  macrosFromSplit,
+  splitFromMacros,
+} from '../lib/nutrition'
 import { searchGenericFoods } from '../lib/genericFoods'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
@@ -120,8 +126,22 @@ export default function NutritionPage() {
   const [planError, setPlanError] = useState(null)
   const [planPrefs, setPlanPrefs] = useState('')
   const [addingMeal, setAddingMeal] = useState(null)
+  const [customTarget, setCustomTarget] = useState(null)
+  const [editingTargets, setEditingTargets] = useState(false)
+  const [tForm, setTForm] = useState({ kcal: '', protein_pct: '', carbs_pct: '', fat_pct: '' })
+  const [tSaving, setTSaving] = useState(false)
+  const [tError, setTError] = useState(null)
 
   const day = todayIso()
+
+  async function loadTargets() {
+    const { data } = await supabase
+      .from('nutrition_targets')
+      .select('kcal, protein_pct, carbs_pct, fat_pct')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    setCustomTarget(data ?? null)
+  }
 
   async function loadMealPlan() {
     const { data } = await supabase
@@ -169,7 +189,7 @@ export default function NutritionPage() {
       setWeightKg(measurement?.weight_kg ?? null)
       setGoal(goalData)
       setTrainingProfile(tp)
-      await Promise.all([loadEntries(), loadMealPlan()])
+      await Promise.all([loadEntries(), loadMealPlan(), loadTargets()])
       setStatus('idle')
     }
     load()
@@ -178,7 +198,7 @@ export default function NutritionPage() {
 
   if (status === 'loading') return null
 
-  const targets = computeMacroTargets({
+  const computedTargets = computeMacroTargets({
     sex: profile?.sex,
     birthDate: profile?.birth_date,
     heightCm: profile?.height_cm,
@@ -186,6 +206,8 @@ export default function NutritionPage() {
     goalType: goal?.goal_type,
     sessionsPerWeek: sessionsPerWeekFrom(trainingProfile),
   })
+  // L'override utilisateur prime sur le calcul auto quand il existe.
+  const targets = customTarget ? macrosFromSplit(customTarget.kcal, customTarget) : computedTargets
 
   const consumed = sumEntries(entries)
 
@@ -217,6 +239,58 @@ export default function NutritionPage() {
   async function handleDelete(id) {
     await supabase.from('food_entries').delete().eq('id', id)
     await loadEntries()
+  }
+
+  function openTargetEditor() {
+    const base =
+      customTarget ??
+      (computedTargets
+        ? { kcal: computedTargets.kcal, ...splitFromMacros(computedTargets) }
+        : { kcal: 2000, protein_pct: 30, carbs_pct: 40, fat_pct: 30 })
+    setTForm({
+      kcal: String(base.kcal),
+      protein_pct: String(base.protein_pct),
+      carbs_pct: String(base.carbs_pct),
+      fat_pct: String(base.fat_pct),
+    })
+    setTError(null)
+    setEditingTargets(true)
+  }
+
+  async function saveTargets() {
+    const kcal = Math.round(Number(tForm.kcal))
+    const p = Math.round(Number(tForm.protein_pct))
+    const c = Math.round(Number(tForm.carbs_pct))
+    const f = Math.round(Number(tForm.fat_pct))
+    if (!Number.isFinite(kcal) || kcal <= 0) {
+      setTError('Indique un total de calories valide.')
+      return
+    }
+    if (p + c + f !== 100) {
+      setTError(`Les pourcentages doivent totaliser 100 % (actuellement ${p + c + f} %).`)
+      return
+    }
+    setTSaving(true)
+    setTError(null)
+    const { error: upErr } = await supabase.from('nutrition_targets').upsert(
+      { user_id: user.id, kcal, protein_pct: p, carbs_pct: c, fat_pct: f, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    )
+    setTSaving(false)
+    if (upErr) {
+      setTError(upErr.message)
+      return
+    }
+    setCustomTarget({ kcal, protein_pct: p, carbs_pct: c, fat_pct: f })
+    setEditingTargets(false)
+  }
+
+  async function resetTargets() {
+    setTSaving(true)
+    await supabase.from('nutrition_targets').delete().eq('user_id', user.id)
+    setTSaving(false)
+    setCustomTarget(null)
+    setEditingTargets(false)
   }
 
   async function generatePlan() {
@@ -464,26 +538,104 @@ export default function NutritionPage() {
       <h1>Nutrition</h1>
       <p className="eyebrow">Aujourd'hui</p>
 
-      {targets ? (
-        <div className="card">
-          <MacroBar label="Calories" unit="kcal" consumed={consumed.kcal} target={targets.kcal} />
-          <MacroBar label="Protéines" unit="g" consumed={consumed.protein_g} target={targets.protein_g} />
-          <MacroBar label="Glucides" unit="g" consumed={consumed.carbs_g} target={targets.carbs_g} />
-          <MacroBar label="Lipides" unit="g" consumed={consumed.fat_g} target={targets.fat_g} />
-          <p className="nutrition-disclaimer">
-            Cibles calculées à partir de ton profil (poids, taille, âge, objectif) — un repère indicatif, pas un
-            avis diététique.
-          </p>
-        </div>
-      ) : (
-        <div className="card">
+      <div className="card">
+        {targets ? (
+          <>
+            <MacroBar label="Calories" unit="kcal" consumed={consumed.kcal} target={targets.kcal} />
+            <MacroBar label="Protéines" unit="g" consumed={consumed.protein_g} target={targets.protein_g} />
+            <MacroBar label="Glucides" unit="g" consumed={consumed.carbs_g} target={targets.carbs_g} />
+            <MacroBar label="Lipides" unit="g" consumed={consumed.fat_g} target={targets.fat_g} />
+            <p className="nutrition-disclaimer">
+              {customTarget
+                ? 'Cibles personnalisées (répartition que tu as fixée) — un repère indicatif, pas un avis diététique.'
+                : 'Cibles calculées à partir de ton profil (poids, taille, âge, objectif) — un repère indicatif, pas un avis diététique.'}
+            </p>
+          </>
+        ) : (
           <p>
             Complète ton profil (poids, taille, date de naissance, sexe) dans{' '}
             <Link to="/settings#infos">Réglages</Link> et enregistre un poids dans{' '}
-            <Link to="/progress">Progression</Link> pour calculer tes cibles de macros.
+            <Link to="/progress">Progression</Link> pour un calcul automatique — ou fixe tes cibles à la main
+            ci-dessous.
           </p>
-        </div>
-      )}
+        )}
+
+        {!editingTargets ? (
+          <button type="button" className="btn-secondary target-edit-btn" onClick={openTargetEditor}>
+            Ajuster mes cibles
+          </button>
+        ) : (
+          (() => {
+            const sum =
+              (Math.round(Number(tForm.protein_pct)) || 0) +
+              (Math.round(Number(tForm.carbs_pct)) || 0) +
+              (Math.round(Number(tForm.fat_pct)) || 0)
+            const preview = macrosFromSplit(tForm.kcal, tForm)
+            return (
+              <div className="target-editor">
+                <label className="target-kcal">
+                  <span>Calories (kcal)</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={tForm.kcal}
+                    onChange={(e) => setTForm((f) => ({ ...f, kcal: e.target.value }))}
+                  />
+                </label>
+                <div className="target-split">
+                  <label>
+                    <span>Protéines %</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={tForm.protein_pct}
+                      onChange={(e) => setTForm((f) => ({ ...f, protein_pct: e.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    <span>Glucides %</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={tForm.carbs_pct}
+                      onChange={(e) => setTForm((f) => ({ ...f, carbs_pct: e.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    <span>Lipides %</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={tForm.fat_pct}
+                      onChange={(e) => setTForm((f) => ({ ...f, fat_pct: e.target.value }))}
+                    />
+                  </label>
+                </div>
+                <p className={`target-sum${sum !== 100 ? ' target-sum-bad' : ''}`}>
+                  Total : {sum} % {sum === 100 ? '✓' : '— doit faire 100 %'}
+                </p>
+                <p className="eyebrow">
+                  ≈ {preview.protein_g} g protéines · {preview.carbs_g} g glucides · {preview.fat_g} g lipides
+                </p>
+                {tError && <p role="alert">{tError}</p>}
+                <div className="review-actions">
+                  <button type="button" className="btn-primary" onClick={saveTargets} disabled={tSaving}>
+                    {tSaving ? 'Enregistrement…' : 'Enregistrer mes cibles'}
+                  </button>
+                  {customTarget && (
+                    <button type="button" className="link-button" onClick={resetTargets} disabled={tSaving}>
+                      Revenir au calcul auto
+                    </button>
+                  )}
+                  <button type="button" className="link-button" onClick={() => setEditingTargets(false)}>
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )
+          })()
+        )}
+      </div>
 
       {targets && (
         <section className="card meal-plan-card">
