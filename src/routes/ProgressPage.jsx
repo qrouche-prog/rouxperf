@@ -5,6 +5,7 @@ import { frActivityLabel, activityEmoji } from '../lib/activityLabels'
 import { useAuth } from '../context/AuthContext'
 import MeasurementCard from '../components/progress/MeasurementCard'
 import MeasurementSummaryRow from '../components/progress/MeasurementSummaryRow'
+import WeeklyLoadChart from '../components/progress/WeeklyLoadChart'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
@@ -64,7 +65,7 @@ export default function ProgressPage() {
       .select('id, activity_type, started_at, duration_s, distance_m, calories, avg_hr, max_hr, elevation_gain_m')
       .eq('user_id', user.id)
       .order('started_at', { ascending: false })
-      .limit(40)
+      .limit(120)
     setActivities(data ?? [])
   }
 
@@ -123,6 +124,28 @@ export default function ProgressPage() {
     hr: b.hrN ? Math.round(b.hrSum / b.hrN) : null,
   }))
 
+  // Volume hebdomadaire (min) sur 10 semaines pour le graphe (semaines vides à 0).
+  function mondayOf(dt) {
+    const x = new Date(dt)
+    x.setHours(0, 0, 0, 0)
+    const day = x.getDay() || 7
+    x.setDate(x.getDate() - (day - 1))
+    return x
+  }
+  const chartBuckets = {}
+  const thisMonday = mondayOf(new Date())
+  for (let i = 9; i >= 0; i -= 1) {
+    const m = new Date(thisMonday)
+    m.setDate(m.getDate() - i * 7)
+    chartBuckets[m.toISOString().slice(0, 10)] = 0
+  }
+  for (const a of activities) {
+    if (!a.started_at) continue
+    const key = mondayOf(new Date(a.started_at)).toISOString().slice(0, 10)
+    if (key in chartBuckets) chartBuckets[key] += Math.round(Number(a.duration_s || 0) / 60)
+  }
+  const weeklyChart = Object.entries(chartBuckets).map(([week, min]) => ({ week, min }))
+
   return (
     <main>
       <TopNav />
@@ -159,6 +182,12 @@ export default function ProgressPage() {
         </p>
       ) : (
         <>
+          <div className="card">
+            <p className="eyebrow wearable-list-title" style={{ marginTop: 0 }}>
+              Volume hebdomadaire (min)
+            </p>
+            <WeeklyLoadChart data={weeklyChart} />
+          </div>
           {weeklySummary.length > 0 && (
             <div className="card wearable-summary">
               <p className="eyebrow">Charge des 4 dernières semaines (par semaine)</p>
