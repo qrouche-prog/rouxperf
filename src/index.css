@@ -3029,6 +3029,16 @@ button:active,
   color: var(--iron);
 }
 
+.cardio-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardio-metric .chart-metric-switch {
+  align-self: flex-start;
+}
+
 .set-fill-target strong {
   color: var(--ink);
 }

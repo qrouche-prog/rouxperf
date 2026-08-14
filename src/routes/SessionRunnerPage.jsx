@@ -20,6 +20,41 @@ function parseTargetReps(repsText) {
   return match ? Number(match[0]) : null
 }
 
+// Durée d'effort en secondes si l'objectif est exprimé en temps ("30s",
+// "45 sec", "1 min", "1:30"), sinon null (objectif en répétitions).
+function repsSeconds(repsText) {
+  const t = String(repsText ?? '').toLowerCase().trim()
+  let m = t.match(/^(\d+)\s*:\s*(\d{2})$/)
+  if (m) return Number(m[1]) * 60 + Number(m[2])
+  m = t.match(/^(\d+)\s*(min|mn|minutes?)\b/)
+  if (m) return Number(m[1]) * 60
+  m = t.match(/^(\d+)\s*(s|sec|secs|secondes?)\b/)
+  if (m) return Number(m[1])
+  return null
+}
+
+// mm:ss quand ≥ 1 min, sinon "Ns".
+function fmtCountdown(sec) {
+  const s = Math.max(0, sec)
+  const m = Math.floor(s / 60)
+  return m > 0 ? `${m}:${String(s % 60).padStart(2, '0')}` : `${s}s`
+}
+
+function isCardioExercise(details) {
+  return String(details?.category ?? '').toLowerCase() === 'cardio'
+}
+
+// Libellé d'une série réalisée dans le résumé, selon sa nature.
+function setSummary(e, ex, cardio) {
+  if (e.metric_kind === 'effort_s') return `${e.metric_value}s d'effort`
+  const rpe = e.rpe ? ` · RPE ${e.rpe}` : ''
+  if (e.metric_kind === 'speed') return `${e.metric_value} km/h${rpe}`
+  if (e.metric_kind === 'time') return `${e.metric_value} min${rpe}`
+  if (e.metric_kind === 'distance') return `${e.metric_value} km${rpe}`
+  if (cardio) return `série faite${rpe}`
+  return `${e.weight_kg ? `${e.weight_kg} kg` : 'PdC'} × ${e.reps || ex.reps} reps${rpe}`
+}
+
 function countCompleted(entries, exerciseIndex, totalSets) {
   let n = 0
   for (let i = 0; i < totalSets; i += 1) {
@@ -28,9 +63,14 @@ function countCompleted(entries, exerciseIndex, totalSets) {
   return n
 }
 
+// Libellé exact du repos (pas d'arrondi trompeur : 75 s ≠ "1 min").
 function restLabelFor(seconds) {
   if (!seconds) return '—'
-  return seconds >= 60 ? `${Math.round(seconds / 60)} min` : `${seconds}s`
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  if (m === 0) return `${s}s`
+  if (s === 0) return `${m} min`
+  return `${m} min ${s}s`
 }
 
 // Reconstruit les séries déjà enregistrées → entrées locales + id de ligne
@@ -49,6 +89,8 @@ function buildFromLoggedSets(day, loggedSets) {
         reps: set.reps ?? '',
         weight_kg: set.weight_kg ?? '',
         rpe: set.rpe ?? '',
+        metric_kind: set.metric_kind ?? null,
+        metric_value: set.metric_value ?? null,
       }
       if (set.id != null) rowIds[key] = set.id
     }
@@ -69,16 +111,20 @@ export default function SessionRunnerPage() {
   const [entries, setEntries] = useState({})
   const [carryoverByExercise, setCarryoverByExercise] = useState({})
 
-  const [phase, setPhase] = useState('exercise') // exercise | list | resting | summary
+  const [phase, setPhase] = useState('exercise') // exercise | list | resting | effort | summary
   const [selectedExerciseIndex, setSelectedExerciseIndex] = useState(null)
   const [activeSetIndex, setActiveSetIndex] = useState(0)
   const [editingDoneSet, setEditingDoneSet] = useState(false)
   const [restRemaining, setRestRemaining] = useState(0)
   const [restEndAt, setRestEndAt] = useState(null)
   const [restNext, setRestNext] = useState('')
+  const [effortRemaining, setEffortRemaining] = useState(0)
+  const [effortEndAt, setEffortEndAt] = useState(null)
 
   const [weight, setWeight] = useState('')
   const [rpe, setRpe] = useState('')
+  const [metricKind, setMetricKind] = useState('speed') // speed | time | distance
+  const [metricValue, setMetricValue] = useState('')
   const [saveState, setSaveState] = useState('idle') // idle | saving | saved | error
   const [, setFinalPercent] = useState(null)
 
@@ -90,6 +136,8 @@ export default function SessionRunnerPage() {
   const wakeLockRef = useRef(null)
   const audioCtxRef = useRef(null)
   const restFiredRef = useRef(false)
+  const effortFiredRef = useRef(false)
+  const effortTargetRef = useRef(null)
 
   const REST_KEY = `rouxperf-rest-${weekNumber}-${dayNumber}`
 
@@ -114,6 +162,8 @@ export default function SessionRunnerPage() {
     if (existing) {
       setWeight(existing.weight_kg != null ? String(existing.weight_kg) : '')
       setRpe(existing.rpe != null && existing.rpe !== '' ? String(existing.rpe) : '')
+      if (existing.metric_kind && existing.metric_kind !== 'effort_s') setMetricKind(existing.metric_kind)
+      setMetricValue(existing.metric_value != null ? String(existing.metric_value) : '')
       return
     }
     const carry = carryoverFor(ex.exercise_id, setIdx)
@@ -121,6 +171,7 @@ export default function SessionRunnerPage() {
     else if (!sameExercise) setWeight('') // nouvel exercice sans reprise : on repart vide
     // même exercice sans reprise : on garde le poids déjà saisi
     setRpe('')
+    setMetricValue('')
   }
 
   // Ouvre la série à faire courante (1er exercice, 1re série non complétés).
@@ -179,7 +230,7 @@ export default function SessionRunnerPage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase.from('exercises').select('id, name, instructions, illustration_slug'),
+        supabase.from('exercises').select('id, name, instructions, illustration_slug, category'),
       ])
       if (error) {
         setLoadError(error.message)
@@ -197,7 +248,9 @@ export default function SessionRunnerPage() {
         if (theDay) {
           const { data: existingLog } = await supabase
             .from('workout_logs')
-            .select('id, performed_at, workout_log_sets(id, exercise_id, set_number, reps, weight_kg, rpe)')
+            .select(
+              'id, performed_at, workout_log_sets(id, exercise_id, set_number, reps, weight_kg, rpe, metric_kind, metric_value)'
+            )
             .eq('user_id', user.id)
             .eq('program_id', programData.id)
             .eq('week_number', Number(weekNumber))
@@ -296,9 +349,30 @@ export default function SessionRunnerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, restEndAt])
 
+  // Décompte de l'effort (exercices chronométrés), même logique que le repos.
+  useEffect(() => {
+    if (phase !== 'effort' || effortEndAt == null) return undefined
+    function tick() {
+      const remaining = Math.max(0, Math.round((effortEndAt - Date.now()) / 1000))
+      setEffortRemaining(remaining)
+      if (remaining <= 0) finishEffort()
+    }
+    function onVisible() {
+      if (document.visibilityState === 'visible') tick()
+    }
+    tick()
+    const id = setInterval(tick, 500)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, effortEndAt])
+
   // Garde l'écran allumé pendant la séance (Wake Lock, si supporté)
   useEffect(() => {
-    const active = phase === 'exercise' || phase === 'resting' || phase === 'list'
+    const active = phase === 'exercise' || phase === 'resting' || phase === 'effort' || phase === 'list'
     async function acquire() {
       if (!active || !('wakeLock' in navigator)) return
       try {
@@ -396,6 +470,9 @@ export default function SessionRunnerPage() {
       reps: entry.reps ? Number(entry.reps) : null,
       weight_kg: entry.weight_kg ? Number(entry.weight_kg) : null,
       rpe: entry.rpe ? Number(entry.rpe) : null,
+      metric_kind: entry.metric_kind ?? null,
+      metric_value:
+        entry.metric_value != null && entry.metric_value !== '' ? Number(entry.metric_value) : null,
     }
 
     const existingId = rowIdsRef.current[key]
@@ -416,12 +493,46 @@ export default function SessionRunnerPage() {
     setSaveState('saved')
   }
 
+  function allDone(map) {
+    return !day.exercises.some((ex, e) => {
+      for (let s = 0; s < ex.sets; s += 1) if (!map[`${e}-${s}`]) return true
+      return false
+    })
+  }
+
+  // Reprend l'EXERCICE COURANT à sa prochaine série non faite (ne saute jamais
+  // vers un autre exercice « dans l'ordre »). Si l'exercice est terminé → liste.
+  function resumeCurrentExercise() {
+    const exIdx = selectedExRef.current
+    const ex = day?.exercises[exIdx]
+    if (!ex) {
+      setPhase('list')
+      return
+    }
+    for (let s = 0; s < ex.sets; s += 1) {
+      if (!entriesRef.current[`${exIdx}-${s}`]) {
+        setSelectedExerciseIndex(exIdx)
+        setActiveSetIndex(s)
+        setEditingDoneSet(false)
+        loadFieldsFor(day, exIdx, s, { sameExercise: true })
+        setPhase('exercise')
+        return
+      }
+    }
+    setPhase('list')
+  }
+
   function submitSet(idx) {
     const exercise = day.exercises[selectedExerciseIndex]
+    const det = exercisesById[exercise.exercise_id]
+    const cardio = isCardioExercise(det)
+    const hasMetric = cardio && metricValue !== '' && Number.isFinite(Number(metricValue))
     const entry = {
-      reps: parseTargetReps(exercise.reps),
-      weight_kg: weight,
+      reps: cardio ? null : parseTargetReps(exercise.reps),
+      weight_kg: cardio ? '' : weight,
       rpe,
+      metric_kind: hasMetric ? metricKind : null,
+      metric_value: hasMetric ? Number(metricValue) : null,
     }
     const key = `${selectedExerciseIndex}-${idx}`
     const wasDone = Boolean(entriesRef.current[key])
@@ -433,31 +544,26 @@ export default function SessionRunnerPage() {
 
     const exNowDone = countCompleted(updated, selectedExerciseIndex, exercise.sets) === exercise.sets
 
-    // Édition d'une série déjà validée : pas d'auto-enchaînement.
-    if (wasDone) {
-      if (!exNowDone) openCurrent()
-      return
-    }
-
-    // Séance entièrement terminée → résumé.
-    const sessionDone = !day.exercises.some((ex, e) => {
-      for (let s = 0; s < ex.sets; s += 1) if (!updated[`${e}-${s}`]) return true
-      return false
-    })
-    if (sessionDone) {
+    if (allDone(updated)) {
       setFinalPercent(100)
       setPhase('summary')
       return
     }
 
-    // Exercice terminé mais séance non finie : on RESTE sur cet exercice avec le
-    // choix « Continuer » / « Terminer la séance » (pas d'auto-enchaînement forcé).
-    if (exNowDone) {
-      setActiveSetIndex(exercise.sets - 1)
+    // Édition d'une série déjà validée : pas d'enchaînement ni de repos.
+    if (wasDone) {
+      if (exNowDone) setPhase('list')
+      else resumeCurrentExercise()
       return
     }
 
-    // Série suivante DU MÊME exercice → repos puis reprise.
+    // Exercice terminé → retour à la LISTE (l'utilisateur choisit la suite).
+    if (exNowDone) {
+      setPhase('list')
+      return
+    }
+
+    // Série suivante DU MÊME exercice → repos puis reprise du même exercice.
     let nextSet = idx + 1
     for (let s = 0; s < exercise.sets; s += 1) {
       if (!updated[`${selectedExerciseIndex}-${s}`]) {
@@ -467,12 +573,66 @@ export default function SessionRunnerPage() {
     }
     const rest = exercise.rest_seconds || 0
     if (rest > 0) {
-      const det = exercisesById[exercise.exercise_id]
       startRest(rest, `${det?.name ?? 'Exercice'} · série ${nextSet + 1}`)
       return
     }
     setActiveSetIndex(nextSet)
     loadFieldsFor(day, selectedExerciseIndex, nextSet, { sameExercise: true })
+  }
+
+  // Démarre le chrono d'effort d'une série chronométrée.
+  function startEffort(seconds, exIdx, setIdx) {
+    effortTargetRef.current = { exIdx, setIdx, seconds }
+    effortFiredRef.current = false
+    unlockAudio()
+    setEffortRemaining(seconds)
+    setEffortEndAt(Date.now() + seconds * 1000)
+    setPhase('effort')
+  }
+
+  // Fin de l'effort : enregistre la série (temps d'effort) puis repos ou reprise.
+  function finishEffort() {
+    if (effortFiredRef.current) return
+    effortFiredRef.current = true
+    const target = effortTargetRef.current
+    setEffortEndAt(null)
+    if (!target) {
+      resumeCurrentExercise()
+      return
+    }
+    playRestDoneCue()
+    const { exIdx, setIdx, seconds } = target
+    const entry = { reps: null, weight_kg: '', rpe: '', metric_kind: 'effort_s', metric_value: seconds }
+    const key = `${exIdx}-${setIdx}`
+    const updated = { ...entriesRef.current, [key]: entry }
+    syncEntries(updated)
+    persistSet(exIdx, setIdx, entry)
+
+    const ex = day.exercises[exIdx]
+    const exNowDone = countCompleted(updated, exIdx, ex.sets) === ex.sets
+    if (allDone(updated)) {
+      setFinalPercent(100)
+      setPhase('summary')
+      return
+    }
+    if (exNowDone) {
+      setPhase('list')
+      return
+    }
+    let nextSet = setIdx + 1
+    for (let s = 0; s < ex.sets; s += 1) {
+      if (!updated[`${exIdx}-${s}`]) {
+        nextSet = s
+        break
+      }
+    }
+    const rest = ex.rest_seconds || 0
+    if (rest > 0) {
+      const det = exercisesById[ex.exercise_id]
+      startRest(rest, `${det?.name ?? 'Exercice'} · série ${nextSet + 1}`)
+      return
+    }
+    resumeCurrentExercise()
   }
 
   // Débloque l'audio (doit être appelé depuis un geste utilisateur, ex. Valider).
@@ -572,7 +732,7 @@ export default function SessionRunnerPage() {
     playRestDoneCue()
     notifyRestDone()
     setRestEndAt(null)
-    openCurrent()
+    resumeCurrentExercise()
   }
 
   function skipRest() {
@@ -583,7 +743,7 @@ export default function SessionRunnerPage() {
       // ignore
     }
     setRestEndAt(null)
-    openCurrent()
+    resumeCurrentExercise()
   }
 
   function quitSession() {
@@ -625,14 +785,7 @@ export default function SessionRunnerPage() {
                     return (
                       <li key={s} className={e ? 'session-summary-set' : 'session-summary-set session-summary-skipped'}>
                         <span className="session-summary-set-n">{s + 1}</span>
-                        {e ? (
-                          <span>
-                            {e.weight_kg ? `${e.weight_kg} kg` : 'PdC'} × {e.reps || ex.reps} reps
-                            {e.rpe ? ` · RPE ${e.rpe}` : ''}
-                          </span>
-                        ) : (
-                          <span>non réalisée</span>
-                        )}
+                        {e ? <span>{setSummary(e, ex, isCardioExercise(det))}</span> : <span>non réalisée</span>}
                       </li>
                     )
                   })}
@@ -656,10 +809,26 @@ export default function SessionRunnerPage() {
       <main className="session-run">
         <div className="card rest-timer">
           <p className="eyebrow">Repos</p>
-          <span className="rest-countdown">{restRemaining}s</span>
+          <span className="rest-countdown">{fmtCountdown(restRemaining)}</span>
           <p>À suivre : {restNext}</p>
           <button type="button" className="btn-secondary" onClick={skipRest}>
             Passer le repos
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  // ---- Écran : effort chronométré ----
+  if (phase === 'effort') {
+    return (
+      <main className="session-run">
+        <div className="card rest-timer">
+          <p className="eyebrow">Effort en cours</p>
+          <span className="rest-countdown">{fmtCountdown(effortRemaining)}</span>
+          <p>Donne tout jusqu'au bip.</p>
+          <button type="button" className="btn-secondary" onClick={finishEffort}>
+            Terminer l'effort
           </button>
         </div>
       </main>
@@ -753,6 +922,9 @@ export default function SessionRunnerPage() {
   const fillEntry = entries[`${selectedExerciseIndex}-${fillIdx}`]
   const showContinue = exerciseDone && !editingDoneSet
   const restLabel = restLabelFor(exercise.rest_seconds)
+  const cardio = isCardioExercise(details)
+  const timeSeconds = repsSeconds(exercise.reps)
+  const isTimeBased = timeSeconds != null
 
   function tapSet(i) {
     setActiveSetIndex(i)
@@ -763,7 +935,7 @@ export default function SessionRunnerPage() {
   function onPrimary(e) {
     e.preventDefault()
     if (showContinue) {
-      openCurrent()
+      setPhase('list')
       return
     }
     submitSet(fillIdx)
@@ -819,8 +991,8 @@ export default function SessionRunnerPage() {
           <div className="set-fill">
             <p className="set-fill-done">Exercice terminé.</p>
             <div className="set-fill-actions">
-              <button type="button" className="btn-primary" onClick={onPrimary}>
-                Continuer
+              <button type="button" className="btn-primary" onClick={() => setPhase('list')}>
+                Retour aux exercices
               </button>
               <button
                 type="button"
@@ -834,22 +1006,78 @@ export default function SessionRunnerPage() {
               </button>
             </div>
           </div>
+        ) : isTimeBased ? (
+          <div className="set-fill">
+            <p className="set-fill-target">
+              Série {fillIdx + 1} · effort <strong>{exercise.reps}</strong> · repos {restLabel}
+            </p>
+            {fillEntry && <p className="set-fill-done">Série {fillIdx + 1} déjà faite ✓</p>}
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => startEffort(timeSeconds, selectedExerciseIndex, fillIdx)}
+            >
+              {fillEntry ? `Refaire la série ${fillIdx + 1}` : `Commencer la série ${fillIdx + 1}`}
+            </button>
+          </div>
         ) : (
           <form className="set-fill" onSubmit={onPrimary}>
             <p className="set-fill-target">
-              Série {fillIdx + 1} · objectif <strong>{exercise.reps}</strong> reps · repos {restLabel}
+              Série {fillIdx + 1} · objectif <strong>{exercise.reps}</strong>
+              {cardio ? '' : ' reps'} · repos {restLabel}
             </p>
 
-            <label htmlFor="weight">Poids (kg)</label>
-            <input
-              id="weight"
-              type="number"
-              inputMode="decimal"
-              step="0.5"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              autoComplete="off"
-            />
+            {cardio ? (
+              <div className="cardio-metric">
+                <div className="chart-metric-switch" role="group" aria-label="Type de mesure">
+                  {[
+                    ['speed', 'Vitesse'],
+                    ['time', 'Temps'],
+                    ['distance', 'Distance'],
+                  ].map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className={`chart-metric-btn${metricKind === k ? ' is-active' : ''}`}
+                      aria-pressed={metricKind === k}
+                      onClick={() => setMetricKind(k)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <label htmlFor="metric-value">
+                  {metricKind === 'speed'
+                    ? 'Vitesse (km/h)'
+                    : metricKind === 'time'
+                      ? 'Temps (min)'
+                      : 'Distance (km)'}{' '}
+                  — optionnel
+                </label>
+                <input
+                  id="metric-value"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  value={metricValue}
+                  onChange={(e) => setMetricValue(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+            ) : (
+              <>
+                <label htmlFor="weight">Poids (kg)</label>
+                <input
+                  id="weight"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.5"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  autoComplete="off"
+                />
+              </>
+            )}
 
             <label>RPE — difficulté ressentie (optionnel)</label>
             <div className="rpe-scale" role="radiogroup" aria-label="RPE, 1 facile à 10 difficile">
