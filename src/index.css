@@ -2371,6 +2371,17 @@ button:active,
   gap: 2px;
 }
 
+.strava-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.wearable-or {
+  margin-top: 16px;
+}
+
 .wearable-auto {
   margin-top: 12px;
   border-top: 1px solid var(--border);

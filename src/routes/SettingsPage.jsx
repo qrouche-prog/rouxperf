@@ -23,6 +23,9 @@ export default function SettingsPage() {
   const [connecting, setConnecting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [wearableError, setWearableError] = useState(null)
+  const [strava, setStrava] = useState(null)
+  const [stravaBusy, setStravaBusy] = useState(false)
+  const [stravaMsg, setStravaMsg] = useState(null)
 
   async function loadGoal() {
     const { data } = await supabase
@@ -42,7 +45,7 @@ export default function SettingsPage() {
   }
 
   async function loadWearables() {
-    const [{ data: conns }, { data: acts }] = await Promise.all([
+    const [{ data: conns }, { data: acts }, { data: stravaConn }] = await Promise.all([
       supabase.from('terra_connections').select('provider, connected_at').eq('user_id', user.id),
       supabase
         .from('wearable_activities')
@@ -50,9 +53,38 @@ export default function SettingsPage() {
         .eq('user_id', user.id)
         .order('started_at', { ascending: false })
         .limit(5),
+      supabase.from('strava_connections').select('athlete_id, connected_at').eq('user_id', user.id).maybeSingle(),
     ])
     setConnections(conns ?? [])
     setActivities(acts ?? [])
+    setStrava(stravaConn ?? null)
+  }
+
+  async function connectStrava() {
+    setStravaBusy(true)
+    setStravaMsg(null)
+    const { data, error } = await supabase.functions.invoke('strava-connect', {
+      body: { redirect_uri: `${window.location.origin}/settings` },
+    })
+    if (error || !data?.url) {
+      setStravaBusy(false)
+      setStravaMsg("Connexion Strava indisponible pour l'instant.")
+      return
+    }
+    window.location.href = data.url
+  }
+
+  async function syncStrava() {
+    setStravaBusy(true)
+    setStravaMsg(null)
+    const { data, error } = await supabase.functions.invoke('strava-sync', {})
+    setStravaBusy(false)
+    if (error || data?.error) {
+      setStravaMsg('Synchronisation impossible.')
+      return
+    }
+    setStravaMsg(`${data?.imported ?? 0} séance(s) synchronisée(s).`)
+    await loadWearables()
   }
 
   async function handleImportFile(e) {
@@ -117,6 +149,34 @@ export default function SettingsPage() {
     load()
   }, [user.id])
 
+  // Retour de l'autorisation Strava (?code=…) : on échange le code puis on
+  // nettoie l'URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    const err = params.get('error')
+    if (err) {
+      setStravaMsg('Autorisation Strava refusée.')
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
+    if (!code) return
+    const scope = params.get('scope') || ''
+    window.history.replaceState({}, '', window.location.pathname)
+    setStravaBusy(true)
+    ;(async () => {
+      const { data, error } = await supabase.functions.invoke('strava-exchange', { body: { code, scope } })
+      setStravaBusy(false)
+      if (error || data?.error) {
+        setStravaMsg('Connexion Strava échouée.')
+        return
+      }
+      setStravaMsg(`Strava connecté — ${data?.imported ?? 0} séance(s) importée(s).`)
+      await loadWearables()
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function flashSaved(section) {
     setSavedSection(section)
     setTimeout(() => setSavedSection((current) => (current === section ? null : current)), 2500)
@@ -141,11 +201,29 @@ export default function SettingsPage() {
       <section id="objets" className="card settings-section">
         <h2>Objets connectés</h2>
         <p className="settings-hint">
-          Importe tes séances de montre (durée, distance, fréquence cardiaque, dénivelé, calories) pour suivre
-          ta charge réelle.
+          Connecte <strong>Strava</strong> pour importer automatiquement tes séances (Garmin, Apple, etc. s'y
+          synchronisent tout seuls). Sinon, importe un fichier.
         </p>
 
-        <label className={`btn-primary photo-btn${importing ? ' photo-btn-loading' : ''}`}>
+        <div className="strava-block">
+          {strava ? (
+            <>
+              <p className="wearable-status">✓ Strava connecté</p>
+              <button type="button" className="btn-primary" onClick={syncStrava} disabled={stravaBusy}>
+                {stravaBusy ? 'Synchronisation…' : 'Synchroniser Strava'}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn-primary" onClick={connectStrava} disabled={stravaBusy}>
+              {stravaBusy ? 'Ouverture…' : 'Connecter Strava'}
+            </button>
+          )}
+          {stravaMsg && <p className="eyebrow">{stravaMsg}</p>}
+        </div>
+
+        <p className="settings-hint wearable-or">Ou importer manuellement un fichier de séance :</p>
+
+        <label className={`btn-secondary photo-btn${importing ? ' photo-btn-loading' : ''}`}>
           {importing ? 'Import…' : '⬆ Importer une séance (.tcx / .gpx)'}
           {/* Pas d'attribut accept : iOS grise les .tcx/.gpx (type inconnu) et
               empêche de les sélectionner. Le parseur valide le contenu. */}
