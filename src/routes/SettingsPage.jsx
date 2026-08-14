@@ -17,6 +17,10 @@ export default function SettingsPage() {
   const [trainingProfile, setTrainingProfile] = useState(null)
   const [status, setStatus] = useState('loading')
   const [savedSection, setSavedSection] = useState(null)
+  const [connections, setConnections] = useState([])
+  const [activities, setActivities] = useState([])
+  const [connecting, setConnecting] = useState(false)
+  const [wearableError, setWearableError] = useState(null)
 
   async function loadGoal() {
     const { data } = await supabase
@@ -35,9 +39,37 @@ export default function SettingsPage() {
     setTrainingProfile(data)
   }
 
+  async function loadWearables() {
+    const [{ data: conns }, { data: acts }] = await Promise.all([
+      supabase.from('terra_connections').select('provider, connected_at').eq('user_id', user.id),
+      supabase
+        .from('wearable_activities')
+        .select('id, activity_type, started_at, duration_s, distance_m, calories, avg_hr')
+        .eq('user_id', user.id)
+        .order('started_at', { ascending: false })
+        .limit(5),
+    ])
+    setConnections(conns ?? [])
+    setActivities(acts ?? [])
+  }
+
+  async function connectWearable() {
+    setConnecting(true)
+    setWearableError(null)
+    const { data, error } = await supabase.functions.invoke('terra-connect', {
+      body: { redirect_url: `${window.location.origin}/settings` },
+    })
+    if (error || !data?.url) {
+      setConnecting(false)
+      setWearableError("Connexion indisponible pour l'instant.")
+      return
+    }
+    window.location.href = data.url
+  }
+
   useEffect(() => {
     async function load() {
-      await Promise.all([loadGoal(), loadTrainingProfile()])
+      await Promise.all([loadGoal(), loadTrainingProfile(), loadWearables()])
       setStatus('idle')
     }
     load()
@@ -62,6 +94,47 @@ export default function SettingsPage() {
       <section id="apparence" className="card settings-section">
         <h2>Apparence</h2>
         <ThemePicker />
+      </section>
+
+      <section id="objets" className="card settings-section">
+        <h2>Objets connectés</h2>
+        <p className="settings-hint">
+          Connecte ta montre (Garmin, Apple Watch, Fitbit…) pour importer automatiquement tes séances, ta
+          fréquence cardiaque et tes calories.
+        </p>
+        {connections.length > 0 ? (
+          <p className="wearable-status">
+            ✓ Connecté : {connections.map((c) => c.provider || 'appareil').join(', ')}
+          </p>
+        ) : (
+          <p className="eyebrow">Aucun appareil connecté.</p>
+        )}
+        <button type="button" className="btn-primary" onClick={connectWearable} disabled={connecting}>
+          {connecting ? 'Ouverture…' : connections.length > 0 ? 'Connecter un autre appareil' : 'Connecter ma montre'}
+        </button>
+        {wearableError && <p role="alert">{wearableError}</p>}
+
+        {activities.length > 0 && (
+          <>
+            <p className="eyebrow wearable-list-title">Dernières séances synchronisées</p>
+            <ul className="wearable-list">
+              {activities.map((a) => (
+                <li key={a.id} className="wearable-item">
+                  <span className="wearable-item-info">
+                    <strong>{a.activity_type}</strong>
+                    <span className="eyebrow">
+                      {a.started_at ? new Date(a.started_at).toLocaleDateString('fr-CH') : ''}
+                      {a.duration_s ? ` · ${Math.round(a.duration_s / 60)} min` : ''}
+                      {a.distance_m ? ` · ${(a.distance_m / 1000).toFixed(1)} km` : ''}
+                      {a.avg_hr ? ` · ${a.avg_hr} bpm` : ''}
+                      {a.calories ? ` · ${Math.round(a.calories)} kcal` : ''}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
 
       <section id="infos" className="card settings-section">

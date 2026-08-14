@@ -2337,6 +2337,40 @@ button:active,
   color: var(--ember);
 }
 
+/* Objets connectés (montres) */
+.wearable-status {
+  color: var(--ember);
+  font-weight: 500;
+  margin: 0 0 10px;
+}
+
+.wearable-list-title {
+  margin: 16px 0 8px;
+}
+
+.wearable-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wearable-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.wearable-item:last-child {
+  border-bottom: none;
+}
+
+.wearable-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .food-scan-btn {
   margin-top: 10px;
   width: 100%;
