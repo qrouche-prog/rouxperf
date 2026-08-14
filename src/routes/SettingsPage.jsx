@@ -26,6 +26,10 @@ export default function SettingsPage() {
   const [strava, setStrava] = useState(null)
   const [stravaBusy, setStravaBusy] = useState(false)
   const [stravaMsg, setStravaMsg] = useState(null)
+  const [intervals, setIntervals] = useState(null)
+  const [intForm, setIntForm] = useState({ athlete_id: '', api_key: '' })
+  const [intBusy, setIntBusy] = useState(false)
+  const [intMsg, setIntMsg] = useState(null)
 
   async function loadGoal() {
     const { data } = await supabase
@@ -55,9 +59,43 @@ export default function SettingsPage() {
         .limit(5),
       supabase.from('strava_connections').select('athlete_id, connected_at').eq('user_id', user.id).maybeSingle(),
     ])
+    const { data: intervalsConn } = await supabase
+      .from('intervals_connections')
+      .select('athlete_id, connected_at')
+      .eq('user_id', user.id)
+      .maybeSingle()
     setConnections(conns ?? [])
     setActivities(acts ?? [])
     setStrava(stravaConn ?? null)
+    setIntervals(intervalsConn ?? null)
+  }
+
+  async function connectIntervals() {
+    if (!intForm.athlete_id.trim() || !intForm.api_key.trim()) return
+    setIntBusy(true)
+    setIntMsg(null)
+    const { data, error } = await supabase.functions.invoke('intervals-connect', { body: intForm })
+    setIntBusy(false)
+    if (error || data?.error) {
+      setIntMsg(data?.error || 'Connexion impossible (vérifie athlete ID et clé API).')
+      return
+    }
+    setIntForm({ athlete_id: '', api_key: '' })
+    setIntMsg(`Connecté — ${data?.imported ?? 0} séance(s) importée(s).`)
+    await loadWearables()
+  }
+
+  async function syncIntervals() {
+    setIntBusy(true)
+    setIntMsg(null)
+    const { data, error } = await supabase.functions.invoke('intervals-sync', {})
+    setIntBusy(false)
+    if (error || data?.error) {
+      setIntMsg('Synchronisation impossible.')
+      return
+    }
+    setIntMsg(`${data?.imported ?? 0} séance(s) synchronisée(s).`)
+    await loadWearables()
   }
 
   async function connectStrava() {
@@ -201,24 +239,55 @@ export default function SettingsPage() {
       <section id="objets" className="card settings-section">
         <h2>Objets connectés</h2>
         <p className="settings-hint">
-          Connecte <strong>Strava</strong> pour importer automatiquement tes séances (Garmin, Apple, etc. s'y
-          synchronisent tout seuls). Sinon, importe un fichier.
+          Connecte <strong>intervals.icu</strong> (gratuit) pour importer automatiquement tes séances. Garmin,
+          Strava, etc. s'y synchronisent tout seuls.
         </p>
 
         <div className="strava-block">
-          {strava ? (
+          {intervals ? (
             <>
-              <p className="wearable-status">✓ Strava connecté</p>
-              <button type="button" className="btn-primary" onClick={syncStrava} disabled={stravaBusy}>
-                {stravaBusy ? 'Synchronisation…' : 'Synchroniser Strava'}
+              <p className="wearable-status">✓ intervals.icu connecté</p>
+              <button type="button" className="btn-primary" onClick={syncIntervals} disabled={intBusy}>
+                {intBusy ? 'Synchronisation…' : 'Synchroniser'}
               </button>
             </>
           ) : (
-            <button type="button" className="btn-primary" onClick={connectStrava} disabled={stravaBusy}>
-              {stravaBusy ? 'Ouverture…' : 'Connecter Strava'}
-            </button>
+            <div className="intervals-form">
+              <label>
+                <span>Athlete ID</span>
+                <input
+                  type="text"
+                  value={intForm.athlete_id}
+                  onChange={(e) => setIntForm((f) => ({ ...f, athlete_id: e.target.value }))}
+                  placeholder="ex. i123456"
+                  autoComplete="off"
+                />
+              </label>
+              <label>
+                <span>Clé API</span>
+                <input
+                  type="password"
+                  value={intForm.api_key}
+                  onChange={(e) => setIntForm((f) => ({ ...f, api_key: e.target.value }))}
+                  placeholder="clé API intervals.icu"
+                  autoComplete="off"
+                />
+              </label>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={connectIntervals}
+                disabled={intBusy || !intForm.athlete_id.trim() || !intForm.api_key.trim()}
+              >
+                {intBusy ? 'Connexion…' : 'Connecter intervals.icu'}
+              </button>
+            </div>
           )}
-          {stravaMsg && <p className="eyebrow">{stravaMsg}</p>}
+          {intMsg && <p className="eyebrow">{intMsg}</p>}
+          <p className="nutrition-disclaimer">
+            Ton <strong>Athlete ID</strong> et ta <strong>clé API</strong> sont sur intervals.icu → Settings →
+            Developer. (Garmin doit être lié à ton compte intervals.icu.)
+          </p>
         </div>
 
         <p className="settings-hint wearable-or">Ou importer manuellement un fichier de séance :</p>
@@ -230,22 +299,30 @@ export default function SettingsPage() {
           <input type="file" onChange={handleImportFile} disabled={importing} hidden />
         </label>
         <p className="nutrition-disclaimer">
-          Depuis Garmin Connect : ouvre une activité → menu ⚙ → « Exporter en TCX » (ou GPX), puis importe le
-          fichier ici.
+          Depuis Garmin Connect (site web) : ouvre une activité → ⚙ → « Exporter en TCX » (ou GPX), puis importe
+          le fichier ici.
         </p>
 
         <details className="wearable-auto">
-          <summary>Synchronisation automatique (avancé)</summary>
+          <summary>Autres méthodes (avancé)</summary>
           <p className="settings-hint">
-            La sync automatique via l'agrégateur Terra est fonctionnelle mais payante (~500 $/mois). Alternatives
-            gratuites à venir : connexion Garmin directe, ou un agrégateur moins cher.
+            <strong>Strava</strong> : import auto, mais l'API Strava nécessite désormais un abonnement Strava payant.
+            <strong> Terra</strong> : agrégateur multi-montres, payant (~500 $/mois).
           </p>
-          {connections.length > 0 && (
-            <p className="wearable-status">
-              ✓ Connecté : {connections.map((c) => c.provider || 'appareil').join(', ')}
-            </p>
+          {strava ? (
+            <button type="button" className="btn-secondary" onClick={syncStrava} disabled={stravaBusy}>
+              {stravaBusy ? 'Synchronisation…' : 'Synchroniser Strava'}
+            </button>
+          ) : (
+            <button type="button" className="btn-secondary" onClick={connectStrava} disabled={stravaBusy}>
+              {stravaBusy ? 'Ouverture…' : 'Connecter Strava (abonnement requis)'}
+            </button>
           )}
-          <button type="button" className="btn-secondary" onClick={connectWearable} disabled={connecting}>
+          {stravaMsg && <p className="eyebrow">{stravaMsg}</p>}
+          {connections.length > 0 && (
+            <p className="wearable-status">✓ Terra : {connections.map((c) => c.provider || 'appareil').join(', ')}</p>
+          )}
+          <button type="button" className="btn-secondary wearable-terra-btn" onClick={connectWearable} disabled={connecting}>
             {connecting ? 'Ouverture…' : 'Connecter via Terra'}
           </button>
         </details>

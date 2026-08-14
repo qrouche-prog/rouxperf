@@ -2378,6 +2378,24 @@ button:active,
   margin-bottom: 12px;
 }
 
+.intervals-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.intervals-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.intervals-form label span {
+  font-size: 0.8rem;
+  color: var(--iron);
+}
+.wearable-terra-btn {
+  margin-top: 8px;
+}
+
 .wearable-or {
   margin-top: 16px;
 }
