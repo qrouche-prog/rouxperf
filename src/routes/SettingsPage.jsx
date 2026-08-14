@@ -10,13 +10,16 @@ import SpecialSituationStep from '../components/onboarding/SpecialSituationStep'
 import PreferencesStep from '../components/onboarding/PreferencesStep'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
+import PremiumGate from '../components/PremiumGate'
 import { ThemePicker } from '../components/theme'
 import { parseActivityFile } from '../lib/activityFiles'
 import { frActivityLabel } from '../lib/activityLabels'
 
 export default function SettingsPage() {
-  const { user, isPremium, profile } = useAuth()
-  const [lastSettingsChange, setLastSettingsChange] = useState(null)
+  const { user, isPremium } = useAuth()
+  const [lastAdjustAt, setLastAdjustAt] = useState(null)
+  const [regenBusy, setRegenBusy] = useState(false)
+  const [regenMsg, setRegenMsg] = useState(null)
   const [goal, setGoal] = useState(null)
   const [trainingProfile, setTrainingProfile] = useState(null)
   const [status, setStatus] = useState('loading')
@@ -191,25 +194,24 @@ export default function SettingsPage() {
     window.location.href = data.url
   }
 
+  async function loadLastAdjust() {
+    const { data } = await supabase
+      .from('program_adjustments')
+      .select('created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    setLastAdjustAt(data?.created_at ?? null)
+  }
+
   useEffect(() => {
     async function load() {
-      await Promise.all([loadGoal(), loadTrainingProfile(), loadWearables()])
+      await Promise.all([loadGoal(), loadTrainingProfile(), loadWearables(), loadLastAdjust()])
       setStatus('idle')
     }
     load()
   }, [user.id])
-
-  useEffect(() => {
-    setLastSettingsChange(profile?.last_program_settings_change_at ?? null)
-  }, [profile?.last_program_settings_change_at])
-
-  // Marque une modification de réglage lié au programme (consomme le quota
-  // hebdomadaire, au même titre que l'ajustement depuis le tableau de bord).
-  async function markSettingsChanged() {
-    const nowIso = new Date().toISOString()
-    await supabase.from('profiles').update({ last_program_settings_change_at: nowIso }).eq('user_id', user.id)
-    setLastSettingsChange(nowIso)
-  }
 
   // Retour de l'autorisation Strava (?code=…) : on échange le code puis on
   // nettoie l'URL.
@@ -246,39 +248,25 @@ export default function SettingsPage() {
 
   if (status === 'loading') return null
 
-  // Réglages liés au programme : réservés aux abonnés Premium, 1×/semaine.
+  // Édition des réglages : libre et illimitée pour les abonnés Premium.
+  // Le quota hebdomadaire porte uniquement sur la RÉGÉNÉRATION du programme.
   const WEEK_MS = 7 * 86400000
-  const nextChangeDate = lastSettingsChange ? new Date(new Date(lastSettingsChange).getTime() + WEEK_MS) : null
-  const weeklyLocked = nextChangeDate ? nextChangeDate > new Date() : false
-  const canEditProgram = isPremium && !weeklyLocked
+  const nextRegen = lastAdjustAt ? new Date(new Date(lastAdjustAt).getTime() + WEEK_MS) : null
+  const regenLocked = nextRegen ? nextRegen > new Date() : false
 
-  function lockNotice() {
-    if (!isPremium) {
-      return (
-        <p className="eyebrow">
-          Modifier ces réglages est réservé aux membres Premium. <Link to="/premium">Passer Premium →</Link>
-        </p>
-      )
-    }
-    return (
-      <p className="eyebrow">
-        Déjà modifié cette semaine. Prochaine modification possible le{' '}
-        {nextChangeDate.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' })}.
-      </p>
-    )
-  }
-
-  // Rend une section liée au programme : le formulaire si autorisé, sinon un
-  // titre + avis de verrouillage.
+  // Rend une section liée au programme : le formulaire pour un abonné Premium,
+  // sinon un titre + renvoi vers l'offre Premium.
   function programSection(id, title, node) {
     return (
       <section id={id} className="card settings-section">
-        {canEditProgram ? (
+        {isPremium ? (
           node
         ) : (
           <>
             <h2>{title}</h2>
-            {lockNotice()}
+            <p className="eyebrow">
+              Modifier ces réglages est réservé aux membres Premium. <Link to="/premium">Passer Premium →</Link>
+            </p>
           </>
         )}
         {savedSection === id && <p className="settings-saved">Enregistré ✓</p>}
@@ -288,8 +276,44 @@ export default function SettingsPage() {
 
   async function afterProgramSave(section, reload) {
     if (reload) await reload()
-    await markSettingsChanged()
     flashSaved(section)
+  }
+
+  // Régénère le programme à partir des réglages à jour (1×/semaine, quota
+  // partagé avec l'ajustement depuis le tableau de bord).
+  async function regenerateFromSettings() {
+    if (
+      !window.confirm(
+        "Régénérer ton programme à partir de tes réglages à jour ? Enregistre bien tous tes changements avant — c'est disponible une fois par semaine."
+      )
+    ) {
+      return
+    }
+    setRegenBusy(true)
+    setRegenMsg(null)
+    const { data, error } = await supabase.functions.invoke('adjust-program', {
+      body: {
+        prompt:
+          'Réglages mis à jour dans les paramètres — régénère mon programme en tenant compte de mon profil à jour (objectif, sport, expérience, situation, préférences, informations).',
+      },
+    })
+    setRegenBusy(false)
+    if (error || data?.error) {
+      let msg = data?.error
+      if (!msg && error?.context?.json) {
+        try {
+          const b = await error.context.json()
+          msg = b?.error
+          if (b?.next_available) setLastAdjustAt(new Date(new Date(b.next_available).getTime() - WEEK_MS).toISOString())
+        } catch {
+          // ignore
+        }
+      }
+      setRegenMsg(msg || 'Régénération impossible pour le moment.')
+      return
+    }
+    setLastAdjustAt(new Date().toISOString())
+    setRegenMsg('Régénération lancée. Suis la progression sur le tableau de bord.')
   }
 
   return (
@@ -433,8 +457,8 @@ export default function SettingsPage() {
       </section>
 
       <p className="eyebrow settings-program-note">
-        Réglages liés à ton programme — modifiables par les membres Premium, une fois par semaine. Après une
-        modification, demande la régénération de ton programme depuis le tableau de bord (ou ton coach s'en charge).
+        Réglages liés à ton programme — modifiables par les membres Premium. Enregistre tous tes changements, puis
+        régénère ton programme en bas de page pour qu'il les prenne en compte (une fois par semaine).
       </p>
 
       {programSection(
@@ -492,6 +516,26 @@ export default function SettingsPage() {
           onNext={() => afterProgramSave('preferences', loadTrainingProfile)}
         />
       )}
+
+      <section className="card settings-section">
+        <h2>Régénérer mon programme</h2>
+        <p className="eyebrow">
+          Applique tes réglages à jour à ton programme. Une fois par semaine — fais toutes tes modifications avant.
+        </p>
+        {regenMsg && <p className="settings-saved">{regenMsg}</p>}
+        {regenLocked ? (
+          <p className="eyebrow">
+            Déjà régénéré cette semaine. Prochaine régénération possible le{' '}
+            {nextRegen.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' })}.
+          </p>
+        ) : (
+          <PremiumGate isPremium={isPremium} label="La régénération du programme">
+            <button type="button" className="btn-primary" onClick={regenerateFromSettings} disabled={regenBusy}>
+              {regenBusy ? 'Régénération…' : 'Régénérer mon programme'}
+            </button>
+          </PremiumGate>
+        )}
+      </section>
 
       <div className="bottom-nav-spacer" />
       <BottomNav />
