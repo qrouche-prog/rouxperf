@@ -44,13 +44,32 @@ function isCardioExercise(details) {
   return String(details?.category ?? '').toLowerCase() === 'cardio'
 }
 
+// Allure en secondes par km. Accepte "5:30" (min:sec) ou un décimal de minutes.
+function parsePace(text) {
+  const t = String(text ?? '').trim()
+  let m = t.match(/^(\d+):(\d{1,2})$/)
+  if (m) return Number(m[1]) * 60 + Number(m[2])
+  m = t.match(/^(\d+(?:[.,]\d+)?)$/)
+  if (m) return Math.round(Number(t.replace(',', '.')) * 60)
+  return null
+}
+
+// Secondes/km → "5:30".
+function fmtPace(sec) {
+  const s = Math.round(sec)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
 // Libellé d'une série réalisée dans le résumé, selon sa nature.
 function setSummary(e, ex, cardio) {
   if (e.metric_kind === 'effort_s') return `${e.metric_value}s d'effort`
   const rpe = e.rpe ? ` · RPE ${e.rpe}` : ''
-  if (e.metric_kind === 'speed') return `${e.metric_value} km/h${rpe}`
-  if (e.metric_kind === 'time') return `${e.metric_value} min${rpe}`
-  if (e.metric_kind === 'distance') return `${e.metric_value} km${rpe}`
+  const parts = []
+  if (e.distance_km) parts.push(`${e.distance_km} km`)
+  if (e.metric_kind === 'pace') parts.push(`${fmtPace(e.metric_value)} /km`)
+  else if (e.metric_kind === 'speed') parts.push(`${e.metric_value} km/h`)
+  else if (e.metric_kind === 'time') parts.push(`${e.metric_value} min`)
+  if (parts.length) return parts.join(' · ') + rpe
   if (cardio) return `série faite${rpe}`
   return `${e.weight_kg ? `${e.weight_kg} kg` : 'PdC'} × ${e.reps || ex.reps} reps${rpe}`
 }
@@ -91,6 +110,7 @@ function buildFromLoggedSets(day, loggedSets) {
         rpe: set.rpe ?? '',
         metric_kind: set.metric_kind ?? null,
         metric_value: set.metric_value ?? null,
+        distance_km: set.distance_km ?? null,
       }
       if (set.id != null) rowIds[key] = set.id
     }
@@ -123,8 +143,9 @@ export default function SessionRunnerPage() {
 
   const [weight, setWeight] = useState('')
   const [rpe, setRpe] = useState('')
-  const [metricKind, setMetricKind] = useState('speed') // speed | time | distance
+  const [metricKind, setMetricKind] = useState('pace') // pace | speed | time
   const [metricValue, setMetricValue] = useState('')
+  const [distanceKm, setDistanceKm] = useState('')
   const [saveState, setSaveState] = useState('idle') // idle | saving | saved | error
   const [, setFinalPercent] = useState(null)
 
@@ -162,8 +183,19 @@ export default function SessionRunnerPage() {
     if (existing) {
       setWeight(existing.weight_kg != null ? String(existing.weight_kg) : '')
       setRpe(existing.rpe != null && existing.rpe !== '' ? String(existing.rpe) : '')
-      if (existing.metric_kind && existing.metric_kind !== 'effort_s') setMetricKind(existing.metric_kind)
-      setMetricValue(existing.metric_value != null ? String(existing.metric_value) : '')
+      setDistanceKm(existing.distance_km != null ? String(existing.distance_km) : '')
+      if (existing.metric_kind && existing.metric_kind !== 'effort_s') {
+        setMetricKind(existing.metric_kind)
+        setMetricValue(
+          existing.metric_value == null
+            ? ''
+            : existing.metric_kind === 'pace'
+              ? fmtPace(existing.metric_value)
+              : String(existing.metric_value)
+        )
+      } else {
+        setMetricValue('')
+      }
       return
     }
     const carry = carryoverFor(ex.exercise_id, setIdx)
@@ -172,6 +204,7 @@ export default function SessionRunnerPage() {
     // même exercice sans reprise : on garde le poids déjà saisi
     setRpe('')
     setMetricValue('')
+    setDistanceKm('')
   }
 
   // Ouvre la série à faire courante (1er exercice, 1re série non complétés).
@@ -249,7 +282,7 @@ export default function SessionRunnerPage() {
           const { data: existingLog } = await supabase
             .from('workout_logs')
             .select(
-              'id, performed_at, workout_log_sets(id, exercise_id, set_number, reps, weight_kg, rpe, metric_kind, metric_value)'
+              'id, performed_at, workout_log_sets(id, exercise_id, set_number, reps, weight_kg, rpe, metric_kind, metric_value, distance_km)'
             )
             .eq('user_id', user.id)
             .eq('program_id', programData.id)
@@ -473,6 +506,8 @@ export default function SessionRunnerPage() {
       metric_kind: entry.metric_kind ?? null,
       metric_value:
         entry.metric_value != null && entry.metric_value !== '' ? Number(entry.metric_value) : null,
+      distance_km:
+        entry.distance_km != null && entry.distance_km !== '' ? Number(entry.distance_km) : null,
     }
 
     const existingId = rowIdsRef.current[key]
@@ -526,13 +561,33 @@ export default function SessionRunnerPage() {
     const exercise = day.exercises[selectedExerciseIndex]
     const det = exercisesById[exercise.exercise_id]
     const cardio = isCardioExercise(det)
-    const hasMetric = cardio && metricValue !== '' && Number.isFinite(Number(metricValue))
-    const entry = {
-      reps: cardio ? null : parseTargetReps(exercise.reps),
-      weight_kg: cardio ? '' : weight,
-      rpe,
-      metric_kind: hasMetric ? metricKind : null,
-      metric_value: hasMetric ? Number(metricValue) : null,
+    let entry
+    if (cardio) {
+      let mk = null
+      let mv = null
+      if (metricValue !== '') {
+        if (metricKind === 'pace') {
+          const s = parsePace(metricValue)
+          if (s != null) {
+            mk = 'pace'
+            mv = s
+          }
+        } else if (Number.isFinite(Number(metricValue))) {
+          mk = metricKind
+          mv = Number(metricValue)
+        }
+      }
+      const dist = distanceKm !== '' && Number.isFinite(Number(distanceKm)) ? Number(distanceKm) : null
+      entry = { reps: null, weight_kg: '', rpe, metric_kind: mk, metric_value: mv, distance_km: dist }
+    } else {
+      entry = {
+        reps: parseTargetReps(exercise.reps),
+        weight_kg: weight,
+        rpe,
+        metric_kind: null,
+        metric_value: null,
+        distance_km: null,
+      }
     }
     const key = `${selectedExerciseIndex}-${idx}`
     const wasDone = Boolean(entriesRef.current[key])
@@ -602,7 +657,14 @@ export default function SessionRunnerPage() {
     }
     playRestDoneCue()
     const { exIdx, setIdx, seconds } = target
-    const entry = { reps: null, weight_kg: '', rpe: '', metric_kind: 'effort_s', metric_value: seconds }
+    const entry = {
+      reps: null,
+      weight_kg: '',
+      rpe: '',
+      metric_kind: 'effort_s',
+      metric_value: seconds,
+      distance_km: null,
+    }
     const key = `${exIdx}-${setIdx}`
     const updated = { ...entriesRef.current, [key]: entry }
     syncEntries(updated)
@@ -749,6 +811,46 @@ export default function SessionRunnerPage() {
   function quitSession() {
     // Tout est déjà sauvegardé série par série : on peut sortir sans risque.
     navigate('/program')
+  }
+
+  // Efface les séries enregistrées d'un exercice (mal rempli).
+  async function resetExercise(exIdx) {
+    const ex = day.exercises[exIdx]
+    if (!ex) return
+    if (!window.confirm('Réinitialiser cet exercice ? Les séries déjà enregistrées seront effacées.')) return
+    const ids = []
+    const nextEntries = { ...entriesRef.current }
+    const nextRowIds = { ...rowIdsRef.current }
+    for (let s = 0; s < ex.sets; s += 1) {
+      const key = `${exIdx}-${s}`
+      if (nextRowIds[key]) ids.push(nextRowIds[key])
+      delete nextEntries[key]
+      delete nextRowIds[key]
+    }
+    if (ids.length) await supabase.from('workout_log_sets').delete().in('id', ids)
+    rowIdsRef.current = nextRowIds
+    syncEntries(nextEntries)
+    openExercise(day, exIdx)
+  }
+
+  // Efface toute la séance (supprime le log → cascade sur les séries).
+  async function resetSession() {
+    if (!window.confirm('Réinitialiser toute la séance ? Toutes les séries enregistrées seront effacées.')) return
+    const logId = logIdRef.current
+    if (logId) await supabase.from('workout_logs').delete().eq('id', logId)
+    logIdRef.current = null
+    rowIdsRef.current = {}
+    syncEntries({})
+    setWeight('')
+    setRpe('')
+    setMetricValue('')
+    setDistanceKm('')
+    try {
+      localStorage.removeItem(REST_KEY)
+    } catch {
+      // ignore
+    }
+    setPhase('list')
   }
 
   // ---- Écran : résumé ----
@@ -907,6 +1009,11 @@ export default function SessionRunnerPage() {
             Terminer la séance ({overallPercent}%)
           </button>
         )}
+        {doneSets > 0 && (
+          <button type="button" className="link-button session-reset-link" onClick={resetSession}>
+            Réinitialiser la séance
+          </button>
+        )}
       </main>
     )
   }
@@ -1029,39 +1136,55 @@ export default function SessionRunnerPage() {
 
             {cardio ? (
               <div className="cardio-metric">
+                <label htmlFor="distance-km">Distance (km) — optionnel</label>
+                <input
+                  id="distance-km"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  value={distanceKm}
+                  onChange={(e) => setDistanceKm(e.target.value)}
+                  autoComplete="off"
+                  placeholder="ex. 1 pour 1000 m"
+                />
+
                 <div className="chart-metric-switch" role="group" aria-label="Type de mesure">
                   {[
+                    ['pace', 'Allure'],
                     ['speed', 'Vitesse'],
                     ['time', 'Temps'],
-                    ['distance', 'Distance'],
                   ].map(([k, label]) => (
                     <button
                       key={k}
                       type="button"
                       className={`chart-metric-btn${metricKind === k ? ' is-active' : ''}`}
                       aria-pressed={metricKind === k}
-                      onClick={() => setMetricKind(k)}
+                      onClick={() => {
+                        setMetricValue('')
+                        setMetricKind(k)
+                      }}
                     >
                       {label}
                     </button>
                   ))}
                 </div>
                 <label htmlFor="metric-value">
-                  {metricKind === 'speed'
-                    ? 'Vitesse (km/h)'
-                    : metricKind === 'time'
-                      ? 'Temps (min)'
-                      : 'Distance (km)'}{' '}
+                  {metricKind === 'pace'
+                    ? 'Allure (min/km, ex. 5:30)'
+                    : metricKind === 'speed'
+                      ? 'Vitesse (km/h)'
+                      : 'Temps (min)'}{' '}
                   — optionnel
                 </label>
                 <input
                   id="metric-value"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
+                  type={metricKind === 'pace' ? 'text' : 'number'}
+                  inputMode={metricKind === 'pace' ? 'text' : 'decimal'}
+                  step={metricKind === 'pace' ? undefined : '0.1'}
                   value={metricValue}
                   onChange={(e) => setMetricValue(e.target.value)}
                   autoComplete="off"
+                  placeholder={metricKind === 'pace' ? '5:30' : ''}
                 />
               </div>
             ) : (
@@ -1106,6 +1229,16 @@ export default function SessionRunnerPage() {
             <summary>Consignes</summary>
             <p>{details.instructions}</p>
           </details>
+        )}
+
+        {completed > 0 && (
+          <button
+            type="button"
+            className="link-button session-reset-link"
+            onClick={() => resetExercise(selectedExerciseIndex)}
+          >
+            Réinitialiser cet exercice
+          </button>
         )}
       </div>
     </main>

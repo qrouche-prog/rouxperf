@@ -15,8 +15,8 @@ select cron.schedule(
   '0 3 * * *',
   $$
   select net.http_post(
-    url := 'https://<PROJECT_REF>.supabase.co/functions/v1/intervals-sync-all',
-    headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', '<CRON_SECRET>'),
+    url := 'https://nbyvxuvnlcyofytvmsvl.supabase.co/functions/v1/intervals-sync-all',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', 'l5zG@6ydQgZHpC3dll!!'),
     body := '{}'::jsonb
   );
   $$

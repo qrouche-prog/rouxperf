@@ -3039,6 +3039,13 @@ button:active,
   align-self: flex-start;
 }
 
+.session-reset-link {
+  display: block;
+  margin: 12px auto 0;
+  color: var(--iron);
+  font-size: 0.85rem;
+}
+
 .set-fill-target strong {
   color: var(--ink);
 }
