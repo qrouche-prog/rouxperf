@@ -13,6 +13,7 @@ import { searchGenericFoods } from '../lib/genericFoods'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import BarcodeScanner from '../components/BarcodeScanner'
+import PremiumGate from '../components/PremiumGate'
 
 function todayIso() {
   const d = new Date()
@@ -103,7 +104,7 @@ function MacroBar({ label, unit, consumed, target }) {
 }
 
 export default function NutritionPage() {
-  const { user, profile } = useAuth()
+  const { user, profile, isPremium } = useAuth()
   const [weightKg, setWeightKg] = useState(null)
   const [goal, setGoal] = useState(null)
   const [trainingProfile, setTrainingProfile] = useState(null)
@@ -698,9 +699,11 @@ export default function NutritionPage() {
             rows={2}
           />
           {planError && <p role="alert">{planError}</p>}
-          <button type="button" className="btn-primary" onClick={generatePlan} disabled={planBusy}>
-            {planBusy ? 'Génération…' : mealPlan ? 'Régénérer le plan' : 'Générer un plan repas'}
-          </button>
+          <PremiumGate isPremium={isPremium} label="La génération de plan repas">
+            <button type="button" className="btn-primary" onClick={generatePlan} disabled={planBusy}>
+              {planBusy ? 'Génération…' : mealPlan ? 'Régénérer le plan' : 'Générer un plan repas'}
+            </button>
+          </PremiumGate>
         </section>
       )}
 
@@ -709,10 +712,12 @@ export default function NutritionPage() {
         <p className="eyebrow">
           Prends ton repas en photo : l'IA estime les aliments et les macros. Tu ajustes avant d'enregistrer.
         </p>
-        <label className={`btn-primary photo-btn${analyzing ? ' photo-btn-loading' : ''}`}>
-          {analyzing ? 'Analyse en cours…' : '📷 Photographier un repas'}
-          <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} disabled={analyzing} hidden />
-        </label>
+        <PremiumGate isPremium={isPremium} label="L'analyse photo">
+          <label className={`btn-primary photo-btn${analyzing ? ' photo-btn-loading' : ''}`}>
+            {analyzing ? 'Analyse en cours…' : '📷 Photographier un repas'}
+            <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} disabled={analyzing} hidden />
+          </label>
+        </PremiumGate>
         {analyzeError && <p role="alert">{analyzeError}</p>}
       </section>
 

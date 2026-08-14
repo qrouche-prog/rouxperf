@@ -9,6 +9,7 @@ import WeeklyLoadChart from '../components/progress/WeeklyLoadChart'
 import WeeklyHrChart from '../components/progress/WeeklyHrChart'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
+import PremiumGate from '../components/PremiumGate'
 
 const CHART_METRICS = {
   min: { key: 'min', label: 'Minutes', unit: 'min' },
@@ -27,7 +28,7 @@ const MEASUREMENT_FIELDS = [
 ]
 
 export default function ProgressPage() {
-  const { user } = useAuth()
+  const { user, isPremium } = useAuth()
   const [measurements, setMeasurements] = useState([])
   const [workoutLogs, setWorkoutLogs] = useState([])
   const [activities, setActivities] = useState([])
@@ -329,9 +330,11 @@ export default function ProgressPage() {
               <p className="eyebrow">Une lecture IA de tes tendances : volume, fréquence cardiaque, charge, récup.</p>
             )}
             {insightError && <p role="alert">{insightError}</p>}
-            <button type="button" className="btn-secondary" onClick={generateInsight} disabled={insightBusy}>
-              {insightBusy ? 'Analyse en cours…' : insight ? 'Régénérer l’analyse' : 'Générer l’analyse'}
-            </button>
+            <PremiumGate isPremium={isPremium} label="L'analyse de charge">
+              <button type="button" className="btn-secondary" onClick={generateInsight} disabled={insightBusy}>
+                {insightBusy ? 'Analyse en cours…' : insight ? 'Régénérer l’analyse' : 'Générer l’analyse'}
+              </button>
+            </PremiumGate>
           </div>
         </>
       )}

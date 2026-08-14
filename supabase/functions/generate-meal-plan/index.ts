@@ -1,5 +1,5 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.112.4'
-import { CORS, json, getUserId, serviceClient } from '../_shared/intervals.ts'
+import { CORS, json, getUserId, serviceClient, isPremium } from '../_shared/intervals.ts'
 
 const anthropic = new Anthropic()
 
@@ -58,6 +58,11 @@ Deno.serve(async (req) => {
   const userId = await getUserId(req)
   if (!userId) return json({ error: 'Non authentifié' }, 401)
 
+  const supabase = serviceClient()
+  if (!(await isPremium(supabase, userId))) {
+    return json({ error: 'Fonctionnalité réservée aux membres Premium.' }, 402)
+  }
+
   try {
     const body = await req.json().catch(() => ({}))
     const targets = body?.targets
@@ -107,7 +112,6 @@ Compose le menu du jour.`
     }
 
     const generatedAt = new Date().toISOString()
-    const supabase = serviceClient()
     await supabase
       .from('meal_plans')
       .upsert(

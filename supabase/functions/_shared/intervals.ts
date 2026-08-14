@@ -13,6 +13,21 @@ export function serviceClient(): SupabaseClient {
   return createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 }
 
+// Vérifie côté serveur qu'un utilisateur a un abonnement Premium actif.
+// Garde-fou pour les fonctions qui consomment des crédits IA : le grisage
+// côté client ne suffit pas (un JWT valide pourrait appeler la fonction).
+export async function isPremium(supabase: SupabaseClient, userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('subscriptions')
+    .select('tier, status, current_period_end')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!data || data.tier !== 'premium') return false
+  if (data.status && !['active', 'trialing'].includes(data.status)) return false
+  if (data.current_period_end && new Date(data.current_period_end) < new Date()) return false
+  return true
+}
+
 export async function getUserId(req: Request): Promise<string | null> {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },

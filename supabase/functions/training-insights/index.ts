@@ -1,5 +1,5 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.112.4'
-import { CORS, json, getUserId, serviceClient } from '../_shared/intervals.ts'
+import { CORS, json, getUserId, serviceClient, isPremium } from '../_shared/intervals.ts'
 
 const anthropic = new Anthropic()
 
@@ -33,8 +33,12 @@ Deno.serve(async (req) => {
   const userId = await getUserId(req)
   if (!userId) return json({ error: 'Non authentifié' }, 401)
 
+  const supabase = serviceClient()
+  if (!(await isPremium(supabase, userId))) {
+    return json({ error: 'Fonctionnalité réservée aux membres Premium.' }, 402)
+  }
+
   try {
-    const supabase = serviceClient()
     const since = new Date(Date.now() - 56 * 86400000).toISOString()
     const [{ data: acts }, { data: goal }, { data: measures }] = await Promise.all([
       supabase

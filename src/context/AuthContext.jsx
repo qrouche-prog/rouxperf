@@ -3,21 +3,39 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(undefined)
 
+// Premium actif = abonnement 'premium', statut vivant, période non expirée.
+function computeIsPremium(sub) {
+  if (!sub || sub.tier !== 'premium') return false
+  if (sub.status && !['active', 'trialing'].includes(sub.status)) return false
+  if (sub.current_period_end && new Date(sub.current_period_end) < new Date()) return false
+  return true
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
+  const [subscription, setSubscription] = useState(null)
 
   async function refreshProfile(userId) {
     if (!userId) {
       setProfile(null)
+      setSubscription(null)
       setProfileLoading(false)
       return
     }
     setProfileLoading(true)
-    const { data } = await supabase.from('profiles').select('*').eq('user_id', userId).single()
+    const [{ data }, { data: sub }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('user_id', userId).single(),
+      supabase
+        .from('subscriptions')
+        .select('tier, status, current_period_end')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ])
     setProfile(data ?? null)
+    setSubscription(sub ?? null)
     setProfileLoading(false)
   }
 
@@ -42,6 +60,8 @@ export function AuthProvider({ children }) {
     loading,
     profile,
     profileLoading,
+    subscription,
+    isPremium: computeIsPremium(subscription),
     refreshProfile: () => refreshProfile(session?.user?.id),
     signUp: (email, password) => supabase.auth.signUp({ email, password }),
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),

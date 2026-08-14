@@ -1,4 +1,5 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.112.4'
+import { getUserId, serviceClient, isPremium } from '../_shared/intervals.ts'
 
 const anthropic = new Anthropic()
 
@@ -54,6 +55,20 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Méthode non autorisée' }), {
       status: 405,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const userId = await getUserId(req)
+  if (!userId) {
+    return new Response(JSON.stringify({ error: 'Non authentifié' }), {
+      status: 401,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+  if (!(await isPremium(serviceClient(), userId))) {
+    return new Response(JSON.stringify({ error: 'Fonctionnalité réservée aux membres Premium.' }), {
+      status: 402,
       headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   }

@@ -2244,6 +2244,42 @@ button:active,
   color: var(--danger);
 }
 
+.premium-gate {
+  margin: 4px 0;
+}
+
+.premium-gate-body {
+  position: relative;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.premium-gate-content {
+  opacity: 0.5;
+  filter: grayscale(1);
+  pointer-events: none;
+}
+
+.premium-gate-tag {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: var(--text-xs);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.premium-gate-note {
+  margin: 8px 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .meal-plan-total {
   margin: 0 0 12px;
 }
