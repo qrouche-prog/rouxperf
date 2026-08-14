@@ -3,6 +3,45 @@ import { createClient } from 'npm:@supabase/supabase-js@2.110.7'
 
 const anthropic = new Anthropic()
 
+// Résume la charge réelle des 4 dernières semaines (séances importées d'une
+// montre) pour que l'IA adapte le programme au volume réellement pratiqué.
+function buildWearableSection(acts: any[]): string {
+  if (!acts || acts.length === 0) return ''
+  const weeks = 4
+  const byType: Record<
+    string,
+    { n: number; dur: number; dist: number; hrSum: number; hrN: number; elev: number }
+  > = {}
+  let load = 0
+  for (const a of acts) {
+    const t = a.activity_type || 'activité'
+    byType[t] = byType[t] || { n: 0, dur: 0, dist: 0, hrSum: 0, hrN: 0, elev: 0 }
+    const b = byType[t]
+    b.n += 1
+    b.dur += Number(a.duration_s || 0)
+    b.dist += Number(a.distance_m || 0)
+    if (a.avg_hr) {
+      b.hrSum += Number(a.avg_hr)
+      b.hrN += 1
+    }
+    b.elev += Number(a.elevation_gain_m || 0)
+    const tl = Number(a.raw?.icu_training_load)
+    if (Number.isFinite(tl)) load += tl
+  }
+  const lines = Object.entries(byType).map(([t, b]) => {
+    const perWeek = (b.n / weeks).toFixed(1)
+    const min = b.dur ? `, ~${Math.round(b.dur / 60 / weeks)} min/sem` : ''
+    const km = b.dist ? `, ~${(b.dist / 1000 / weeks).toFixed(1)} km/sem` : ''
+    const hr = b.hrN ? `, FC moy ${Math.round(b.hrSum / b.hrN)}` : ''
+    const elev = b.elev ? `, ~${Math.round(b.elev / weeks)} m D+/sem` : ''
+    return `${t} : ${perWeek} séance(s)/sem${min}${km}${hr}${elev}`
+  })
+  const loadStr = load > 0 ? ` Charge d'entraînement moyenne ~${Math.round(load / weeks)}/semaine.` : ''
+  return `\n\nDonnées réelles des 4 dernières semaines (montre connectée) — ce que l'utilisateur fait DÉJÀ :\n- ${lines.join(
+    '\n- '
+  )}.${loadStr}\nAdapte le programme à cette charge réelle : reste cohérent avec ce volume habituel (n'impose pas une charge très supérieure d'un coup), tiens compte du cardio/course déjà réalisé pour ne pas le dupliquer, et complète en priorité les qualités ou groupes musculaires négligés par cette pratique.`
+}
+
 const WEEKS_COUNT = 4
 
 const FOCUS_AREA_LABELS: Record<string, string> = {
@@ -485,10 +524,20 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
         ? `\n\nL'utilisateur vise une échéance au ${goal.target_date}${goal.target_weight_kg ? ` avec un poids cible de ${goal.target_weight_kg} kg` : ''} — oriente la progression et l'intensité pour l'amener au mieux à cette date.`
         : ''
 
+      // Charge réelle récente (montres connectées via intervals.icu / import).
+      const wearableSince = new Date(Date.now() - 28 * 86400000).toISOString()
+      const { data: wearables } = await supabase
+        .from('wearable_activities')
+        .select('activity_type, started_at, duration_s, distance_m, avg_hr, elevation_gain_m, raw')
+        .eq('user_id', user_id)
+        .gte('started_at', wearableSince)
+        .order('started_at', { ascending: false })
+      const wearableSection = buildWearableSection(wearables ?? [])
+
       const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${totalSessions} séance(s) par semaine au total, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
 Profil utilisateur :
-${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${otherSportSection}
+${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${otherSportSection}${wearableSection}
 
 Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
 ${JSON.stringify(

@@ -2371,6 +2371,16 @@ button:active,
   gap: 2px;
 }
 
+.wearable-summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
 .strava-block {
   display: flex;
   flex-direction: column;

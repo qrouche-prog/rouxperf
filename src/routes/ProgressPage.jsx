@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import MeasurementCard from '../components/progress/MeasurementCard'
@@ -20,7 +21,18 @@ export default function ProgressPage() {
   const { user } = useAuth()
   const [measurements, setMeasurements] = useState([])
   const [workoutLogs, setWorkoutLogs] = useState([])
+  const [activities, setActivities] = useState([])
   const [status, setStatus] = useState('loading')
+
+  async function loadActivities() {
+    const { data } = await supabase
+      .from('wearable_activities')
+      .select('id, activity_type, started_at, duration_s, distance_m, calories, avg_hr, max_hr, elevation_gain_m')
+      .eq('user_id', user.id)
+      .order('started_at', { ascending: false })
+      .limit(40)
+    setActivities(data ?? [])
+  }
 
   async function loadMeasurements() {
     const { data } = await supabase
@@ -43,7 +55,7 @@ export default function ProgressPage() {
 
   useEffect(() => {
     async function load() {
-      await Promise.all([loadMeasurements(), loadWorkoutLogs()])
+      await Promise.all([loadMeasurements(), loadWorkoutLogs(), loadActivities()])
       setStatus('idle')
     }
     load()
@@ -53,6 +65,29 @@ export default function ProgressPage() {
   if (status === 'loading') return null
 
   const [weightField, ...otherFields] = MEASUREMENT_FIELDS
+
+  // Résumé hebdo des séances de montre sur 4 semaines.
+  const now = Date.now()
+  const recent = activities.filter((a) => a.started_at && now - new Date(a.started_at).getTime() < 28 * 86400000)
+  const byType = {}
+  for (const a of recent) {
+    const t = a.activity_type || 'activité'
+    const b = (byType[t] = byType[t] || { n: 0, dur: 0, dist: 0, hrSum: 0, hrN: 0 })
+    b.n += 1
+    b.dur += Number(a.duration_s || 0)
+    b.dist += Number(a.distance_m || 0)
+    if (a.avg_hr) {
+      b.hrSum += Number(a.avg_hr)
+      b.hrN += 1
+    }
+  }
+  const weeklySummary = Object.entries(byType).map(([t, b]) => ({
+    type: t,
+    perWeek: (b.n / 4).toFixed(1),
+    km: b.dist ? (b.dist / 1000 / 4).toFixed(1) : null,
+    min: b.dur ? Math.round(b.dur / 60 / 4) : null,
+    hr: b.hrN ? Math.round(b.hrSum / b.hrN) : null,
+  }))
 
   return (
     <main>
@@ -82,6 +117,48 @@ export default function ProgressPage() {
           />
         ))}
       </div>
+
+      <h2>Séances de ta montre</h2>
+      {activities.length === 0 ? (
+        <p>
+          Aucune séance importée. Connecte ta montre dans <Link to="/settings#objets">Réglages</Link>.
+        </p>
+      ) : (
+        <>
+          {weeklySummary.length > 0 && (
+            <div className="card wearable-summary">
+              <p className="eyebrow">Charge des 4 dernières semaines (par semaine)</p>
+              <ul className="wearable-summary-list">
+                {weeklySummary.map((s) => (
+                  <li key={s.type}>
+                    <strong>{s.type}</strong> : {s.perWeek} séance(s)
+                    {s.min ? ` · ${s.min} min` : ''}
+                    {s.km ? ` · ${s.km} km` : ''}
+                    {s.hr ? ` · FC ${s.hr}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <ul className="wearable-list">
+            {activities.slice(0, 15).map((a) => (
+              <li key={a.id} className="wearable-item">
+                <span className="wearable-item-info">
+                  <strong>{a.activity_type}</strong>
+                  <span className="eyebrow">
+                    {a.started_at ? new Date(a.started_at).toLocaleDateString('fr-CH') : ''}
+                    {a.duration_s ? ` · ${Math.round(a.duration_s / 60)} min` : ''}
+                    {a.distance_m ? ` · ${(a.distance_m / 1000).toFixed(1)} km` : ''}
+                    {a.avg_hr ? ` · ${a.avg_hr} bpm` : ''}
+                    {a.elevation_gain_m ? ` · ${Math.round(a.elevation_gain_m)} m D+` : ''}
+                    {a.calories ? ` · ${Math.round(a.calories)} kcal` : ''}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       <h2>Séances récentes</h2>
       {workoutLogs.length === 0 ? (
