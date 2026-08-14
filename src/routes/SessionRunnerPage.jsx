@@ -44,6 +44,34 @@ function isCardioExercise(details) {
   return String(details?.category ?? '').toLowerCase() === 'cardio'
 }
 
+// "5x1000m" / "8 x 400 m" / "5x3min" → { count, target }. Sinon null.
+function intervalCount(repsText) {
+  const m = String(repsText ?? '').trim().match(/^(\d+)\s*[x×]\s*(.+)$/i)
+  return m ? { count: Number(m[1]), target: m[2].trim() } : null
+}
+
+function hasDistanceUnit(text) {
+  return /\d\s*(m|km)\b/i.test(String(text ?? ''))
+}
+
+// Première distance trouvée, convertie en km ("1000m" → 1, "5km" → 5).
+function distanceKmOf(text) {
+  const m = String(text ?? '').match(/(\d+(?:[.,]\d+)?)\s*(m|km)\b/i)
+  if (!m) return null
+  const v = Number(m[1].replace(',', '.'))
+  return m[2].toLowerCase() === 'km' ? v : v / 1000
+}
+
+// Nombre effectif de séries : un intervalle cardio "Nx…" compte pour N séries,
+// même si le programme n'en déclare qu'une.
+function setsOf(exercise, details) {
+  if (isCardioExercise(details)) {
+    const ic = intervalCount(exercise.reps)
+    if (ic && ic.count > 1) return ic.count
+  }
+  return exercise.sets
+}
+
 // Allure en secondes par km. Accepte "5:30" (min:sec) ou un décimal de minutes.
 function parsePace(text) {
   const t = String(text ?? '').trim()
@@ -166,6 +194,9 @@ export default function SessionRunnerPage() {
   const days = withStableDayNumbers(week?.days ?? [])
   const day = days.find((d) => d.day_number === Number(dayNumber))
 
+  // Nombre effectif de séries d'un exercice (gère les intervalles cardio "Nx…").
+  const setCount = (ex) => setsOf(ex, exercisesById[ex.exercise_id])
+
   function syncEntries(next) {
     entriesRef.current = next
     setEntries(next)
@@ -214,7 +245,7 @@ export default function SessionRunnerPage() {
     if (!target) return false
     for (let e = 0; e < target.exercises.length; e += 1) {
       const ex = target.exercises[e]
-      for (let s = 0; s < ex.sets; s += 1) {
+      for (let s = 0; s < setCount(ex); s += 1) {
         if (!entriesRef.current[`${e}-${s}`]) {
           const sameExercise = e === selectedExRef.current
           selectedExRef.current = e
@@ -237,7 +268,7 @@ export default function SessionRunnerPage() {
     const target = dayArg || day
     const ex = target.exercises[exIdx]
     let setIdx = 0
-    for (let s = 0; s < ex.sets; s += 1) {
+    for (let s = 0; s < setCount(ex); s += 1) {
       if (!entriesRef.current[`${exIdx}-${s}`]) {
         setIdx = s
         break
@@ -466,8 +497,8 @@ export default function SessionRunnerPage() {
   }
 
   const slotLabel = day.slot === 'morning' ? ' · matin' : day.slot === 'evening' ? ' · soir' : ''
-  const totalSets = day.exercises.reduce((sum, exercise) => sum + exercise.sets, 0)
-  const doneSets = day.exercises.reduce((sum, exercise, i) => sum + countCompleted(entries, i, exercise.sets), 0)
+  const totalSets = day.exercises.reduce((sum, exercise) => sum + setCount(exercise), 0)
+  const doneSets = day.exercises.reduce((sum, exercise, i) => sum + countCompleted(entries, i, setCount(exercise)), 0)
   const overallPercent = totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 0
 
   // Écrit une série en base immédiatement (création du log au besoin).
@@ -530,7 +561,7 @@ export default function SessionRunnerPage() {
 
   function allDone(map) {
     return !day.exercises.some((ex, e) => {
-      for (let s = 0; s < ex.sets; s += 1) if (!map[`${e}-${s}`]) return true
+      for (let s = 0; s < setCount(ex); s += 1) if (!map[`${e}-${s}`]) return true
       return false
     })
   }
@@ -544,7 +575,7 @@ export default function SessionRunnerPage() {
       setPhase('list')
       return
     }
-    for (let s = 0; s < ex.sets; s += 1) {
+    for (let s = 0; s < setCount(ex); s += 1) {
       if (!entriesRef.current[`${exIdx}-${s}`]) {
         setSelectedExerciseIndex(exIdx)
         setActiveSetIndex(s)
@@ -577,7 +608,11 @@ export default function SessionRunnerPage() {
           mv = Number(metricValue)
         }
       }
-      const dist = distanceKm !== '' && Number.isFinite(Number(distanceKm)) ? Number(distanceKm) : null
+      // Distance saisie, sinon distance prescrite par l'intervalle (ex. 1000m).
+      const ic = intervalCount(exercise.reps)
+      const multiInterval = ic && ic.count > 1 && hasDistanceUnit(ic.target)
+      let dist = distanceKm !== '' && Number.isFinite(Number(distanceKm)) ? Number(distanceKm) : null
+      if (dist == null && multiInterval) dist = distanceKmOf(ic.target)
       entry = { reps: null, weight_kg: '', rpe, metric_kind: mk, metric_value: mv, distance_km: dist }
     } else {
       entry = {
@@ -597,7 +632,8 @@ export default function SessionRunnerPage() {
     setEditingDoneSet(false)
     setRpe('')
 
-    const exNowDone = countCompleted(updated, selectedExerciseIndex, exercise.sets) === exercise.sets
+    const total = setCount(exercise)
+    const exNowDone = countCompleted(updated, selectedExerciseIndex, total) === total
 
     if (allDone(updated)) {
       setFinalPercent(100)
@@ -620,7 +656,7 @@ export default function SessionRunnerPage() {
 
     // Série suivante DU MÊME exercice → repos puis reprise du même exercice.
     let nextSet = idx + 1
-    for (let s = 0; s < exercise.sets; s += 1) {
+    for (let s = 0; s < total; s += 1) {
       if (!updated[`${selectedExerciseIndex}-${s}`]) {
         nextSet = s
         break
@@ -671,7 +707,8 @@ export default function SessionRunnerPage() {
     persistSet(exIdx, setIdx, entry)
 
     const ex = day.exercises[exIdx]
-    const exNowDone = countCompleted(updated, exIdx, ex.sets) === ex.sets
+    const total = setCount(ex)
+    const exNowDone = countCompleted(updated, exIdx, total) === total
     if (allDone(updated)) {
       setFinalPercent(100)
       setPhase('summary')
@@ -682,7 +719,7 @@ export default function SessionRunnerPage() {
       return
     }
     let nextSet = setIdx + 1
-    for (let s = 0; s < ex.sets; s += 1) {
+    for (let s = 0; s < total; s += 1) {
       if (!updated[`${exIdx}-${s}`]) {
         nextSet = s
         break
@@ -821,7 +858,7 @@ export default function SessionRunnerPage() {
     const ids = []
     const nextEntries = { ...entriesRef.current }
     const nextRowIds = { ...rowIdsRef.current }
-    for (let s = 0; s < ex.sets; s += 1) {
+    for (let s = 0; s < setCount(ex); s += 1) {
       const key = `${exIdx}-${s}`
       if (nextRowIds[key]) ids.push(nextRowIds[key])
       delete nextEntries[key]
@@ -872,17 +909,18 @@ export default function SessionRunnerPage() {
         <div className="card session-summary">
           {day.exercises.map((ex, i) => {
             const det = exercisesById[ex.exercise_id]
-            const doneCount = countCompleted(entries, i, ex.sets)
+            const total = setCount(ex)
+            const doneCount = countCompleted(entries, i, total)
             return (
               <div key={i} className="session-summary-exo">
                 <div className="session-summary-exo-head">
                   <strong>{det?.name ?? 'Exercice'}</strong>
-                  <span className={`eyebrow${doneCount === ex.sets ? ' session-summary-done' : ''}`}>
-                    {doneCount}/{ex.sets} séries
+                  <span className={`eyebrow${doneCount === total ? ' session-summary-done' : ''}`}>
+                    {doneCount}/{total} séries
                   </span>
                 </div>
                 <ul className="session-summary-sets">
-                  {Array.from({ length: ex.sets }).map((_, s) => {
+                  {Array.from({ length: total }).map((_, s) => {
                     const e = entries[`${i}-${s}`]
                     return (
                       <li key={s} className={e ? 'session-summary-set' : 'session-summary-set session-summary-skipped'}>
@@ -966,8 +1004,9 @@ export default function SessionRunnerPage() {
         <div className="session-exercise-list">
           {day.exercises.map((exercise, i) => {
             const details = exercisesById[exercise.exercise_id]
-            const completed = countCompleted(entries, i, exercise.sets)
-            const done = completed === exercise.sets
+            const total = setCount(exercise)
+            const completed = countCompleted(entries, i, total)
+            const done = completed === total
             return (
               <button
                 key={i}
@@ -981,7 +1020,7 @@ export default function SessionRunnerPage() {
                 <span className="session-exercise-info">
                   <strong>{details?.name ?? 'Exercice'}</strong>
                   <span className="eyebrow">
-                    {completed} / {exercise.sets} séries
+                    {completed} / {total} séries
                   </span>
                 </span>
                 <span className="session-exercise-chevron">›</span>
@@ -1023,15 +1062,25 @@ export default function SessionRunnerPage() {
   const exercise = day.exercises[selectedExerciseIndex]
   const details = exercisesById[exercise.exercise_id]
   const media = mediaForSlug(details?.illustration_slug)
-  const completed = countCompleted(entries, selectedExerciseIndex, exercise.sets)
-  const exerciseDone = completed === exercise.sets
+  const total = setCount(exercise)
+  const completed = countCompleted(entries, selectedExerciseIndex, total)
+  const exerciseDone = completed === total
   const fillIdx = activeSetIndex
   const fillEntry = entries[`${selectedExerciseIndex}-${fillIdx}`]
   const showContinue = exerciseDone && !editingDoneSet
   const restLabel = restLabelFor(exercise.rest_seconds)
   const cardio = isCardioExercise(details)
+  const ic = intervalCount(exercise.reps)
+  // Cible d'une série : la distance/durée d'UN intervalle si "Nx…".
+  const targetLabel = cardio && ic && ic.count > 1 ? ic.target : exercise.reps
+  // Chrono d'effort : uniquement pour un exercice chronométré NON cardio
+  // (gainage, tenue…). Le cardio/course se log toujours (distance/allure).
   const timeSeconds = repsSeconds(exercise.reps)
-  const isTimeBased = timeSeconds != null
+  const isTimeBased = timeSeconds != null && !cardio
+  // On masque le champ distance seulement pour un intervalle multiple à distance
+  // fixe (ex. 5×1000 m) ; une sortie longue garde le champ pour saisir le réel.
+  const isMultiIntervalDist = cardio && ic && ic.count > 1 && hasDistanceUnit(ic.target)
+  const showDistanceField = cardio && !isMultiIntervalDist
 
   function tapSet(i) {
     setActiveSetIndex(i)
@@ -1065,7 +1114,7 @@ export default function SessionRunnerPage() {
 
       <div className="card session-exo-card">
         <p className="eyebrow">
-          Exercice {selectedExerciseIndex + 1}/{day.exercises.length} · {completed}/{exercise.sets} séries
+          Exercice {selectedExerciseIndex + 1}/{day.exercises.length} · {completed}/{total} séries
         </p>
         <h2 className="session-exo-name">{details?.name ?? 'Exercice'}</h2>
 
@@ -1077,7 +1126,7 @@ export default function SessionRunnerPage() {
         )}
 
         <div className="set-chips" role="tablist" aria-label="Séries">
-          {Array.from({ length: exercise.sets }).map((_, i) => {
+          {Array.from({ length: total }).map((_, i) => {
             const isDone = Boolean(entries[`${selectedExerciseIndex}-${i}`])
             const isActive = i === fillIdx
             return (
@@ -1130,23 +1179,27 @@ export default function SessionRunnerPage() {
         ) : (
           <form className="set-fill" onSubmit={onPrimary}>
             <p className="set-fill-target">
-              Série {fillIdx + 1} · objectif <strong>{exercise.reps}</strong>
+              Série {fillIdx + 1} · objectif <strong>{targetLabel}</strong>
               {cardio ? '' : ' reps'} · repos {restLabel}
             </p>
 
             {cardio ? (
               <div className="cardio-metric">
-                <label htmlFor="distance-km">Distance (km) — optionnel</label>
-                <input
-                  id="distance-km"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  value={distanceKm}
-                  onChange={(e) => setDistanceKm(e.target.value)}
-                  autoComplete="off"
-                  placeholder="ex. 1 pour 1000 m"
-                />
+                {showDistanceField && (
+                  <>
+                    <label htmlFor="distance-km">Distance (km) — optionnel</label>
+                    <input
+                      id="distance-km"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      value={distanceKm}
+                      onChange={(e) => setDistanceKm(e.target.value)}
+                      autoComplete="off"
+                      placeholder="ex. 12.5"
+                    />
+                  </>
+                )}
 
                 <div className="chart-metric-switch" role="group" aria-label="Type de mesure">
                   {[
