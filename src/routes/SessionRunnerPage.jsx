@@ -40,8 +40,15 @@ function fmtCountdown(sec) {
   return m > 0 ? `${m}:${String(s % 60).padStart(2, '0')}` : `${s}s`
 }
 
-function isCardioExercise(details) {
-  return String(details?.category ?? '').toLowerCase() === 'cardio'
+// Les champs distance / allure / vitesse ne concernent QUE la course à pied
+// (ou une consigne qui impose une distance en m/km). Tout le reste — y compris
+// la pliométrie (squats sautés, step-ups…) — se log en poids × répétitions,
+// ou en temps d'effort si la consigne est chronométrée.
+const RUN_RE =
+  /course|running|\brun\b|footing|jogging|fractionn|trail|marathon|semi|sprint|fartlek|\bvma\b|seuil|sortie longue|tapis|treadmill/i
+function isRunningExercise(details, reps) {
+  if (hasDistanceUnit(reps)) return true
+  return RUN_RE.test(details?.name ?? '')
 }
 
 // "5x1000m" / "8 x 400 m" / "5x3min" → { count, target }. Sinon null.
@@ -65,7 +72,7 @@ function distanceKmOf(text) {
 // Nombre effectif de séries : un intervalle cardio "Nx…" compte pour N séries,
 // même si le programme n'en déclare qu'une.
 function setsOf(exercise, details) {
-  if (isCardioExercise(details)) {
+  if (isRunningExercise(details, exercise.reps)) {
     const ic = intervalCount(exercise.reps)
     if (ic && ic.count > 1) return ic.count
   }
@@ -89,7 +96,7 @@ function fmtPace(sec) {
 }
 
 // Libellé d'une série réalisée dans le résumé, selon sa nature.
-function setSummary(e, ex, cardio) {
+function setSummary(e, ex, running) {
   if (e.metric_kind === 'effort_s') return `${e.metric_value}s d'effort`
   const rpe = e.rpe ? ` · RPE ${e.rpe}` : ''
   const parts = []
@@ -98,7 +105,7 @@ function setSummary(e, ex, cardio) {
   else if (e.metric_kind === 'speed') parts.push(`${e.metric_value} km/h`)
   else if (e.metric_kind === 'time') parts.push(`${e.metric_value} min`)
   if (parts.length) return parts.join(' · ') + rpe
-  if (cardio) return `série faite${rpe}`
+  if (running) return `série faite${rpe}`
   return `${e.weight_kg ? `${e.weight_kg} kg` : 'PdC'} × ${e.reps || ex.reps} reps${rpe}`
 }
 
@@ -591,9 +598,9 @@ export default function SessionRunnerPage() {
   function submitSet(idx) {
     const exercise = day.exercises[selectedExerciseIndex]
     const det = exercisesById[exercise.exercise_id]
-    const cardio = isCardioExercise(det)
+    const running = isRunningExercise(det, exercise.reps)
     let entry
-    if (cardio) {
+    if (running) {
       let mk = null
       let mv = null
       if (metricValue !== '') {
@@ -925,7 +932,11 @@ export default function SessionRunnerPage() {
                     return (
                       <li key={s} className={e ? 'session-summary-set' : 'session-summary-set session-summary-skipped'}>
                         <span className="session-summary-set-n">{s + 1}</span>
-                        {e ? <span>{setSummary(e, ex, isCardioExercise(det))}</span> : <span>non réalisée</span>}
+                        {e ? (
+                          <span>{setSummary(e, ex, isRunningExercise(det, ex.reps))}</span>
+                        ) : (
+                          <span>non réalisée</span>
+                        )}
                       </li>
                     )
                   })}
@@ -1069,18 +1080,18 @@ export default function SessionRunnerPage() {
   const fillEntry = entries[`${selectedExerciseIndex}-${fillIdx}`]
   const showContinue = exerciseDone && !editingDoneSet
   const restLabel = restLabelFor(exercise.rest_seconds)
-  const cardio = isCardioExercise(details)
+  const running = isRunningExercise(details, exercise.reps)
   const ic = intervalCount(exercise.reps)
   // Cible d'une série : la distance/durée d'UN intervalle si "Nx…".
-  const targetLabel = cardio && ic && ic.count > 1 ? ic.target : exercise.reps
-  // Chrono d'effort : uniquement pour un exercice chronométré NON cardio
-  // (gainage, tenue…). Le cardio/course se log toujours (distance/allure).
+  const targetLabel = running && ic && ic.count > 1 ? ic.target : exercise.reps
+  // Chrono d'effort : uniquement pour un exercice chronométré NON course
+  // (gainage, tenue…). La course se log toujours (distance/allure).
   const timeSeconds = repsSeconds(exercise.reps)
-  const isTimeBased = timeSeconds != null && !cardio
+  const isTimeBased = timeSeconds != null && !running
   // On masque le champ distance seulement pour un intervalle multiple à distance
   // fixe (ex. 5×1000 m) ; une sortie longue garde le champ pour saisir le réel.
-  const isMultiIntervalDist = cardio && ic && ic.count > 1 && hasDistanceUnit(ic.target)
-  const showDistanceField = cardio && !isMultiIntervalDist
+  const isMultiIntervalDist = running && ic && ic.count > 1 && hasDistanceUnit(ic.target)
+  const showDistanceField = running && !isMultiIntervalDist
 
   function tapSet(i) {
     setActiveSetIndex(i)
@@ -1180,10 +1191,10 @@ export default function SessionRunnerPage() {
           <form className="set-fill" onSubmit={onPrimary}>
             <p className="set-fill-target">
               Série {fillIdx + 1} · objectif <strong>{targetLabel}</strong>
-              {cardio ? '' : ' reps'} · repos {restLabel}
+              {running ? '' : ' reps'} · repos {restLabel}
             </p>
 
-            {cardio ? (
+            {running ? (
               <div className="cardio-metric">
                 {showDistanceField && (
                   <>
