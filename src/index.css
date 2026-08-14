@@ -2658,6 +2658,68 @@ button:active,
   font-size: 0.85rem;
 }
 
+.set-fill-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Résumé de séance */
+.session-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.session-summary-exo-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.session-summary-done {
+  color: var(--ember);
+}
+
+.session-summary-sets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.session-summary-set {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.session-summary-set-n {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--iron);
+}
+
+.session-summary-skipped {
+  color: var(--iron);
+}
+.session-summary-skipped .session-summary-set-n {
+  opacity: 0.5;
+}
+
 .session-exo-instructions p {
   margin: 8px 0 0;
   color: var(--iron);

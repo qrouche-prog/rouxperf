@@ -80,7 +80,7 @@ export default function SessionRunnerPage() {
   const [weight, setWeight] = useState('')
   const [rpe, setRpe] = useState('')
   const [saveState, setSaveState] = useState('idle') // idle | saving | saved | error
-  const [finalPercent, setFinalPercent] = useState(null)
+  const [, setFinalPercent] = useState(null)
 
   // Refs pour éviter les closures périmées dans les timers / callbacks async.
   const entriesRef = useRef({})
@@ -439,34 +439,40 @@ export default function SessionRunnerPage() {
       return
     }
 
-    // Nouvelle série validée : enchaînement.
-    const stillSomething = day.exercises.some((ex, e) => {
+    // Séance entièrement terminée → résumé.
+    const sessionDone = !day.exercises.some((ex, e) => {
       for (let s = 0; s < ex.sets; s += 1) if (!updated[`${e}-${s}`]) return true
       return false
     })
+    if (sessionDone) {
+      setFinalPercent(100)
+      setPhase('summary')
+      return
+    }
 
-    // Chrono de repos après chaque série validée, dans les deux modes
-    // (en Libre, il reste passable via « Passer le repos »).
-    if (stillSomething) {
-      const rest = exercise.rest_seconds || 0
-      if (rest > 0) {
-        // Cible affichée pendant le repos
-        let label = 'Série suivante'
-        outer: for (let e = 0; e < day.exercises.length; e += 1) {
-          const ex = day.exercises[e]
-          for (let s = 0; s < ex.sets; s += 1) {
-            if (!updated[`${e}-${s}`]) {
-              const det = exercisesById[ex.exercise_id]
-              label = `${det?.name ?? 'Exercice'} · série ${s + 1}`
-              break outer
-            }
-          }
-        }
-        startRest(rest, label)
-        return
+    // Exercice terminé mais séance non finie : on RESTE sur cet exercice avec le
+    // choix « Continuer » / « Terminer la séance » (pas d'auto-enchaînement forcé).
+    if (exNowDone) {
+      setActiveSetIndex(exercise.sets - 1)
+      return
+    }
+
+    // Série suivante DU MÊME exercice → repos puis reprise.
+    let nextSet = idx + 1
+    for (let s = 0; s < exercise.sets; s += 1) {
+      if (!updated[`${selectedExerciseIndex}-${s}`]) {
+        nextSet = s
+        break
       }
     }
-    openCurrent(day)
+    const rest = exercise.rest_seconds || 0
+    if (rest > 0) {
+      const det = exercisesById[exercise.exercise_id]
+      startRest(rest, `${det?.name ?? 'Exercice'} · série ${nextSet + 1}`)
+      return
+    }
+    setActiveSetIndex(nextSet)
+    loadFieldsFor(day, selectedExerciseIndex, nextSet, { sameExercise: true })
   }
 
   // Débloque l'audio (doit être appelé depuis un geste utilisateur, ex. Valider).
@@ -588,20 +594,58 @@ export default function SessionRunnerPage() {
   // ---- Écran : résumé ----
   if (phase === 'summary') {
     return (
-      <main>
+      <main className="session-run">
         <div className="card session-complete">
-          <p className="eyebrow">{finalPercent === 100 ? 'Séance validée' : 'Séance enregistrée'}</p>
+          <p className="eyebrow">{overallPercent === 100 ? 'Séance validée' : 'Séance enregistrée'}</p>
           <span className="completion-percent">{overallPercent}%</span>
-          <h1>{overallPercent === 100 ? 'Séance complète' : 'À bientôt pour la suite'}</h1>
+          <h1>
+            {day.name}
+            {slotLabel}
+          </h1>
           <p>
-            {overallPercent === 100
-              ? 'Tous les exercices sont faits, bien joué.'
-              : `${doneSets} série(s) sur ${totalSets} enregistrée(s). Reviens ici pour continuer.`}
+            {doneSets} / {totalSets} séries réalisées
           </p>
-          <Link to="/program" className="btn-primary">
-            Retour au programme
-          </Link>
         </div>
+
+        <div className="card session-summary">
+          {day.exercises.map((ex, i) => {
+            const det = exercisesById[ex.exercise_id]
+            const doneCount = countCompleted(entries, i, ex.sets)
+            return (
+              <div key={i} className="session-summary-exo">
+                <div className="session-summary-exo-head">
+                  <strong>{det?.name ?? 'Exercice'}</strong>
+                  <span className={`eyebrow${doneCount === ex.sets ? ' session-summary-done' : ''}`}>
+                    {doneCount}/{ex.sets} séries
+                  </span>
+                </div>
+                <ul className="session-summary-sets">
+                  {Array.from({ length: ex.sets }).map((_, s) => {
+                    const e = entries[`${i}-${s}`]
+                    return (
+                      <li key={s} className={e ? 'session-summary-set' : 'session-summary-set session-summary-skipped'}>
+                        <span className="session-summary-set-n">{s + 1}</span>
+                        {e ? (
+                          <span>
+                            {e.weight_kg ? `${e.weight_kg} kg` : 'PdC'} × {e.reps || ex.reps} reps
+                            {e.rpe ? ` · RPE ${e.rpe}` : ''}
+                          </span>
+                        ) : (
+                          <span>non réalisée</span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )
+          })}
+        </div>
+
+        <Link to="/program" className="btn-primary session-finish-btn">
+          Retour au programme
+        </Link>
+        <div className="bottom-nav-spacer" />
       </main>
     )
   }
@@ -675,13 +719,23 @@ export default function SessionRunnerPage() {
           })}
         </div>
 
-        {overallPercent === 100 ? (
-          <button type="button" className="btn-primary session-finish-btn" onClick={() => setPhase('summary')}>
-            Voir le résumé
-          </button>
-        ) : (
-          <button type="button" className="btn-primary session-finish-btn" onClick={() => openCurrent()}>
-            {doneSets > 0 ? 'Reprendre la séance' : 'Commencer'}
+        <button
+          type="button"
+          className="btn-primary session-finish-btn"
+          onClick={() => (overallPercent === 100 ? setPhase('summary') : openCurrent())}
+        >
+          {overallPercent === 100 ? 'Voir le résumé' : doneSets > 0 ? 'Reprendre la séance' : 'Commencer'}
+        </button>
+        {doneSets > 0 && overallPercent < 100 && (
+          <button
+            type="button"
+            className="btn-secondary session-finish-btn"
+            onClick={() => {
+              setFinalPercent(overallPercent)
+              setPhase('summary')
+            }}
+          >
+            Terminer la séance ({overallPercent}%)
           </button>
         )}
       </main>
@@ -764,9 +818,21 @@ export default function SessionRunnerPage() {
         {showContinue ? (
           <div className="set-fill">
             <p className="set-fill-done">Exercice terminé.</p>
-            <button type="button" className="btn-primary" onClick={onPrimary}>
-              Continuer
-            </button>
+            <div className="set-fill-actions">
+              <button type="button" className="btn-primary" onClick={onPrimary}>
+                Continuer
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setFinalPercent(overallPercent)
+                  setPhase('summary')
+                }}
+              >
+                Terminer la séance
+              </button>
+            </div>
           </div>
         ) : (
           <form className="set-fill" onSubmit={onPrimary}>
