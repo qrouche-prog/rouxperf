@@ -23,7 +23,40 @@ export default function ProgressPage() {
   const [measurements, setMeasurements] = useState([])
   const [workoutLogs, setWorkoutLogs] = useState([])
   const [activities, setActivities] = useState([])
+  const [insight, setInsight] = useState(null)
+  const [insightBusy, setInsightBusy] = useState(false)
+  const [insightError, setInsightError] = useState(null)
   const [status, setStatus] = useState('loading')
+
+  async function loadInsight() {
+    const { data } = await supabase
+      .from('training_insights')
+      .select('content, generated_at')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    setInsight(data ?? null)
+  }
+
+  async function generateInsight() {
+    setInsightBusy(true)
+    setInsightError(null)
+    const { data, error } = await supabase.functions.invoke('training-insights', {})
+    setInsightBusy(false)
+    if (error || data?.error) {
+      let msg = data?.error
+      if (!msg && error?.context?.json) {
+        try {
+          const body = await error.context.json()
+          msg = body?.error
+        } catch {
+          // ignore
+        }
+      }
+      setInsightError(msg || 'Analyse indisponible pour le moment.')
+      return
+    }
+    setInsight({ content: data.content, generated_at: data.generated_at })
+  }
 
   async function loadActivities() {
     const { data } = await supabase
@@ -56,7 +89,7 @@ export default function ProgressPage() {
 
   useEffect(() => {
     async function load() {
-      await Promise.all([loadMeasurements(), loadWorkoutLogs(), loadActivities()])
+      await Promise.all([loadMeasurements(), loadWorkoutLogs(), loadActivities(), loadInsight()])
       setStatus('idle')
     }
     load()
@@ -167,6 +200,28 @@ export default function ProgressPage() {
               </li>
             ))}
           </ul>
+        </>
+      )}
+
+      {activities.length >= 3 && (
+        <>
+          <h2>Analyse de ta charge</h2>
+          <div className="card insight-card">
+            {insight ? (
+              <>
+                <div className="insight-content">{insight.content}</div>
+                <p className="eyebrow insight-date">
+                  Généré le {new Date(insight.generated_at).toLocaleDateString('fr-CH')}
+                </p>
+              </>
+            ) : (
+              <p className="eyebrow">Une lecture IA de tes tendances : volume, fréquence cardiaque, charge, récup.</p>
+            )}
+            {insightError && <p role="alert">{insightError}</p>}
+            <button type="button" className="btn-secondary" onClick={generateInsight} disabled={insightBusy}>
+              {insightBusy ? 'Analyse en cours…' : insight ? 'Régénérer l’analyse' : 'Générer l’analyse'}
+            </button>
+          </div>
         </>
       )}
 
