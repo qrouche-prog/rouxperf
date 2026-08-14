@@ -4,11 +4,12 @@ function fmtWeek(iso) {
   return new Date(iso).toLocaleDateString('fr-CH', { day: '2-digit', month: '2-digit' })
 }
 
-// Volume hebdomadaire (minutes) des séances importées.
-export default function WeeklyLoadChart({ data, height = 160 }) {
+// Volume hebdomadaire des séances importées (métrique choisie : minutes, km ou séances).
+export default function WeeklyLoadChart({ data, metricKey = 'min', unit = 'min', height = 160 }) {
   if (!data || data.length === 0) {
     return <p className="measurement-empty">Pas encore de données.</p>
   }
+  const suffix = unit ? ` ${unit}` : ''
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
@@ -24,7 +25,7 @@ export default function WeeklyLoadChart({ data, height = 160 }) {
         />
         <YAxis hide domain={[0, 'auto']} />
         <Tooltip
-          formatter={(value) => [`${value} min`, 'Volume']}
+          formatter={(value) => [`${value}${suffix}`, 'Volume']}
           labelFormatter={fmtWeek}
           contentStyle={{
             background: 'var(--chart-surface)',
@@ -33,7 +34,7 @@ export default function WeeklyLoadChart({ data, height = 160 }) {
             fontSize: 12,
           }}
         />
-        <Bar dataKey="min" fill="var(--flame-2)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey={metricKey} fill="var(--flame-2)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )

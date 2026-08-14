@@ -9,6 +9,12 @@ import WeeklyLoadChart from '../components/progress/WeeklyLoadChart'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
+const CHART_METRICS = {
+  min: { key: 'min', label: 'Minutes', unit: 'min' },
+  km: { key: 'km', label: 'Kilomètres', unit: 'km' },
+  sessions: { key: 'sessions', label: 'Séances', unit: '' },
+}
+
 const MEASUREMENT_FIELDS = [
   { value: 'weight_kg', label: 'Poids', unit: 'kg' },
   { value: 'body_fat_pct', label: 'Masse grasse', unit: '%' },
@@ -28,6 +34,8 @@ export default function ProgressPage() {
   const [insightBusy, setInsightBusy] = useState(false)
   const [insightError, setInsightError] = useState(null)
   const [status, setStatus] = useState('loading')
+  const [measureView, setMeasureView] = useState('hidden') // hidden | filled | all
+  const [chartMetric, setChartMetric] = useState('min') // min | km | sessions
 
   async function loadInsight() {
     const { data } = await supabase
@@ -100,6 +108,9 @@ export default function ProgressPage() {
   if (status === 'loading') return null
 
   const [weightField, ...otherFields] = MEASUREMENT_FIELDS
+  // Mensurations secondaires : on ne garde à l'écran que celles qui ont au moins une valeur.
+  const filledOther = otherFields.filter((f) => measurements.some((m) => m[f.value] != null))
+  const shownFields = measureView === 'all' ? otherFields : filledOther
 
   // Résumé hebdo des séances de montre sur 4 semaines.
   const now = Date.now()
@@ -137,14 +148,24 @@ export default function ProgressPage() {
   for (let i = 9; i >= 0; i -= 1) {
     const m = new Date(thisMonday)
     m.setDate(m.getDate() - i * 7)
-    chartBuckets[m.toISOString().slice(0, 10)] = 0
+    chartBuckets[m.toISOString().slice(0, 10)] = { min: 0, km: 0, sessions: 0 }
   }
   for (const a of activities) {
     if (!a.started_at) continue
     const key = mondayOf(new Date(a.started_at)).toISOString().slice(0, 10)
-    if (key in chartBuckets) chartBuckets[key] += Math.round(Number(a.duration_s || 0) / 60)
+    const b = chartBuckets[key]
+    if (!b) continue
+    b.min += Math.round(Number(a.duration_s || 0) / 60)
+    b.km += Number(a.distance_m || 0) / 1000
+    b.sessions += 1
   }
-  const weeklyChart = Object.entries(chartBuckets).map(([week, min]) => ({ week, min }))
+  const weeklyChart = Object.entries(chartBuckets).map(([week, v]) => ({
+    week,
+    min: v.min,
+    km: Math.round(v.km * 10) / 10,
+    sessions: v.sessions,
+  }))
+  const metric = CHART_METRICS[chartMetric]
 
   return (
     <main>
@@ -162,18 +183,49 @@ export default function ProgressPage() {
         featured
       />
 
-      <div className="measurement-grid">
-        {otherFields.map((field) => (
-          <MeasurementCard
-            key={field.value}
-            field={field.value}
-            label={field.label}
-            unit={field.unit}
-            data={measurements}
-            onAdded={loadMeasurements}
-          />
-        ))}
-      </div>
+      {measureView === 'hidden' ? (
+        <button
+          type="button"
+          className="btn-secondary measurements-toggle"
+          onClick={() => setMeasureView(filledOther.length ? 'filled' : 'all')}
+        >
+          {filledOther.length
+            ? `Voir mes mensurations (${filledOther.length})`
+            : '+ Ajouter une mensuration'}
+        </button>
+      ) : (
+        <div className="measurements-panel">
+          {shownFields.length > 0 && (
+            <div className="measurement-grid">
+              {shownFields.map((field) => (
+                <MeasurementCard
+                  key={field.value}
+                  field={field.value}
+                  label={field.label}
+                  unit={field.unit}
+                  data={measurements}
+                  onAdded={loadMeasurements}
+                />
+              ))}
+            </div>
+          )}
+          <div className="measurements-actions">
+            {measureView === 'filled' && (
+              <button type="button" className="btn-secondary" onClick={() => setMeasureView('all')}>
+                + Ajouter une autre mesure
+              </button>
+            )}
+            {measureView === 'all' && filledOther.length > 0 && (
+              <button type="button" className="btn-secondary" onClick={() => setMeasureView('filled')}>
+                Masquer les mesures vides
+              </button>
+            )}
+            <button type="button" className="btn-secondary" onClick={() => setMeasureView('hidden')}>
+              Masquer mes mensurations
+            </button>
+          </div>
+        </div>
+      )}
 
       <h2>Séances de ta montre</h2>
       {activities.length === 0 ? (
@@ -183,10 +235,25 @@ export default function ProgressPage() {
       ) : (
         <>
           <div className="card">
-            <p className="eyebrow wearable-list-title" style={{ marginTop: 0 }}>
-              Volume hebdomadaire (min)
-            </p>
-            <WeeklyLoadChart data={weeklyChart} />
+            <div className="chart-metric-head">
+              <p className="eyebrow wearable-list-title" style={{ marginTop: 0 }}>
+                Volume hebdomadaire
+              </p>
+              <div className="chart-metric-switch" role="group" aria-label="Métrique du graphe">
+                {Object.values(CHART_METRICS).map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    className={`chart-metric-btn${chartMetric === m.key ? ' is-active' : ''}`}
+                    aria-pressed={chartMetric === m.key}
+                    onClick={() => setChartMetric(m.key)}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <WeeklyLoadChart data={weeklyChart} metricKey={metric.key} unit={metric.unit} />
           </div>
           {weeklySummary.length > 0 && (
             <div className="card wearable-summary">

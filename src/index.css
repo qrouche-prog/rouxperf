@@ -399,6 +399,56 @@ a.btn-primary {
   }
 }
 
+.chart-metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.chart-metric-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.chart-metric-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  padding: 6px 12px;
+  min-height: 0;
+  cursor: pointer;
+}
+
+.chart-metric-btn.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.measurements-toggle {
+  width: 100%;
+  margin: 8px 0 32px;
+}
+
+.measurements-panel {
+  margin: 8px 0 32px;
+}
+
+.measurements-panel .measurement-grid {
+  margin: 0 0 12px;
+}
+
+.measurements-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .measurement-grid {
   display: grid;
   gap: 16px;
