@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 // Grise une action réservée au Premium (fonctions qui consomment de l'IA).
 // Les membres Premium voient l'action normale ; les autres voient le contenu
@@ -30,7 +31,8 @@ export default function PremiumGate({ isPremium, label = 'Cette fonctionnalité'
       </div>
       {show && (
         <p className="premium-gate-note">
-          {label} est réservé aux membres Premium (elle utilise l'IA). L'abonnement arrive bientôt.
+          {label} est réservé aux membres Premium (elle utilise l'IA).{' '}
+          <Link to="/premium">Découvrir Premium</Link>
         </p>
       )}
     </div>

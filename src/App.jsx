@@ -18,6 +18,7 @@ import SessionRunnerPage from './routes/SessionRunnerPage'
 import SettingsPage from './routes/SettingsPage'
 import AdminPage from './routes/AdminPage'
 import CreditsPage from './routes/CreditsPage'
+import PremiumPage from './routes/PremiumPage'
 
 export default function App() {
   return (
@@ -84,6 +85,16 @@ export default function App() {
               <RequireAuth>
                 <RequireOnboarding>
                   <SessionRunnerPage />
+                </RequireOnboarding>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/premium"
+            element={
+              <RequireAuth>
+                <RequireOnboarding>
+                  <PremiumPage />
                 </RequireOnboarding>
               </RequireAuth>
             }

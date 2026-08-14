@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import PersonalInfoStep from '../components/onboarding/PersonalInfoStep'
@@ -14,7 +15,7 @@ import { parseActivityFile } from '../lib/activityFiles'
 import { frActivityLabel } from '../lib/activityLabels'
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user, isPremium } = useAuth()
   const [goal, setGoal] = useState(null)
   const [trainingProfile, setTrainingProfile] = useState(null)
   const [status, setStatus] = useState('loading')
@@ -240,6 +241,16 @@ export default function SettingsPage() {
         Modifie tes informations, ton objectif et tes préférences à tout moment — ça n'affecte pas ton programme
         déjà généré, seules les prochaines générations en tiendront compte.
       </p>
+
+      <Link to="/premium" className="card settings-premium-link">
+        <span>
+          <strong>{isPremium ? 'Membre Premium' : 'Passer Premium'}</strong>
+          <span className="eyebrow">
+            {isPremium ? 'Gérer mon abonnement' : 'Débloque les fonctions IA (analyse photo, plans repas, analyses)'}
+          </span>
+        </span>
+        <span aria-hidden="true">→</span>
+      </Link>
 
       <section id="apparence" className="card settings-section">
         <h2>Apparence</h2>
