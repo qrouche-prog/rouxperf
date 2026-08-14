@@ -2362,6 +2362,12 @@ button:active,
   color: var(--text);
 }
 
+.program-adjust-input {
+  width: 100%;
+  margin: 4px 0 10px;
+  resize: vertical;
+}
+
 .settings-premium-link strong {
   display: block;
 }

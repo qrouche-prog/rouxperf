@@ -6,6 +6,7 @@ import { withResolvedDayOfWeek, withStableDayNumbers, programSchedule } from '..
 import Icon from '../components/onboarding/icons/Icon'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
+import ProgramAdjustment from '../components/ProgramAdjustment'
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
@@ -46,7 +47,7 @@ function getCurrentWeekDates() {
 }
 
 export default function DashboardPage() {
-  const { user, profile } = useAuth()
+  const { user, profile, isPremium } = useAuth()
   const [greeting, setGreeting] = useState('')
   const [program, setProgram] = useState(null)
   const [trainingProfile, setTrainingProfile] = useState(null)
@@ -437,6 +438,14 @@ export default function DashboardPage() {
           <p>Modifie tes infos, ton objectif et tes préférences.</p>
         </Link>
       </div>
+
+      {program && (
+        <ProgramAdjustment
+          isPremium={isPremium}
+          disabled={program.status === 'generating' || program.status === 'pending_approval'}
+          onSubmitted={loadProgram}
+        />
+      )}
 
       <div className="bottom-nav-spacer" />
       <BottomNav />

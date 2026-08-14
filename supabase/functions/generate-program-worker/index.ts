@@ -524,6 +524,20 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
         ? `\n\nL'utilisateur vise une échéance au ${goal.target_date}${goal.target_weight_kg ? ` avec un poids cible de ${goal.target_weight_kg} kg` : ''} — oriente la progression et l'intensité pour l'amener au mieux à cette date.`
         : ''
 
+      // Demande d'ajustement Premium en attente : à prendre en compte en
+      // priorité pour ce (re)génération, puis marquée comme appliquée.
+      const { data: adjustment } = await supabase
+        .from('program_adjustments')
+        .select('id, prompt')
+        .eq('user_id', user_id)
+        .eq('applied', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const adjustmentSection = adjustment
+        ? `\n\nDemande explicite de l'utilisateur pour ajuster son programme — prends-la en compte en priorité, dans les limites de sécurité et de cohérence de ses instructions système et de son profil : "${adjustment.prompt}"`
+        : ''
+
       // Charge réelle récente (montres connectées via intervals.icu / import).
       const wearableSince = new Date(Date.now() - 28 * 86400000).toISOString()
       const { data: wearables } = await supabase
@@ -537,7 +551,7 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
       const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${totalSessions} séance(s) par semaine au total, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
 Profil utilisateur :
-${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${otherSportSection}${wearableSection}
+${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${otherSportSection}${wearableSection}${adjustmentSection}
 
 Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
 ${JSON.stringify(
@@ -614,6 +628,13 @@ ${JSON.stringify(
         .from('user_programs')
         .update({ status: 'active', structure, generation_prompt_snapshot: promptSnapshot })
         .eq('id', program_id)
+
+      if (adjustment) {
+        await supabase
+          .from('program_adjustments')
+          .update({ applied: true, applied_at: new Date().toISOString() })
+          .eq('id', adjustment.id)
+      }
 
       await supabase.from('profiles').update({ onboarding_completed_at: new Date().toISOString() }).eq('user_id', user_id)
     } catch (err) {
