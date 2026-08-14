@@ -2198,6 +2198,55 @@ button:active,
   color: var(--iron);
 }
 
+.meal-plan-total {
+  margin: 0 0 12px;
+}
+
+.meal-block {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.meal-block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.meal-items {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+.meal-items li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.meal-items li:last-child {
+  border-bottom: none;
+}
+
+.meal-add-btn {
+  width: 100%;
+}
+
+.meal-plan-prefs {
+  width: 100%;
+  margin: 4px 0 10px;
+  resize: vertical;
+}
+
 .nutrition-form {
   display: flex;
   flex-direction: column;

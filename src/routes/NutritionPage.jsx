@@ -50,6 +50,33 @@ function fileToBase64(file) {
   })
 }
 
+function mealTotals(meal) {
+  return (meal?.items ?? []).reduce(
+    (a, it) => ({
+      kcal: a.kcal + Math.round(Number(it.kcal) || 0),
+      protein_g: a.protein_g + Math.round(Number(it.protein_g) || 0),
+      carbs_g: a.carbs_g + Math.round(Number(it.carbs_g) || 0),
+      fat_g: a.fat_g + Math.round(Number(it.fat_g) || 0),
+    }),
+    { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+  )
+}
+
+function planTotals(meals) {
+  return (meals ?? []).reduce(
+    (a, m) => {
+      const t = mealTotals(m)
+      return {
+        kcal: a.kcal + t.kcal,
+        protein_g: a.protein_g + t.protein_g,
+        carbs_g: a.carbs_g + t.carbs_g,
+        fat_g: a.fat_g + t.fat_g,
+      }
+    },
+    { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+  )
+}
+
 function MacroBar({ label, unit, consumed, target }) {
   const pct = target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0
   const over = target > 0 && consumed > target
@@ -88,8 +115,22 @@ export default function NutritionPage() {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState(null)
   const [showScanner, setShowScanner] = useState(false)
+  const [mealPlan, setMealPlan] = useState(null)
+  const [planBusy, setPlanBusy] = useState(false)
+  const [planError, setPlanError] = useState(null)
+  const [planPrefs, setPlanPrefs] = useState('')
+  const [addingMeal, setAddingMeal] = useState(null)
 
   const day = todayIso()
+
+  async function loadMealPlan() {
+    const { data } = await supabase
+      .from('meal_plans')
+      .select('content, targets, generated_at')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    setMealPlan(data ?? null)
+  }
 
   async function loadEntries() {
     const { data } = await supabase
@@ -128,7 +169,7 @@ export default function NutritionPage() {
       setWeightKg(measurement?.weight_kg ?? null)
       setGoal(goalData)
       setTrainingProfile(tp)
-      await loadEntries()
+      await Promise.all([loadEntries(), loadMealPlan()])
       setStatus('idle')
     }
     load()
@@ -175,6 +216,48 @@ export default function NutritionPage() {
 
   async function handleDelete(id) {
     await supabase.from('food_entries').delete().eq('id', id)
+    await loadEntries()
+  }
+
+  async function generatePlan() {
+    if (!targets) return
+    setPlanBusy(true)
+    setPlanError(null)
+    const { data, error: fnError } = await supabase.functions.invoke('generate-meal-plan', {
+      body: { targets, goalType: goal?.goal_type, preferences: planPrefs.trim() },
+    })
+    setPlanBusy(false)
+    if (fnError || data?.error) {
+      let msg = data?.error
+      if (!msg && fnError?.context?.json) {
+        try {
+          const b = await fnError.context.json()
+          msg = b?.error
+        } catch {
+          // ignore
+        }
+      }
+      setPlanError(msg || 'Génération indisponible pour le moment.')
+      return
+    }
+    setMealPlan({ content: data.content, targets: data.targets, generated_at: data.generated_at })
+  }
+
+  async function addMealToJournal(meal) {
+    setAddingMeal(meal.name)
+    const rows = (meal.items ?? []).map((it) => ({
+      user_id: user.id,
+      consumed_on: day,
+      name: (it.food || 'Aliment').trim(),
+      quantity_g: Number(it.quantity_g) > 0 ? Number(it.quantity_g) : null,
+      kcal: Number(it.kcal) || 0,
+      protein_g: Number(it.protein_g) || 0,
+      carbs_g: Number(it.carbs_g) || 0,
+      fat_g: Number(it.fat_g) || 0,
+      source: 'plan',
+    }))
+    if (rows.length > 0) await supabase.from('food_entries').insert(rows)
+    setAddingMeal(null)
     await loadEntries()
   }
 
@@ -400,6 +483,73 @@ export default function NutritionPage() {
             <Link to="/progress">Progression</Link> pour calculer tes cibles de macros.
           </p>
         </div>
+      )}
+
+      {targets && (
+        <section className="card meal-plan-card">
+          <h2>Plan repas du jour</h2>
+          {mealPlan?.content?.meals?.length ? (
+            <>
+              {(() => {
+                const t = planTotals(mealPlan.content.meals)
+                return (
+                  <p className="meal-plan-total eyebrow">
+                    Total du menu : {t.kcal} kcal · P {t.protein_g} · G {t.carbs_g} · L {t.fat_g}
+                    {mealPlan.targets ? ` (cibles ${mealPlan.targets.kcal} / ${mealPlan.targets.protein_g} / ${mealPlan.targets.carbs_g} / ${mealPlan.targets.fat_g})` : ''}
+                  </p>
+                )
+              })()}
+              {mealPlan.content.meals.map((meal, mi) => {
+                const t = mealTotals(meal)
+                return (
+                  <div key={mi} className="meal-block">
+                    <div className="meal-block-head">
+                      <strong>{meal.name}</strong>
+                      <span className="eyebrow">
+                        {t.kcal} kcal · P {t.protein_g} · G {t.carbs_g} · L {t.fat_g}
+                      </span>
+                    </div>
+                    <ul className="meal-items">
+                      {(meal.items ?? []).map((it, ii) => (
+                        <li key={ii}>
+                          <span>
+                            {it.food} · {Math.round(Number(it.quantity_g) || 0)} g
+                          </span>
+                          <span className="eyebrow">{Math.round(Number(it.kcal) || 0)} kcal</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      className="btn-secondary meal-add-btn"
+                      onClick={() => addMealToJournal(meal)}
+                      disabled={addingMeal === meal.name}
+                    >
+                      {addingMeal === meal.name ? 'Ajout…' : 'Ajouter au journal'}
+                    </button>
+                  </div>
+                )
+              })}
+              {mealPlan.content.tips && <p className="nutrition-disclaimer">{mealPlan.content.tips}</p>}
+              <p className="eyebrow">
+                Généré le {new Date(mealPlan.generated_at).toLocaleDateString('fr-CH')}
+              </p>
+            </>
+          ) : (
+            <p className="eyebrow">Un menu complet du jour, calé sur tes cibles de macros.</p>
+          )}
+          <textarea
+            className="meal-plan-prefs"
+            value={planPrefs}
+            onChange={(e) => setPlanPrefs(e.target.value)}
+            placeholder="Préférences (optionnel) : végétarien, sans lactose, aliments à éviter…"
+            rows={2}
+          />
+          {planError && <p role="alert">{planError}</p>}
+          <button type="button" className="btn-primary" onClick={generatePlan} disabled={planBusy}>
+            {planBusy ? 'Génération…' : mealPlan ? 'Régénérer le plan' : 'Générer un plan repas'}
+          </button>
+        </section>
       )}
 
       <section className="card">
