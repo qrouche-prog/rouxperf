@@ -77,7 +77,16 @@ export default function SettingsPage() {
     const { data, error } = await supabase.functions.invoke('intervals-connect', { body: intForm })
     setIntBusy(false)
     if (error || data?.error) {
-      setIntMsg(data?.error || 'Connexion impossible (vérifie athlete ID et clé API).')
+      let msg = data?.error
+      if (!msg && error?.context?.json) {
+        try {
+          const body = await error.context.json()
+          msg = body?.error
+        } catch {
+          // ignore
+        }
+      }
+      setIntMsg(msg || 'Connexion impossible. As-tu déployé les fonctions et passé la migration 0020 ?')
       return
     }
     setIntForm({ athlete_id: '', api_key: '' })

@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   if (!userId) return json({ error: 'Non authentifié' }, 401)
 
   const { athlete_id, api_key } = await req.json().catch(() => ({}))
-  const athleteId = String(athlete_id ?? '').trim()
+  const athleteId = String(athlete_id ?? '').trim().toLowerCase()
   const apiKey = String(api_key ?? '').trim()
   if (!athleteId || !apiKey) return json({ error: 'Athlete ID et clé API requis.' }, 400)
 

@@ -52,11 +52,25 @@ export async function importActivities(
 ): Promise<number> {
   const newest = new Date().toISOString().slice(0, 10)
   const oldest = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
-  const url = `https://intervals.icu/api/v1/athlete/${encodeURIComponent(athleteId)}/activities?oldest=${oldest}&newest=${newest}`
   const auth = 'Basic ' + btoa(`API_KEY:${apiKey}`)
-  const res = await fetch(url, { headers: { Authorization: auth } })
-  if (res.status === 401 || res.status === 403) throw new Error('Clé API ou athlete ID invalide')
-  if (!res.ok) throw new Error(`intervals.icu a répondu ${res.status}`)
+  const query = `activities?oldest=${oldest}&newest=${newest}`
+
+  // Tolérance : id en minuscule (intervals.icu utilise "i675729"), avec repli
+  // sur la partie numérique seule si le premier essai renvoie 404.
+  const normalized = athleteId.trim().toLowerCase()
+  const candidates = [normalized]
+  const digits = normalized.replace(/\D/g, '')
+  if (digits && digits !== normalized) candidates.push(digits)
+
+  let res: Response | null = null
+  for (const id of candidates) {
+    res = await fetch(`https://intervals.icu/api/v1/athlete/${encodeURIComponent(id)}/${query}`, {
+      headers: { Authorization: auth },
+    })
+    if (res.status === 401 || res.status === 403) throw new Error('Clé API invalide')
+    if (res.status !== 404) break
+  }
+  if (!res || !res.ok) throw new Error(`intervals.icu a répondu ${res?.status ?? 'sans réponse'} (athlete ID ?)`)
   const acts = await res.json()
   if (!Array.isArray(acts) || acts.length === 0) return 0
   const rows = acts.map((a) => mapActivity(a, userId))
