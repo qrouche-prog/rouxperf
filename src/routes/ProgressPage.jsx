@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import MeasurementCard from '../components/progress/MeasurementCard'
 import MeasurementSummaryRow from '../components/progress/MeasurementSummaryRow'
 import WeeklyLoadChart from '../components/progress/WeeklyLoadChart'
+import WeeklyHrChart from '../components/progress/WeeklyHrChart'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 
@@ -148,7 +149,7 @@ export default function ProgressPage() {
   for (let i = 9; i >= 0; i -= 1) {
     const m = new Date(thisMonday)
     m.setDate(m.getDate() - i * 7)
-    chartBuckets[m.toISOString().slice(0, 10)] = { min: 0, km: 0, sessions: 0 }
+    chartBuckets[m.toISOString().slice(0, 10)] = { min: 0, km: 0, sessions: 0, hrSum: 0, hrN: 0 }
   }
   for (const a of activities) {
     if (!a.started_at) continue
@@ -158,13 +159,19 @@ export default function ProgressPage() {
     b.min += Math.round(Number(a.duration_s || 0) / 60)
     b.km += Number(a.distance_m || 0) / 1000
     b.sessions += 1
+    if (a.avg_hr) {
+      b.hrSum += Number(a.avg_hr)
+      b.hrN += 1
+    }
   }
   const weeklyChart = Object.entries(chartBuckets).map(([week, v]) => ({
     week,
     min: v.min,
     km: Math.round(v.km * 10) / 10,
     sessions: v.sessions,
+    hr: v.hrN ? Math.round(v.hrSum / v.hrN) : null,
   }))
+  const hrWeeks = weeklyChart.filter((w) => w.hr != null).length
   const metric = CHART_METRICS[chartMetric]
 
   return (
@@ -255,6 +262,14 @@ export default function ProgressPage() {
             </div>
             <WeeklyLoadChart data={weeklyChart} metricKey={metric.key} unit={metric.unit} />
           </div>
+          {hrWeeks >= 2 && (
+            <div className="card">
+              <p className="eyebrow wearable-list-title" style={{ marginTop: 0 }}>
+                FC moyenne par semaine (bpm)
+              </p>
+              <WeeklyHrChart data={weeklyChart} />
+            </div>
+          )}
           {weeklySummary.length > 0 && (
             <div className="card wearable-summary">
               <p className="eyebrow">Charge des 4 dernières semaines (par semaine)</p>
