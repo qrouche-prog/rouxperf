@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { frActivityLabel, activityEmoji } from '../lib/activityLabels'
 import { useAuth } from '../context/AuthContext'
 import MeasurementCard from '../components/progress/MeasurementCard'
 import MeasurementSummaryRow from '../components/progress/MeasurementSummaryRow'
@@ -82,7 +83,7 @@ export default function ProgressPage() {
     }
   }
   const weeklySummary = Object.entries(byType).map(([t, b]) => ({
-    type: t,
+    type: frActivityLabel(t),
     perWeek: (b.n / 4).toFixed(1),
     km: b.dist ? (b.dist / 1000 / 4).toFixed(1) : null,
     min: b.dur ? Math.round(b.dur / 60 / 4) : null,
@@ -140,20 +141,29 @@ export default function ProgressPage() {
               </ul>
             </div>
           )}
-          <ul className="wearable-list">
+          <ul className="activity-cards">
             {activities.slice(0, 15).map((a) => (
-              <li key={a.id} className="wearable-item">
-                <span className="wearable-item-info">
-                  <strong>{a.activity_type}</strong>
-                  <span className="eyebrow">
-                    {a.started_at ? new Date(a.started_at).toLocaleDateString('fr-CH') : ''}
-                    {a.duration_s ? ` · ${Math.round(a.duration_s / 60)} min` : ''}
-                    {a.distance_m ? ` · ${(a.distance_m / 1000).toFixed(1)} km` : ''}
-                    {a.avg_hr ? ` · ${a.avg_hr} bpm` : ''}
-                    {a.elevation_gain_m ? ` · ${Math.round(a.elevation_gain_m)} m D+` : ''}
-                    {a.calories ? ` · ${Math.round(a.calories)} kcal` : ''}
-                  </span>
-                </span>
+              <li key={a.id} className="activity-card">
+                <span className="activity-emoji">{activityEmoji(a.activity_type)}</span>
+                <div className="activity-card-body">
+                  <div className="activity-card-top">
+                    <strong>{frActivityLabel(a.activity_type)}</strong>
+                    <span className="eyebrow">
+                      {a.started_at
+                        ? new Date(a.started_at).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })
+                        : ''}
+                    </span>
+                  </div>
+                  <div className="activity-chips">
+                    {a.duration_s ? <span className="activity-chip">{Math.round(a.duration_s / 60)} min</span> : null}
+                    {a.distance_m ? <span className="activity-chip">{(a.distance_m / 1000).toFixed(1)} km</span> : null}
+                    {a.avg_hr ? <span className="activity-chip">❤️ {a.avg_hr}</span> : null}
+                    {a.elevation_gain_m ? (
+                      <span className="activity-chip">↑ {Math.round(a.elevation_gain_m)} m</span>
+                    ) : null}
+                    {a.calories ? <span className="activity-chip">{Math.round(a.calories)} kcal</span> : null}
+                  </div>
+                </div>
               </li>
             ))}
           </ul>

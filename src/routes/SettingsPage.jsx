@@ -11,6 +11,7 @@ import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import { ThemePicker } from '../components/theme'
 import { parseActivityFile } from '../lib/activityFiles'
+import { frActivityLabel } from '../lib/activityLabels'
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -345,7 +346,7 @@ export default function SettingsPage() {
               {activities.map((a) => (
                 <li key={a.id} className="wearable-item">
                   <span className="wearable-item-info">
-                    <strong>{a.activity_type}</strong>
+                    <strong>{frActivityLabel(a.activity_type)}</strong>
                     <span className="eyebrow">
                       {a.started_at ? new Date(a.started_at).toLocaleDateString('fr-CH') : ''}
                       {a.duration_s ? ` · ${Math.round(a.duration_s / 60)} min` : ''}
