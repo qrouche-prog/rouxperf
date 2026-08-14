@@ -45,8 +45,15 @@ function fmtCountdown(sec) {
 // la pliométrie (squats sautés, step-ups…) — se log en poids × répétitions,
 // ou en temps d'effort si la consigne est chronométrée.
 const RUN_RE =
-  /course|running|\brun\b|footing|jogging|fractionn|trail|marathon|semi|sprint|fartlek|\bvma\b|seuil|sortie longue|tapis|treadmill/i
-function isRunningExercise(details, reps) {
+  /course|running|\brun\b|footing|jogging|fractionn|trail|marathon|semi|sprint|fartlek|\bvma\b|seuil|sortie longue|tapis|treadmill|allure/i
+const RUN_MODALITY_RE = /^(run(ning)?|course|aerobic|endurance|trail|footing)$/i
+function isRunningDay(modality) {
+  return RUN_MODALITY_RE.test(String(modality ?? '').trim())
+}
+// Course à pied : toute la séance de course (échauffement, intervalles, sortie,
+// retour au calme) via sa modalité, ou un exercice à distance/nom évocateur.
+function isRunningExercise(details, reps, modality) {
+  if (isRunningDay(modality)) return true
   if (hasDistanceUnit(reps)) return true
   return RUN_RE.test(details?.name ?? '')
 }
@@ -71,8 +78,8 @@ function distanceKmOf(text) {
 
 // Nombre effectif de séries : un intervalle cardio "Nx…" compte pour N séries,
 // même si le programme n'en déclare qu'une.
-function setsOf(exercise, details) {
-  if (isRunningExercise(details, exercise.reps)) {
+function setsOf(exercise, details, modality) {
+  if (isRunningExercise(details, exercise.reps, modality)) {
     const ic = intervalCount(exercise.reps)
     if (ic && ic.count > 1) return ic.count
   }
@@ -201,8 +208,8 @@ export default function SessionRunnerPage() {
   const days = withStableDayNumbers(week?.days ?? [])
   const day = days.find((d) => d.day_number === Number(dayNumber))
 
-  // Nombre effectif de séries d'un exercice (gère les intervalles cardio "Nx…").
-  const setCount = (ex) => setsOf(ex, exercisesById[ex.exercise_id])
+  // Nombre effectif de séries d'un exercice (gère les intervalles course "Nx…").
+  const setCount = (ex) => setsOf(ex, exercisesById[ex.exercise_id], day?.modality)
 
   function syncEntries(next) {
     entriesRef.current = next
@@ -598,7 +605,7 @@ export default function SessionRunnerPage() {
   function submitSet(idx) {
     const exercise = day.exercises[selectedExerciseIndex]
     const det = exercisesById[exercise.exercise_id]
-    const running = isRunningExercise(det, exercise.reps)
+    const running = isRunningExercise(det, exercise.reps, day.modality)
     let entry
     if (running) {
       let mk = null
@@ -933,7 +940,7 @@ export default function SessionRunnerPage() {
                       <li key={s} className={e ? 'session-summary-set' : 'session-summary-set session-summary-skipped'}>
                         <span className="session-summary-set-n">{s + 1}</span>
                         {e ? (
-                          <span>{setSummary(e, ex, isRunningExercise(det, ex.reps))}</span>
+                          <span>{setSummary(e, ex, isRunningExercise(det, ex.reps, day.modality))}</span>
                         ) : (
                           <span>non réalisée</span>
                         )}
@@ -1080,7 +1087,7 @@ export default function SessionRunnerPage() {
   const fillEntry = entries[`${selectedExerciseIndex}-${fillIdx}`]
   const showContinue = exerciseDone && !editingDoneSet
   const restLabel = restLabelFor(exercise.rest_seconds)
-  const running = isRunningExercise(details, exercise.reps)
+  const running = isRunningExercise(details, exercise.reps, day.modality)
   const ic = intervalCount(exercise.reps)
   // Cible d'une série : la distance/durée d'UN intervalle si "Nx…".
   const targetLabel = running && ic && ic.count > 1 ? ic.target : exercise.reps
