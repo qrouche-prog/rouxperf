@@ -43,6 +43,9 @@ export default function AdminPage() {
   const [approvingId, setApprovingId] = useState(null)
   const [approveError, setApproveError] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [premiumBusyId, setPremiumBusyId] = useState(null)
+  const [regenBusyId, setRegenBusyId] = useState(null)
+  const [adminMsg, setAdminMsg] = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -85,6 +88,48 @@ export default function AdminPage() {
       setApproveError(err.message)
     }
     setApprovingId(null)
+  }
+
+  async function handleSetPremium(u, premium) {
+    setAdminMsg(null)
+    setPremiumBusyId(u.id)
+    try {
+      await authedFetch('/api/admin/set-premium', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: u.id, premium }),
+      })
+      setUsers((cur) => cur.map((x) => (x.id === u.id ? { ...x, is_premium: premium } : x)))
+      setSelectedUser((cur) => (cur?.id === u.id ? { ...cur, is_premium: premium } : cur))
+      setAdminMsg(`${u.full_name || u.email} — Premium ${premium ? 'activé' : 'retiré'}.`)
+    } catch (err) {
+      setAdminMsg(err.message)
+    }
+    setPremiumBusyId(null)
+  }
+
+  async function handleRegenerate(u) {
+    if (
+      !window.confirm(
+        `Régénérer le programme de ${u.full_name || u.email} ? L'IA générera un nouveau programme à partir de ses réglages à jour.`
+      )
+    ) {
+      return
+    }
+    setAdminMsg(null)
+    setRegenBusyId(u.id)
+    try {
+      await authedFetch('/api/admin/regenerate-program', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: u.id }),
+      })
+      setAdminMsg(`Régénération lancée pour ${u.full_name || u.email}.`)
+      if (selectedUser?.id === u.id) openUser(u)
+    } catch (err) {
+      setAdminMsg(err.message)
+    }
+    setRegenBusyId(null)
   }
 
   async function handleDeleteUser(user) {
@@ -245,6 +290,10 @@ export default function AdminPage() {
       <p>Modifie manuellement le programme actif de n'importe quel utilisateur.</p>
 
       {error && <p role="alert">{error}</p>}
+      {adminMsg && <p className="settings-saved">{adminMsg}</p>}
+      <p className="eyebrow">
+        ★ accorde / retire le Premium (testeurs) · ↻ régénère le programme (après modif de réglages).
+      </p>
 
       <div className="admin-pending-requests card">
         <h2>Demandes de génération en attente ({pendingRequests.length})</h2>
@@ -288,25 +337,48 @@ export default function AdminPage() {
                   className={`admin-user-item${selectedUser?.id === u.id ? ' admin-user-item-active' : ''}`}
                   onClick={() => openUser(u)}
                 >
-                  <span>{u.full_name || u.email}</span>
+                  <span>
+                    {u.full_name || u.email}
+                    {u.is_premium && <span className="admin-premium-badge">Premium</span>}
+                  </span>
                   <span className="eyebrow">
                     {u.email}
                     {u.is_admin && ' · admin'}
                     {!u.onboarding_completed_at && ' · onboarding incomplet'}
                   </span>
                 </button>
-                {!u.is_admin && (
+                <div className="admin-user-actions">
                   <button
                     type="button"
-                    className="admin-user-delete"
-                    onClick={() => handleDeleteUser(u)}
-                    disabled={deletingId === u.id}
-                    aria-label={`Supprimer ${u.full_name || u.email}`}
-                    title="Supprimer cet utilisateur"
+                    className={`admin-premium-toggle${u.is_premium ? ' is-on' : ''}`}
+                    onClick={() => handleSetPremium(u, !u.is_premium)}
+                    disabled={premiumBusyId === u.id}
+                    title={u.is_premium ? 'Retirer le Premium' : 'Accorder le Premium'}
                   >
-                    {deletingId === u.id ? '…' : '🗑'}
+                    {premiumBusyId === u.id ? '…' : u.is_premium ? '★' : '☆'}
                   </button>
-                )}
+                  <button
+                    type="button"
+                    className="admin-regen-btn"
+                    onClick={() => handleRegenerate(u)}
+                    disabled={regenBusyId === u.id}
+                    title="Régénérer le programme"
+                  >
+                    {regenBusyId === u.id ? '…' : '↻'}
+                  </button>
+                  {!u.is_admin && (
+                    <button
+                      type="button"
+                      className="admin-user-delete"
+                      onClick={() => handleDeleteUser(u)}
+                      disabled={deletingId === u.id}
+                      aria-label={`Supprimer ${u.full_name || u.email}`}
+                      title="Supprimer cet utilisateur"
+                    >
+                      {deletingId === u.id ? '…' : '🗑'}
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -315,6 +387,24 @@ export default function AdminPage() {
         {selectedUser && (
           <div className="admin-program-editor card">
             <h2>{selectedUser.full_name || selectedUser.email}</h2>
+            <div className="admin-editor-actions">
+              <button
+                type="button"
+                className={`admin-premium-toggle${selectedUser.is_premium ? ' is-on' : ''}`}
+                onClick={() => handleSetPremium(selectedUser, !selectedUser.is_premium)}
+                disabled={premiumBusyId === selectedUser.id}
+              >
+                {selectedUser.is_premium ? '★ Retirer Premium' : '☆ Accorder Premium'}
+              </button>
+              <button
+                type="button"
+                className="admin-regen-btn"
+                onClick={() => handleRegenerate(selectedUser)}
+                disabled={regenBusyId === selectedUser.id}
+              >
+                {regenBusyId === selectedUser.id ? 'Régénération…' : '↻ Régénérer le programme'}
+              </button>
+            </div>
 
             {programStatus === 'loading' && !program && <p>Chargement...</p>}
             {programError && <p role="alert">{programError}</p>}

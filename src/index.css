@@ -1673,6 +1673,62 @@ a.session-start-btn {
   opacity: 1;
 }
 
+.admin-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.admin-premium-toggle,
+.admin-regen-btn {
+  flex: 0 0 auto;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+  min-height: 0;
+}
+
+.admin-premium-toggle.is-on {
+  color: var(--accent-fg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.admin-premium-toggle:hover:not(:disabled),
+.admin-regen-btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.admin-premium-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+  vertical-align: middle;
+}
+
+.admin-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.settings-program-note {
+  margin: 24px 0 8px;
+}
+
 .admin-day-card {
   background: var(--page-bg);
   border: 1px solid var(--border);

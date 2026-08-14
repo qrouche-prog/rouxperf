@@ -15,7 +15,8 @@ import { parseActivityFile } from '../lib/activityFiles'
 import { frActivityLabel } from '../lib/activityLabels'
 
 export default function SettingsPage() {
-  const { user, isPremium } = useAuth()
+  const { user, isPremium, profile } = useAuth()
+  const [lastSettingsChange, setLastSettingsChange] = useState(null)
   const [goal, setGoal] = useState(null)
   const [trainingProfile, setTrainingProfile] = useState(null)
   const [status, setStatus] = useState('loading')
@@ -198,6 +199,18 @@ export default function SettingsPage() {
     load()
   }, [user.id])
 
+  useEffect(() => {
+    setLastSettingsChange(profile?.last_program_settings_change_at ?? null)
+  }, [profile?.last_program_settings_change_at])
+
+  // Marque une modification de réglage lié au programme (consomme le quota
+  // hebdomadaire, au même titre que l'ajustement depuis le tableau de bord).
+  async function markSettingsChanged() {
+    const nowIso = new Date().toISOString()
+    await supabase.from('profiles').update({ last_program_settings_change_at: nowIso }).eq('user_id', user.id)
+    setLastSettingsChange(nowIso)
+  }
+
   // Retour de l'autorisation Strava (?code=…) : on échange le code puis on
   // nettoie l'URL.
   useEffect(() => {
@@ -232,6 +245,52 @@ export default function SettingsPage() {
   }
 
   if (status === 'loading') return null
+
+  // Réglages liés au programme : réservés aux abonnés Premium, 1×/semaine.
+  const WEEK_MS = 7 * 86400000
+  const nextChangeDate = lastSettingsChange ? new Date(new Date(lastSettingsChange).getTime() + WEEK_MS) : null
+  const weeklyLocked = nextChangeDate ? nextChangeDate > new Date() : false
+  const canEditProgram = isPremium && !weeklyLocked
+
+  function lockNotice() {
+    if (!isPremium) {
+      return (
+        <p className="eyebrow">
+          Modifier ces réglages est réservé aux membres Premium. <Link to="/premium">Passer Premium →</Link>
+        </p>
+      )
+    }
+    return (
+      <p className="eyebrow">
+        Déjà modifié cette semaine. Prochaine modification possible le{' '}
+        {nextChangeDate.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' })}.
+      </p>
+    )
+  }
+
+  // Rend une section liée au programme : le formulaire si autorisé, sinon un
+  // titre + avis de verrouillage.
+  function programSection(id, title, node) {
+    return (
+      <section id={id} className="card settings-section">
+        {canEditProgram ? (
+          node
+        ) : (
+          <>
+            <h2>{title}</h2>
+            {lockNotice()}
+          </>
+        )}
+        {savedSection === id && <p className="settings-saved">Enregistré ✓</p>}
+      </section>
+    )
+  }
+
+  async function afterProgramSave(section, reload) {
+    if (reload) await reload()
+    await markSettingsChanged()
+    flashSaved(section)
+  }
 
   return (
     <main>
@@ -373,70 +432,66 @@ export default function SettingsPage() {
         )}
       </section>
 
-      <section id="infos" className="card settings-section">
-        <PersonalInfoStep submitLabel="Enregistrer" onNext={() => flashSaved('infos')} />
-        {savedSection === 'infos' && <p className="settings-saved">Enregistré ✓</p>}
-      </section>
+      <p className="eyebrow settings-program-note">
+        Réglages liés à ton programme — modifiables par les membres Premium, une fois par semaine. Après une
+        modification, demande la régénération de ton programme depuis le tableau de bord (ou ton coach s'en charge).
+      </p>
 
-      <section id="objectif" className="card settings-section">
+      {programSection(
+        'infos',
+        'Informations personnelles',
+        <PersonalInfoStep submitLabel="Enregistrer" onNext={() => afterProgramSave('infos')} />
+      )}
+
+      {programSection(
+        'objectif',
+        'Objectif',
         <GoalsStep
           initial={goal ?? undefined}
           submitLabel="Enregistrer"
-          onNext={async () => {
-            await loadGoal()
-            flashSaved('objectif')
-          }}
+          onNext={() => afterProgramSave('objectif', loadGoal)}
         />
-        {savedSection === 'objectif' && <p className="settings-saved">Enregistré ✓</p>}
-      </section>
+      )}
 
-      <section id="sport" className="card settings-section">
+      {programSection(
+        'sport',
+        'Objectifs sportifs',
         <SportGoalsStep
           initial={trainingProfile ?? undefined}
           submitLabel="Enregistrer"
-          onNext={async () => {
-            await loadTrainingProfile()
-            flashSaved('sport')
-          }}
+          onNext={() => afterProgramSave('sport', loadTrainingProfile)}
         />
-        {savedSection === 'sport' && <p className="settings-saved">Enregistré ✓</p>}
-      </section>
+      )}
 
-      <section id="experience" className="card settings-section">
+      {programSection(
+        'experience',
+        'Expérience',
         <ExperienceStep
           initial={trainingProfile ?? undefined}
           submitLabel="Enregistrer"
-          onNext={async () => {
-            await loadTrainingProfile()
-            flashSaved('experience')
-          }}
+          onNext={() => afterProgramSave('experience', loadTrainingProfile)}
         />
-        {savedSection === 'experience' && <p className="settings-saved">Enregistré ✓</p>}
-      </section>
+      )}
 
-      <section id="situation" className="card settings-section">
+      {programSection(
+        'situation',
+        'Situation particulière',
         <SpecialSituationStep
           initial={trainingProfile ?? undefined}
           submitLabel="Enregistrer"
-          onNext={async () => {
-            await loadTrainingProfile()
-            flashSaved('situation')
-          }}
+          onNext={() => afterProgramSave('situation', loadTrainingProfile)}
         />
-        {savedSection === 'situation' && <p className="settings-saved">Enregistré ✓</p>}
-      </section>
+      )}
 
-      <section id="preferences" className="card settings-section">
+      {programSection(
+        'preferences',
+        'Préférences',
         <PreferencesStep
           initial={trainingProfile ?? undefined}
           submitLabel="Enregistrer"
-          onNext={async () => {
-            await loadTrainingProfile()
-            flashSaved('preferences')
-          }}
+          onNext={() => afterProgramSave('preferences', loadTrainingProfile)}
         />
-        {savedSection === 'preferences' && <p className="settings-saved">Enregistré ✓</p>}
-      </section>
+      )}
 
       <div className="bottom-nav-spacer" />
       <BottomNav />
