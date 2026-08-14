@@ -10,6 +10,7 @@ import PreferencesStep from '../components/onboarding/PreferencesStep'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import { ThemePicker } from '../components/theme'
+import { parseActivityFile } from '../lib/activityFiles'
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const [connections, setConnections] = useState([])
   const [activities, setActivities] = useState([])
   const [connecting, setConnecting] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [wearableError, setWearableError] = useState(null)
 
   async function loadGoal() {
@@ -51,6 +53,46 @@ export default function SettingsPage() {
     ])
     setConnections(conns ?? [])
     setActivities(acts ?? [])
+  }
+
+  async function handleImportFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setImporting(true)
+    setWearableError(null)
+    try {
+      const text = await file.text()
+      const acts = parseActivityFile(text)
+      if (acts.length === 0) {
+        setWearableError('Fichier non reconnu. Exporte une séance au format .tcx ou .gpx.')
+        return
+      }
+      const rows = acts.map((a) => ({
+        user_id: user.id,
+        source: 'file',
+        provider: 'import',
+        external_id: a.external_id,
+        activity_type: a.activity_type,
+        started_at: a.started_at,
+        duration_s: a.duration_s,
+        distance_m: a.distance_m,
+        calories: a.calories,
+        avg_hr: a.avg_hr,
+        max_hr: a.max_hr,
+        elevation_gain_m: a.elevation_gain_m,
+      }))
+      const { error } = await supabase.from('wearable_activities').upsert(rows, { onConflict: 'user_id,external_id' })
+      if (error) {
+        setWearableError(error.message)
+        return
+      }
+      await loadWearables()
+    } catch (err) {
+      setWearableError(err.message || 'Import impossible')
+    } finally {
+      setImporting(false)
+    }
   }
 
   async function connectWearable() {
@@ -99,19 +141,35 @@ export default function SettingsPage() {
       <section id="objets" className="card settings-section">
         <h2>Objets connectés</h2>
         <p className="settings-hint">
-          Connecte ta montre (Garmin, Apple Watch, Fitbit…) pour importer automatiquement tes séances, ta
-          fréquence cardiaque et tes calories.
+          Importe tes séances de montre (durée, distance, fréquence cardiaque, dénivelé, calories) pour suivre
+          ta charge réelle.
         </p>
-        {connections.length > 0 ? (
-          <p className="wearable-status">
-            ✓ Connecté : {connections.map((c) => c.provider || 'appareil').join(', ')}
+
+        <label className={`btn-primary photo-btn${importing ? ' photo-btn-loading' : ''}`}>
+          {importing ? 'Import…' : '⬆ Importer une séance (.tcx / .gpx)'}
+          <input type="file" accept=".tcx,.gpx,application/xml,text/xml" onChange={handleImportFile} disabled={importing} hidden />
+        </label>
+        <p className="nutrition-disclaimer">
+          Depuis Garmin Connect : ouvre une activité → menu ⚙ → « Exporter en TCX » (ou GPX), puis importe le
+          fichier ici.
+        </p>
+
+        <details className="wearable-auto">
+          <summary>Synchronisation automatique (avancé)</summary>
+          <p className="settings-hint">
+            La sync automatique via l'agrégateur Terra est fonctionnelle mais payante (~500 $/mois). Alternatives
+            gratuites à venir : connexion Garmin directe, ou un agrégateur moins cher.
           </p>
-        ) : (
-          <p className="eyebrow">Aucun appareil connecté.</p>
-        )}
-        <button type="button" className="btn-primary" onClick={connectWearable} disabled={connecting}>
-          {connecting ? 'Ouverture…' : connections.length > 0 ? 'Connecter un autre appareil' : 'Connecter ma montre'}
-        </button>
+          {connections.length > 0 && (
+            <p className="wearable-status">
+              ✓ Connecté : {connections.map((c) => c.provider || 'appareil').join(', ')}
+            </p>
+          )}
+          <button type="button" className="btn-secondary" onClick={connectWearable} disabled={connecting}>
+            {connecting ? 'Ouverture…' : 'Connecter via Terra'}
+          </button>
+        </details>
+
         {wearableError && <p role="alert">{wearableError}</p>}
 
         {activities.length > 0 && (

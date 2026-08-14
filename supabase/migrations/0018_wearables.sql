@@ -45,4 +45,20 @@ create policy "Users read their own wearable activities"
   on public.wearable_activities for select
   using (user_id = auth.uid());
 
+-- Import manuel de fichiers (.tcx/.gpx) : l'utilisateur écrit ses propres
+-- séances depuis le client. Le webhook Terra, lui, écrit en rôle service
+-- (hors RLS). Ces policies n'ouvrent que les lignes de l'utilisateur.
+create policy "Users insert their own wearable activities"
+  on public.wearable_activities for insert
+  with check (user_id = auth.uid());
+
+create policy "Users update their own wearable activities"
+  on public.wearable_activities for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create policy "Users delete their own wearable activities"
+  on public.wearable_activities for delete
+  using (user_id = auth.uid());
+
 create index wearable_activities_user_started on public.wearable_activities (user_id, started_at desc);

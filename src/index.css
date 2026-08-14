@@ -2371,6 +2371,17 @@ button:active,
   gap: 2px;
 }
 
+.wearable-auto {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.wearable-auto summary {
+  cursor: pointer;
+  color: var(--iron);
+  font-size: 0.85rem;
+}
+
 .food-scan-btn {
   margin-top: 10px;
   width: 100%;
