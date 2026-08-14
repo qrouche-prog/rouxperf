@@ -147,7 +147,9 @@ export default function SettingsPage() {
 
         <label className={`btn-primary photo-btn${importing ? ' photo-btn-loading' : ''}`}>
           {importing ? 'Import…' : '⬆ Importer une séance (.tcx / .gpx)'}
-          <input type="file" accept=".tcx,.gpx,application/xml,text/xml" onChange={handleImportFile} disabled={importing} hidden />
+          {/* Pas d'attribut accept : iOS grise les .tcx/.gpx (type inconnu) et
+              empêche de les sélectionner. Le parseur valide le contenu. */}
+          <input type="file" onChange={handleImportFile} disabled={importing} hidden />
         </label>
         <p className="nutrition-disclaimer">
           Depuis Garmin Connect : ouvre une activité → menu ⚙ → « Exporter en TCX » (ou GPX), puis importe le
