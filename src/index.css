@@ -2433,6 +2433,127 @@ button:active,
   margin-top: 2px;
 }
 
+.meal-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.meal-section-head h2 {
+  margin: 0;
+}
+.meal-empty {
+  margin: 0 0 8px;
+}
+.meal-add-food {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.add-anchor {
+  scroll-margin-top: 12px;
+}
+.meal-target-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.meal-target-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-full);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  min-height: 0;
+  cursor: pointer;
+}
+.meal-target-btn.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+.recents {
+  margin-top: 12px;
+}
+.recent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.recent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken, transparent);
+  padding: 6px 10px;
+  font-size: var(--text-xs);
+  min-height: 0;
+  cursor: pointer;
+  color: var(--text);
+}
+.recent-chip-kcal {
+  color: var(--text-muted);
+}
+
+.recipe-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.recipe-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.recipe-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.recipe-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.recipe-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.recipe-name-input {
+  flex: 1 1 160px;
+}
+.recipe-serv {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 90px;
+}
+.recipe-serv span {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .meal-plan-total {
   margin: 0 0 12px;
 }

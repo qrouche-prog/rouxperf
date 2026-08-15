@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -22,6 +22,27 @@ function todayIso() {
 }
 
 const EMPTY_FORM = { name: '', quantity_g: '', kcal: '', protein_g: '', carbs_g: '', fat_g: '' }
+
+const MEALS = [
+  { key: 'breakfast', label: 'Petit déjeuner' },
+  { key: 'lunch', label: 'Déjeuner' },
+  { key: 'dinner', label: 'Dîner' },
+  { key: 'snack', label: 'Collation' },
+]
+const MEAL_KEYS = MEALS.map((m) => m.key)
+const MEAL_LABEL = Object.fromEntries(MEALS.map((m) => [m.key, m.label]))
+
+// Devine le type de repas à partir d'un nom libre (plan repas généré).
+function mealKeyFromName(name, fallback) {
+  const n = String(name ?? '').toLowerCase()
+  if (n.includes('petit')) return 'breakfast'
+  if (n.includes('déjeuner') || n.includes('dejeuner') || n.includes('midi')) return 'lunch'
+  if (n.includes('dîner') || n.includes('diner') || n.includes('soir')) return 'dinner'
+  if (n.includes('collation') || n.includes('snack') || n.includes('en-cas') || n.includes('encas') || n.includes('goûter') || n.includes('gouter')) {
+    return 'snack'
+  }
+  return fallback
+}
 
 // Convertit un produit Open Food Facts en densité macros / 100 g.
 function mapOffProduct(p) {
@@ -132,8 +153,44 @@ export default function NutritionPage() {
   const [tForm, setTForm] = useState({ kcal: '', protein_pct: '', carbs_pct: '', fat_pct: '' })
   const [tSaving, setTSaving] = useState(false)
   const [tError, setTError] = useState(null)
+  const [targetMeal, setTargetMeal] = useState('breakfast')
+  const [recents, setRecents] = useState([])
+  const [recipes, setRecipes] = useState([])
+  const [recipeName, setRecipeName] = useState('')
+  const [recipeServings, setRecipeServings] = useState('1')
+  const addRef = useRef(null)
 
   const day = todayIso()
+
+  async function loadRecents() {
+    const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+    const { data } = await supabase
+      .from('food_entries')
+      .select('name, quantity_g, kcal, protein_g, carbs_g, fat_g')
+      .eq('user_id', user.id)
+      .gte('consumed_on', since)
+      .order('created_at', { ascending: false })
+      .limit(200)
+    const seen = new Set()
+    const out = []
+    for (const e of data ?? []) {
+      const key = (e.name ?? '').trim().toLowerCase()
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      out.push(e)
+      if (out.length >= 12) break
+    }
+    setRecents(out)
+  }
+
+  async function loadRecipes() {
+    const { data } = await supabase
+      .from('recipes')
+      .select('id, name, servings, kcal, protein_g, carbs_g, fat_g')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    setRecipes(data ?? [])
+  }
 
   async function loadTargets() {
     const { data } = await supabase
@@ -190,7 +247,7 @@ export default function NutritionPage() {
       setWeightKg(measurement?.weight_kg ?? null)
       setGoal(goalData)
       setTrainingProfile(tp)
-      await Promise.all([loadEntries(), loadMealPlan(), loadTargets()])
+      await Promise.all([loadEntries(), loadMealPlan(), loadTargets(), loadRecents(), loadRecipes()])
       setStatus('idle')
     }
     load()
@@ -212,6 +269,17 @@ export default function NutritionPage() {
 
   const consumed = sumEntries(entries)
 
+  const mealBuckets = { breakfast: [], lunch: [], dinner: [], snack: [], other: [] }
+  for (const e of entries) {
+    const k = MEAL_KEYS.includes(e.meal_type) ? e.meal_type : 'other'
+    mealBuckets[k].push(e)
+  }
+
+  function selectMeal(key) {
+    setTargetMeal(key)
+    addRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   async function handleAdd(e) {
     e.preventDefault()
     if (!form.name.trim()) return
@@ -220,6 +288,7 @@ export default function NutritionPage() {
     const { error: insertError } = await supabase.from('food_entries').insert({
       user_id: user.id,
       consumed_on: day,
+      meal_type: targetMeal,
       name: form.name.trim(),
       quantity_g: form.quantity_g ? Number(form.quantity_g) : null,
       kcal: form.kcal ? Number(form.kcal) : 0,
@@ -320,9 +389,11 @@ export default function NutritionPage() {
 
   async function addMealToJournal(meal) {
     setAddingMeal(meal.name)
+    const mealType = mealKeyFromName(meal.name, targetMeal)
     const rows = (meal.items ?? []).map((it) => ({
       user_id: user.id,
       consumed_on: day,
+      meal_type: mealType,
       name: (it.food || 'Aliment').trim(),
       quantity_g: Number(it.quantity_g) > 0 ? Number(it.quantity_g) : null,
       kcal: Number(it.kcal) || 0,
@@ -333,7 +404,7 @@ export default function NutritionPage() {
     }))
     if (rows.length > 0) await supabase.from('food_entries').insert(rows)
     setAddingMeal(null)
-    await loadEntries()
+    await Promise.all([loadEntries(), loadRecents()])
   }
 
   async function handlePhoto(e) {
@@ -512,13 +583,14 @@ export default function NutritionPage() {
     const rows = review.map((it) => ({
       user_id: user.id,
       consumed_on: day,
+      meal_type: targetMeal,
       name: (it.name || 'Aliment').trim(),
       quantity_g: it.quantity_g ? Number(it.quantity_g) : null,
       kcal: Number(it.kcal || 0),
       protein_g: Number(it.protein_g || 0),
       carbs_g: Number(it.carbs_g || 0),
       fat_g: Number(it.fat_g || 0),
-      source: 'photo',
+      source: 'manual',
     }))
     const { error: insErr } = await supabase.from('food_entries').insert(rows)
     setSaving(false)
@@ -528,7 +600,92 @@ export default function NutritionPage() {
     }
     setReview(null)
     setReviewNote('')
+    await Promise.all([loadEntries(), loadRecents()])
+  }
+
+  // Ré-ajoute un aliment récent au repas cible (même portion/macros).
+  async function addRecent(r) {
+    await supabase.from('food_entries').insert({
+      user_id: user.id,
+      consumed_on: day,
+      meal_type: targetMeal,
+      name: r.name,
+      quantity_g: r.quantity_g ?? null,
+      kcal: Number(r.kcal) || 0,
+      protein_g: Number(r.protein_g) || 0,
+      carbs_g: Number(r.carbs_g) || 0,
+      fat_g: Number(r.fat_g) || 0,
+      source: 'manual',
+    })
+    await Promise.all([loadEntries(), loadRecents()])
+  }
+
+  // Ajoute une recette (1 portion) au repas cible.
+  async function addRecipe(rec) {
+    const f = 1 / (rec.servings || 1)
+    await supabase.from('food_entries').insert({
+      user_id: user.id,
+      consumed_on: day,
+      meal_type: targetMeal,
+      name: rec.name,
+      quantity_g: null,
+      kcal: Math.round((Number(rec.kcal) || 0) * f),
+      protein_g: Math.round((Number(rec.protein_g) || 0) * f),
+      carbs_g: Math.round((Number(rec.carbs_g) || 0) * f),
+      fat_g: Math.round((Number(rec.fat_g) || 0) * f),
+      source: 'recipe',
+    })
     await loadEntries()
+  }
+
+  // Enregistre la liste « à enregistrer » comme recette réutilisable.
+  async function saveAsRecipe() {
+    const name = recipeName.trim()
+    if (!name || !review || review.length === 0) return
+    setSaving(true)
+    setError(null)
+    const servings = Math.max(1, Math.round(Number(recipeServings) || 1))
+    const totals = review.reduce(
+      (a, it) => ({
+        kcal: a.kcal + (Number(it.kcal) || 0),
+        protein_g: a.protein_g + (Number(it.protein_g) || 0),
+        carbs_g: a.carbs_g + (Number(it.carbs_g) || 0),
+        fat_g: a.fat_g + (Number(it.fat_g) || 0),
+      }),
+      { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+    )
+    const { data: rec, error: recErr } = await supabase
+      .from('recipes')
+      .insert({ user_id: user.id, name, servings, ...totals })
+      .select('id')
+      .single()
+    if (recErr || !rec) {
+      setSaving(false)
+      setError(recErr?.message || 'Enregistrement de la recette impossible.')
+      return
+    }
+    const items = review.map((it) => ({
+      recipe_id: rec.id,
+      user_id: user.id,
+      name: (it.name || 'Aliment').trim(),
+      quantity_g: it.quantity_g ? Number(it.quantity_g) : null,
+      kcal: Number(it.kcal) || 0,
+      protein_g: Number(it.protein_g) || 0,
+      carbs_g: Number(it.carbs_g) || 0,
+      fat_g: Number(it.fat_g) || 0,
+    }))
+    await supabase.from('recipe_items').insert(items)
+    setSaving(false)
+    setRecipeName('')
+    setRecipeServings('1')
+    setReview(null)
+    setReviewNote('')
+    await loadRecipes()
+  }
+
+  async function deleteRecipe(id) {
+    await supabase.from('recipes').delete().eq('id', id)
+    await loadRecipes()
   }
 
   const field = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -637,6 +794,69 @@ export default function NutritionPage() {
           })()
         )}
       </div>
+
+      {[...MEALS, { key: 'other', label: 'Autre' }].map((m) => {
+        const items = mealBuckets[m.key]
+        if (m.key === 'other' && items.length === 0) return null
+        const t = sumEntries(items)
+        return (
+          <section key={m.key} className="card meal-section">
+            <div className="meal-section-head">
+              <h2>{m.label}</h2>
+              <span className="eyebrow">{Math.round(t.kcal)} kcal</span>
+            </div>
+            {items.length === 0 ? (
+              <p className="eyebrow meal-empty">Aucun aliment.</p>
+            ) : (
+              <ul className="food-entry-list">
+                {items.map((entry) => (
+                  <li key={entry.id} className="food-entry">
+                    <span className="food-entry-info">
+                      <strong>{entry.name}</strong>
+                      <span className="eyebrow">
+                        {entry.quantity_g ? `${entry.quantity_g} g · ` : ''}
+                        {Math.round(entry.kcal)} kcal · P {Math.round(entry.protein_g)} · G{' '}
+                        {Math.round(entry.carbs_g)} · L {Math.round(entry.fat_g)}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className="food-entry-delete"
+                      onClick={() => handleDelete(entry.id)}
+                      aria-label={`Supprimer ${entry.name}`}
+                    >
+                      🗑
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {m.key !== 'other' && (
+              <button type="button" className="btn-secondary meal-add-food" onClick={() => selectMeal(m.key)}>
+                + Ajouter un aliment
+              </button>
+            )}
+          </section>
+        )
+      })}
+
+      <div ref={addRef} className="add-anchor" />
+      <section className="card add-target">
+        <p className="eyebrow">Ajouter à</p>
+        <div className="meal-target-switch" role="group" aria-label="Repas cible">
+          {MEALS.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              className={`meal-target-btn${targetMeal === m.key ? ' is-active' : ''}`}
+              aria-pressed={targetMeal === m.key}
+              onClick={() => setTargetMeal(m.key)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {targets && (
         <section className="card meal-plan-card">
@@ -766,10 +986,64 @@ export default function NutritionPage() {
             ))}
           </ul>
         )}
+        {recents.length > 0 && (
+          <div className="recents">
+            <p className="eyebrow">Récents — ajout direct à {MEAL_LABEL[targetMeal]}</p>
+            <div className="recent-chips">
+              {recents.map((r, i) => (
+                <button key={i} type="button" className="recent-chip" onClick={() => addRecent(r)}>
+                  <span className="recent-chip-name">{r.name}</span>
+                  <span className="recent-chip-kcal">{Math.round(r.kcal)} kcal</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="nutrition-disclaimer">
           Sources : table CIQUAL (ANSES) pour les aliments génériques, Open Food Facts pour les produits de
           marque. Ajoute un aliment, puis ajuste la portion.
         </p>
+      </section>
+
+      <section className="card">
+        <h2>Mes recettes</h2>
+        {recipes.length === 0 ? (
+          <p className="eyebrow">
+            Aucune recette. Ajoute des aliments (recherche/scan/photo), puis « Enregistrer comme recette » dans la
+            liste à enregistrer.
+          </p>
+        ) : (
+          <ul className="recipe-list">
+            {recipes.map((rec) => {
+              const per = rec.servings || 1
+              return (
+                <li key={rec.id} className="recipe-row">
+                  <span className="recipe-info">
+                    <strong>{rec.name}</strong>
+                    <span className="eyebrow">
+                      {Math.round(rec.kcal / per)} kcal / portion · {rec.servings} portion(s) · P{' '}
+                      {Math.round(rec.protein_g / per)} · G {Math.round(rec.carbs_g / per)} · L{' '}
+                      {Math.round(rec.fat_g / per)}
+                    </span>
+                  </span>
+                  <span className="recipe-row-actions">
+                    <button type="button" className="btn-secondary" onClick={() => addRecipe(rec)}>
+                      + {MEAL_LABEL[targetMeal]}
+                    </button>
+                    <button
+                      type="button"
+                      className="food-entry-delete"
+                      onClick={() => deleteRecipe(rec.id)}
+                      aria-label={`Supprimer ${rec.name}`}
+                    >
+                      🗑
+                    </button>
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </section>
 
       {review !== null && (
@@ -826,17 +1100,46 @@ export default function NutritionPage() {
           )}
           <div className="review-actions">
             <button type="button" className="btn-primary" onClick={saveReview} disabled={saving || review.length === 0}>
-              {saving ? 'Enregistrement…' : `Enregistrer${review.length > 1 ? ` (${review.length})` : ''}`}
+              {saving ? 'Enregistrement…' : `Ajouter à ${MEAL_LABEL[targetMeal]}`}
             </button>
             <button type="button" className="link-button" onClick={() => { setReview(null); setReviewNote('') }}>
               Annuler
             </button>
           </div>
+          {review.length > 0 && (
+            <div className="recipe-save">
+              <input
+                className="recipe-name-input"
+                value={recipeName}
+                onChange={(e) => setRecipeName(e.target.value)}
+                placeholder="Nom de la recette (ex. Bowl poulet-riz)"
+                autoComplete="off"
+              />
+              <label className="recipe-serv">
+                <span>Portions</span>
+                <input
+                  type="number"
+                  min="1"
+                  inputMode="numeric"
+                  value={recipeServings}
+                  onChange={(e) => setRecipeServings(e.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={saveAsRecipe}
+                disabled={saving || !recipeName.trim()}
+              >
+                Enregistrer comme recette
+              </button>
+            </div>
+          )}
         </section>
       )}
 
       <section className="card">
-        <h2>Ajouter un aliment</h2>
+        <h2>Ajouter un aliment à {MEAL_LABEL[targetMeal]}</h2>
         <form className="nutrition-form" onSubmit={handleAdd}>
           <label htmlFor="food-name">Aliment</label>
           <input
@@ -876,36 +1179,6 @@ export default function NutritionPage() {
             {saving ? 'Ajout…' : 'Ajouter'}
           </button>
         </form>
-      </section>
-
-      <section className="card">
-        <h2>Journal du jour</h2>
-        {entries.length === 0 ? (
-          <p className="eyebrow">Aucun aliment enregistré aujourd'hui.</p>
-        ) : (
-          <ul className="food-entry-list">
-            {entries.map((entry) => (
-              <li key={entry.id} className="food-entry">
-                <span className="food-entry-info">
-                  <strong>{entry.name}</strong>
-                  <span className="eyebrow">
-                    {entry.quantity_g ? `${entry.quantity_g} g · ` : ''}
-                    {Math.round(entry.kcal)} kcal · P {Math.round(entry.protein_g)} · G{' '}
-                    {Math.round(entry.carbs_g)} · L {Math.round(entry.fat_g)}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className="food-entry-delete"
-                  onClick={() => handleDelete(entry.id)}
-                  aria-label={`Supprimer ${entry.name}`}
-                >
-                  🗑
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       {showScanner && <BarcodeScanner onDetected={handleBarcode} onClose={() => setShowScanner(false)} />}
