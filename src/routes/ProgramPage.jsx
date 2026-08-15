@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { withResolvedDayOfWeek, withStableDayNumbers, programSchedule } from '../lib/programDays'
+import { alternativesFor } from '../lib/equipment'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
+import PremiumGate from '../components/PremiumGate'
 
 const SITUATION_LABELS = {
   pregnant: 'grossesse',
@@ -32,11 +34,16 @@ function dayLabel(day, date) {
 }
 
 export default function ProgramPage() {
-  const { user } = useAuth()
+  const { user, isPremium } = useAuth()
   const [program, setProgram] = useState(null)
   const [specialSituation, setSpecialSituation] = useState(null)
   const [preferredDays, setPreferredDays] = useState([])
   const [setsLoggedByDay, setSetsLoggedByDay] = useState({})
+  const [exercisesById, setExercisesById] = useState({})
+  const [equipmentAccess, setEquipmentAccess] = useState('bodyweight')
+  const [expandedDay, setExpandedDay] = useState(null)
+  const [altsKey, setAltsKey] = useState(null)
+  const [swapping, setSwapping] = useState(false)
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
   const [weekIndex, setWeekIndex] = useState(0)
@@ -45,20 +52,22 @@ export default function ProgramPage() {
     let cancelled = false
 
     async function load() {
-      const [{ data: programData, error: programError }, { data: trainingProfile }] = await Promise.all([
-        supabase
-          .from('user_programs')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('user_training_profile')
-          .select('special_situation, preferred_days')
-          .eq('user_id', user.id)
-          .maybeSingle(),
-      ])
+      const [{ data: programData, error: programError }, { data: trainingProfile }, { data: exercises }] =
+        await Promise.all([
+          supabase
+            .from('user_programs')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('user_training_profile')
+            .select('special_situation, preferred_days, equipment_access')
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          supabase.from('exercises').select('id, name, category, muscle_group, equipment_required, is_ai_generated'),
+        ])
 
       if (cancelled) return
 
@@ -71,6 +80,8 @@ export default function ProgramPage() {
       setProgram(programData)
       setSpecialSituation(trainingProfile?.special_situation ?? null)
       setPreferredDays(trainingProfile?.preferred_days ?? [])
+      setEquipmentAccess(trainingProfile?.equipment_access ?? 'bodyweight')
+      setExercisesById(Object.fromEntries((exercises ?? []).map((e) => [e.id, e])))
 
       if (programData?.structure) {
         const totalWeeks = programData.structure.weeks.length
@@ -189,6 +200,25 @@ export default function ProgramPage() {
     setWeekIndex(next)
   }
 
+  // Remplace un exercice partout dans le programme et persiste (Premium).
+  async function swapExercise(oldId, newId) {
+    if (!oldId || !program?.structure || swapping) return
+    setSwapping(true)
+    const next = JSON.parse(JSON.stringify(program.structure))
+    for (const wk of next.weeks) {
+      for (const d of wk.days) {
+        for (const ex of d.exercises) {
+          if (ex.exercise_id === oldId) ex.exercise_id = newId
+        }
+      }
+    }
+    const { error: upErr } = await supabase.from('user_programs').update({ structure: next }).eq('id', program.id)
+    setSwapping(false)
+    if (upErr) return
+    setProgram((p) => ({ ...p, structure: next }))
+    setAltsKey(null)
+  }
+
   return (
     <main>
       <TopNav />
@@ -257,18 +287,74 @@ export default function ProgramPage() {
               </span>
             </>
           )
-          return expired ? (
-            <div key={day.day_number} className="preview-row preview-row-stacked preview-row-disabled">
-              {inner}
+          const dayKey = `${week.week_number}-${day.day_number}`
+          return (
+            <div key={day.day_number} className="program-day">
+              {expired ? (
+                <div className="preview-row preview-row-stacked preview-row-disabled">{inner}</div>
+              ) : (
+                <Link to={`/session/${week.week_number}/${day.day_number}`} className="preview-row preview-row-stacked">
+                  {inner}
+                </Link>
+              )}
+              {!expired && (
+                <button
+                  type="button"
+                  className="program-day-expand"
+                  onClick={() => {
+                    setExpandedDay(expandedDay === dayKey ? null : dayKey)
+                    setAltsKey(null)
+                  }}
+                >
+                  {expandedDay === dayKey ? 'Masquer les exercices' : 'Voir / adapter les exercices'}
+                </button>
+              )}
+              {expandedDay === dayKey && (
+                <ul className="program-exos">
+                  {day.exercises.map((ex, i) => {
+                    const det = exercisesById[ex.exercise_id]
+                    const exKey = `${dayKey}-${i}`
+                    const alts = altsKey === exKey ? alternativesFor(exercisesById, det, equipmentAccess) : []
+                    return (
+                      <li key={i} className="program-exo">
+                        <div className="program-exo-head">
+                          <span className="program-exo-name">{det?.name ?? 'Exercice'}</span>
+                          <PremiumGate isPremium={isPremium} label="Les alternatives d'exercice">
+                            <button
+                              type="button"
+                              className="link-button"
+                              onClick={() => setAltsKey(altsKey === exKey ? null : exKey)}
+                            >
+                              ↔ alternatives
+                            </button>
+                          </PremiumGate>
+                        </div>
+                        {altsKey === exKey && (
+                          <div className="alt-list">
+                            {alts.length === 0 ? (
+                              <p className="eyebrow">Aucune alternative compatible avec ton matériel.</p>
+                            ) : (
+                              alts.map((alt) => (
+                                <button
+                                  key={alt.id}
+                                  type="button"
+                                  className="alt-item"
+                                  disabled={swapping}
+                                  onClick={() => swapExercise(det.id, alt.id)}
+                                >
+                                  <span className="alt-item-name">{alt.name}</span>
+                                  <span className="alt-item-action">Remplacer</span>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </div>
-          ) : (
-            <Link
-              key={day.day_number}
-              to={`/session/${week.week_number}/${day.day_number}`}
-              className="preview-row preview-row-stacked"
-            >
-              {inner}
-            </Link>
           )
         })}
       </div>

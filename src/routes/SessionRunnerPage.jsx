@@ -8,15 +8,9 @@ import ExerciseLoop from '../components/ExerciseLoop'
 import ExerciseAttribution from '../components/ExerciseAttribution'
 import Icon from '../components/onboarding/icons/Icon'
 import PremiumGate from '../components/PremiumGate'
+import { alternativesFor } from '../lib/equipment'
 
 const RPE_SCALE = Array.from({ length: 10 }, (_, i) => i + 1)
-
-const EQUIPMENT_TIERS = {
-  bodyweight: ['bodyweight'],
-  home_dumbbells: ['bodyweight', 'dumbbell'],
-  home_full_gym: ['bodyweight', 'dumbbell', 'barbell', 'bench', 'pull_up_bar', 'kettlebell'],
-  commercial_gym: ['bodyweight', 'dumbbell', 'barbell', 'bench', 'pull_up_bar', 'kettlebell', 'cable_machine', 'machine'],
-}
 
 function rpeColor(value) {
   const hue = 120 - (value - 1) * (120 / 9)
@@ -919,28 +913,31 @@ export default function SessionRunnerPage() {
     setPhase('list')
   }
 
-  // Exercices de remplacement « du même style » : même groupe musculaire,
-  // compatibles avec le matériel de l'utilisateur (Premium).
-  function alternativesFor(det) {
-    if (!det) return []
-    const allowed = EQUIPMENT_TIERS[equipmentAccess] ?? EQUIPMENT_TIERS.bodyweight
-    const list = Object.values(exercisesById).filter(
-      (c) =>
-        c.id !== det.id &&
-        c.muscle_group === det.muscle_group &&
-        !c.is_ai_generated &&
-        (c.equipment_required ?? []).every((e) => allowed.includes(e))
-    )
-    // Même catégorie (compound/isolation) d'abord.
-    list.sort((a, b) => Number(b.category === det.category) - Number(a.category === det.category))
-    return list.slice(0, 15)
-  }
-
-  // Remplace l'exercice partout dans le programme et persiste.
+  // Remplace l'exercice partout dans le programme et persiste. Les séries déjà
+  // loggées de l'ancien exercice dans cette séance sont effacées (ne comptent
+  // pas pour le nouvel exercice).
   async function swapExercise(newId) {
-    const oldId = day.exercises[selectedExerciseIndex]?.exercise_id
+    const exIdx = selectedExerciseIndex
+    const oldEx = day.exercises[exIdx]
+    const oldId = oldEx?.exercise_id
     if (!oldId || !program?.structure) return
     setSwapping(true)
+
+    // 1. Efface les logs de cet exercice dans la séance courante + l'état local.
+    const ids = []
+    const nextEntries = { ...entriesRef.current }
+    const nextRowIds = { ...rowIdsRef.current }
+    for (let s = 0; s < setCount(oldEx); s += 1) {
+      const key = `${exIdx}-${s}`
+      if (nextRowIds[key]) ids.push(nextRowIds[key])
+      delete nextEntries[key]
+      delete nextRowIds[key]
+    }
+    if (ids.length) await supabase.from('workout_log_sets').delete().in('id', ids)
+    rowIdsRef.current = nextRowIds
+    syncEntries(nextEntries)
+
+    // 2. Remplace l'exercice partout dans le programme et persiste.
     const next = JSON.parse(JSON.stringify(program.structure))
     for (const wk of next.weeks) {
       for (const d of wk.days) {
@@ -954,6 +951,13 @@ export default function SessionRunnerPage() {
     if (error) return
     setProgram((p) => ({ ...p, structure: next }))
     setShowAlts(false)
+    // 3. Rouvre l'exercice à neuf (première série vide).
+    setActiveSetIndex(0)
+    setEditingDoneSet(false)
+    setWeight('')
+    setRpe('')
+    setMetricValue('')
+    setDistanceKm('')
   }
 
   // ---- Écran : résumé ----
@@ -1361,10 +1365,10 @@ export default function SessionRunnerPage() {
         </PremiumGate>
         {showAlts && (
           <div className="alt-list">
-            {alternativesFor(details).length === 0 ? (
+            {alternativesFor(exercisesById, details, equipmentAccess).length === 0 ? (
               <p className="eyebrow">Aucune alternative compatible avec ton matériel.</p>
             ) : (
-              alternativesFor(details).map((alt) => (
+              alternativesFor(exercisesById, details, equipmentAccess).map((alt) => (
                 <button
                   key={alt.id}
                   type="button"

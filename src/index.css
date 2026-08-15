@@ -3499,6 +3499,39 @@ button:active,
   color: var(--accent-soft-fg, var(--accent));
 }
 
+.program-day {
+  margin-bottom: 8px;
+}
+.program-day-expand {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  padding: 6px 2px 0;
+  text-align: right;
+  cursor: pointer;
+}
+.program-exos {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.program-exo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.program-exo-name {
+  min-width: 0;
+}
+
 .set-fill-target strong {
   color: var(--ink);
 }
