@@ -2702,6 +2702,27 @@ button:active,
   cursor: default;
 }
 
+.portion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+.portion-chip {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  min-height: 0;
+  cursor: pointer;
+}
+.portion-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent-soft-fg, var(--accent));
+}
+
 .add-anchor {
   scroll-margin-top: 12px;
 }

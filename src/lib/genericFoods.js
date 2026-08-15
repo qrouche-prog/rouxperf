@@ -2,6 +2,8 @@
 // aliments). Le jeu de données est chargé dynamiquement (chunk séparé) au
 // premier usage puis mis en cache — il reste hors du bundle initial.
 
+import { guessPortion } from './portions'
+
 let cache = null
 async function loadFoods() {
   if (!cache) {
@@ -49,5 +51,6 @@ export async function searchGenericFoods(query) {
       carbs_g: food.carbs_g,
       fat_g: food.fat_g,
     },
+    portion: guessPortion(food.name),
   }))
 }

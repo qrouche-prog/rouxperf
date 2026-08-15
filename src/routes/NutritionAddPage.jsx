@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { searchGenericFoods } from '../lib/genericFoods'
+import { guessPortion } from '../lib/portions'
 import { MEALS, MEAL_KEYS, MEAL_LABEL, todayIso } from '../lib/meals'
 import BottomNav from '../components/BottomNav'
 import BarcodeScanner from '../components/BarcodeScanner'
@@ -19,6 +20,13 @@ function mapOffProduct(p) {
     kcal100 = Number.isFinite(kj) ? kj / 4.184 : 0
   }
   const brand = String(p.brands ?? '').split(',')[0]?.trim()
+  const servingG = Number(p.serving_quantity)
+  let portion = null
+  if (Number.isFinite(servingG) && servingG > 0) {
+    portion = { label: p.serving_size ? String(p.serving_size).trim() : '1 portion', grams: Math.round(servingG) }
+  } else {
+    portion = guessPortion(p.product_name)
+  }
   return {
     name: [p.product_name, brand].filter(Boolean).join(' · '),
     per100: {
@@ -27,6 +35,7 @@ function mapOffProduct(p) {
       carbs_g: Number(n['carbohydrates_100g']) || 0,
       fat_g: Number(n['fat_100g']) || 0,
     },
+    portion,
   }
 }
 
@@ -299,7 +308,7 @@ export default function NutritionAddPage() {
     try {
       const url =
         'https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=12' +
-        '&fields=product_name,brands,nutriments&search_terms=' +
+        '&fields=product_name,brands,nutriments,serving_quantity,serving_size&search_terms=' +
         encodeURIComponent(q)
       const res = await fetch(url)
       const json = res.ok ? await res.json() : { products: [] }
@@ -323,7 +332,7 @@ export default function NutritionAddPage() {
     setSearchError(null)
     try {
       const res = await fetch(
-        `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,nutriments`
+        `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,nutriments,serving_quantity,serving_size`
       )
       const json = await res.json()
       if (json.status !== 1 || !json.product) {
@@ -342,14 +351,16 @@ export default function NutritionAddPage() {
   }
 
   function addFromSearch(result) {
+    const qty = result.portion?.grams > 0 ? Math.round(result.portion.grams) : 100
     const item = {
       name: result.name,
-      quantity_g: 100,
-      kcal: Math.round(result.per100.kcal),
-      protein_g: Math.round(result.per100.protein_g),
-      carbs_g: Math.round(result.per100.carbs_g),
-      fat_g: Math.round(result.per100.fat_g),
+      quantity_g: qty,
+      kcal: Math.round((result.per100.kcal * qty) / 100),
+      protein_g: Math.round((result.per100.protein_g * qty) / 100),
+      carbs_g: Math.round((result.per100.carbs_g * qty) / 100),
+      fat_g: Math.round((result.per100.fat_g * qty) / 100),
       per100: { ...result.per100 },
+      portion: result.portion || null,
     }
     setReview((r) => [...(r ?? []), item])
     setReviewNote('')
@@ -600,6 +611,20 @@ export default function NutritionAddPage() {
                       🗑
                     </button>
                   </div>
+                  {it.portion && (
+                    <div className="portion-chips">
+                      <button
+                        type="button"
+                        className="portion-chip"
+                        onClick={() => updateReviewItem(i, 'quantity_g', String(it.portion.grams))}
+                      >
+                        {it.portion.label} ({it.portion.grams} g)
+                      </button>
+                      <button type="button" className="portion-chip" onClick={() => updateReviewItem(i, 'quantity_g', '100')}>
+                        100 g
+                      </button>
+                    </div>
+                  )}
                   <div className="review-macros">
                     <label>
                       <span>g</span>
@@ -664,7 +689,7 @@ export default function NutritionAddPage() {
               <FoodRow
                 key={i}
                 name={r.name}
-                sub={`${Math.round(r.per100.kcal)} cal / 100 g · ${r.kind === 'generic' ? 'aliment' : 'produit'}`}
+                sub={`${Math.round(r.per100.kcal)} cal / 100 g${r.portion ? ` · ${r.portion.label} ${r.portion.grams} g` : ''}`}
                 onAdd={() => addFromSearch(r)}
               />
             ))}
