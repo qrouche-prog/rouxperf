@@ -2480,6 +2480,27 @@ button:active,
   text-decoration: none;
 }
 
+.meal-copy-toggle {
+  display: block;
+  margin: 8px auto 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.meal-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.meal-copy input[type='date'] {
+  flex: 1 1 140px;
+}
+.meal-copy .btn-secondary {
+  margin: 0;
+}
+
 .add-tools-row {
   display: flex;
   flex-wrap: wrap;

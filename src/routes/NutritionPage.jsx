@@ -63,6 +63,9 @@ export default function NutritionPage() {
   const [planError, setPlanError] = useState(null)
   const [planPrefs, setPlanPrefs] = useState('')
   const [addingMeal, setAddingMeal] = useState(null)
+  const [copyMeal, setCopyMeal] = useState(null)
+  const [copyDate, setCopyDate] = useState('')
+  const [copyMsg, setCopyMsg] = useState(null)
   const [params] = useSearchParams()
   const dayParam = params.get('day')
   const [selectedDay, setSelectedDay] = useState(
@@ -85,6 +88,58 @@ export default function NutritionPage() {
     d.setDate(d.getDate() + delta)
     const tz = d.getTimezoneOffset() * 60000
     setSelectedDay(new Date(d.getTime() - tz).toISOString().slice(0, 10))
+  }
+
+  function prevDayIso(iso) {
+    const d = new Date(`${iso}T00:00:00`)
+    d.setDate(d.getDate() - 1)
+    const tz = d.getTimezoneOffset() * 60000
+    return new Date(d.getTime() - tz).toISOString().slice(0, 10)
+  }
+
+  function toggleCopy(mealKey) {
+    setCopyMsg(null)
+    if (copyMeal === mealKey) {
+      setCopyMeal(null)
+      return
+    }
+    setCopyDate(prevDayIso(selectedDay))
+    setCopyMeal(mealKey)
+  }
+
+  // Recopie un repas d'un autre jour vers le jour affiché.
+  async function copyMealFrom(mealKey) {
+    if (!copyDate) return
+    setCopyMsg(null)
+    const { data } = await supabase
+      .from('food_entries')
+      .select('name, quantity_g, kcal, protein_g, carbs_g, fat_g')
+      .eq('user_id', user.id)
+      .eq('consumed_on', copyDate)
+      .eq('meal_type', mealKey)
+    if (!data || data.length === 0) {
+      setCopyMsg('Aucun aliment à copier pour ce repas ce jour-là.')
+      return
+    }
+    const rows = data.map((e) => ({
+      user_id: user.id,
+      consumed_on: selectedDay,
+      meal_type: mealKey,
+      name: e.name,
+      quantity_g: e.quantity_g,
+      kcal: e.kcal,
+      protein_g: e.protein_g,
+      carbs_g: e.carbs_g,
+      fat_g: e.fat_g,
+      source: 'manual',
+    }))
+    const { error: insErr } = await supabase.from('food_entries').insert(rows)
+    if (insErr) {
+      setCopyMsg(insErr.message)
+      return
+    }
+    setCopyMeal(null)
+    await loadEntries(selectedDay)
   }
 
   function dayLabel(iso) {
@@ -400,9 +455,29 @@ export default function NutritionPage() {
               </ul>
             )}
             {m.key !== 'other' && (
-              <Link to={`/nutrition/add?meal=${m.key}&day=${selectedDay}`} className="btn-secondary meal-add-food">
-                + Ajouter un aliment
-              </Link>
+              <>
+                <Link to={`/nutrition/add?meal=${m.key}&day=${selectedDay}`} className="btn-secondary meal-add-food">
+                  + Ajouter un aliment
+                </Link>
+                <button type="button" className="link-button meal-copy-toggle" onClick={() => toggleCopy(m.key)}>
+                  Copier un repas d'un autre jour
+                </button>
+                {copyMeal === m.key && (
+                  <div className="meal-copy">
+                    <input
+                      type="date"
+                      max={todayIso()}
+                      value={copyDate}
+                      onChange={(e) => setCopyDate(e.target.value)}
+                      aria-label="Jour source"
+                    />
+                    <button type="button" className="btn-secondary" onClick={() => copyMealFrom(m.key)}>
+                      Copier vers {m.label.toLowerCase()}
+                    </button>
+                    {copyMsg && <p className="eyebrow">{copyMsg}</p>}
+                  </div>
+                )}
+              </>
             )}
           </section>
         )
