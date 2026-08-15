@@ -232,6 +232,23 @@ Respecte strictement les blessures et limitations indiquées par l'utilisateur :
 Adapte le volume, l'intensité et la complexité technique au niveau d'expérience indiqué.
 Prévois une progression cohérente d'une semaine à l'autre (charge, volume ou intensité perçue) et indique-la dans le champ "notes" de chaque exercice.
 
+Structure chaque séance de musculation comme un vrai programme :
+1. un ou deux exercices poly-articulaires principaux adaptés au niveau (squat, soulevé, développé, tirage…) ;
+2. deux à trois exercices accessoires ciblés pour équilibrer le corps ;
+3. AU MOINS un exercice de tronc / abdominaux (un exercice dont le muscle_group est "core") dans la grande majorité des séances de musculation — n'oublie jamais le gainage et le renforcement abdominal ;
+4. éventuellement un finisher ou du conditionnement selon l'objectif.
+Sur l'ensemble de la semaine, équilibre les schémas moteurs (pousser/tirer, dominante genou/hanche) et ne néglige aucun groupe musculaire. Varie les exercices d'une séance à l'autre plutôt que de répéter le même mouvement partout.
+
+Adapte concrètement la programmation à l'objectif (goal_type) :
+- "weight_loss" (perte de poids) : vise une dépense énergétique élevée — séances plutôt full-body, densité élevée (supersets ou circuits), temps de repos courts, et intègre systématiquement du conditionnement cardio dans la semaine : cardio continu à faible impact (marche rapide inclinée, montée d'escaliers, vélo, elliptique, rameur) et/ou intervalles plus intenses selon le niveau. Ne te limite pas à de la musculation classique.
+- "muscle_gain" (prise de muscle) : hypertrophie — 8 à 12 répétitions, volume suffisant par groupe musculaire, repos modérés (60-120 s), split cohérent avec la fréquence.
+- "strength" (force) : mouvements poly-articulaires lourds en priorité, 3 à 6 répétitions, repos longs (2-4 min).
+- "endurance" : résistance musculaire (répétitions élevées, circuits) et travail cardio régulier.
+- "recomposition" / "hybrid" : combine renforcement musculaire et conditionnement cardio dans la semaine.
+- "general_fitness" : programme équilibré et varié (force, tronc, mobilité, un peu de cardio).
+
+Sécurité et pathologies (prioritaire) : croise systématiquement le champ "contraindications" de chaque exercice avec les blessures, limitations et la situation particulière de l'utilisateur, et n'inclus JAMAIS un exercice dont une contre-indication correspond à une zone à risque. En cas de doute, choisis une variante plus sûre.
+
 Pour choisir chaque exercice, deux options :
 1. Un exercice de la bibliothèque fournie, référencé par son exercise_id exact —
    c'est le choix par défaut et obligatoire pour tout mouvement de musculation
