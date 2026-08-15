@@ -13,6 +13,7 @@ import { MEALS, MEAL_KEYS, mealKeyFromName, todayIso } from '../lib/meals'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import PremiumGate from '../components/PremiumGate'
+import WeeklyKcalChart from '../components/nutrition/WeeklyKcalChart'
 
 function mealTotals(meal) {
   return (meal?.items ?? []).reduce(
@@ -66,6 +67,8 @@ export default function NutritionPage() {
   const [copyMeal, setCopyMeal] = useState(null)
   const [copyDate, setCopyDate] = useState('')
   const [copyMsg, setCopyMsg] = useState(null)
+  const [weekDays, setWeekDays] = useState([])
+  const [showWeek, setShowWeek] = useState(false)
   const [params] = useSearchParams()
   const dayParam = params.get('day')
   const [selectedDay, setSelectedDay] = useState(
@@ -155,6 +158,42 @@ export default function NutritionPage() {
     })
   }
 
+  async function loadWeek() {
+    const today = todayIso()
+    const sinceDate = new Date(`${today}T00:00:00`)
+    sinceDate.setDate(sinceDate.getDate() - 6)
+    const sinceIso = new Date(sinceDate.getTime() - sinceDate.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+    const { data } = await supabase
+      .from('food_entries')
+      .select('consumed_on, kcal, protein_g, carbs_g, fat_g')
+      .eq('user_id', user.id)
+      .gte('consumed_on', sinceIso)
+    const buckets = {}
+    for (let i = 6; i >= 0; i -= 1) {
+      const d = new Date(`${today}T00:00:00`)
+      d.setDate(d.getDate() - i)
+      const key = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+      buckets[key] = { day: key, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+    }
+    for (const e of data ?? []) {
+      const b = buckets[e.consumed_on]
+      if (!b) continue
+      b.kcal += Number(e.kcal) || 0
+      b.protein_g += Number(e.protein_g) || 0
+      b.carbs_g += Number(e.carbs_g) || 0
+      b.fat_g += Number(e.fat_g) || 0
+    }
+    setWeekDays(
+      Object.values(buckets).map((b) => ({
+        day: b.day,
+        kcal: Math.round(b.kcal),
+        protein_g: Math.round(b.protein_g),
+        carbs_g: Math.round(b.carbs_g),
+        fat_g: Math.round(b.fat_g),
+      }))
+    )
+  }
+
   async function loadTargets() {
     const { data } = await supabase
       .from('nutrition_targets')
@@ -209,6 +248,7 @@ export default function NutritionPage() {
 
   useEffect(() => {
     loadEntries(selectedDay)
+    loadWeek()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, selectedDay])
 
@@ -230,6 +270,16 @@ export default function NutritionPage() {
     const k = MEAL_KEYS.includes(e.meal_type) ? e.meal_type : 'other'
     mealBuckets[k].push(e)
   }
+
+  const loggedWeek = weekDays.filter((d) => d.kcal > 0)
+  const weekAvg = loggedWeek.length
+    ? {
+        kcal: Math.round(loggedWeek.reduce((s, d) => s + d.kcal, 0) / loggedWeek.length),
+        protein_g: Math.round(loggedWeek.reduce((s, d) => s + d.protein_g, 0) / loggedWeek.length),
+        carbs_g: Math.round(loggedWeek.reduce((s, d) => s + d.carbs_g, 0) / loggedWeek.length),
+        fat_g: Math.round(loggedWeek.reduce((s, d) => s + d.fat_g, 0) / loggedWeek.length),
+      }
+    : null
 
   async function handleDelete(id) {
     await supabase.from('food_entries').delete().eq('id', id)
@@ -543,6 +593,33 @@ export default function NutritionPage() {
               </button>
             </PremiumGate>
             <button type="button" className="link-button" onClick={() => setShowPlan(false)}>
+              Masquer
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="card">
+        {!showWeek ? (
+          <button type="button" className="btn-secondary meal-add-food" onClick={() => setShowWeek(true)}>
+            📈 7 derniers jours
+          </button>
+        ) : (
+          <div>
+            <div className="meal-section-head">
+              <h2>7 derniers jours</h2>
+              <span className="eyebrow">{loggedWeek.length}/7 jours loggés</span>
+            </div>
+            <WeeklyKcalChart data={weekDays} target={targets?.kcal} />
+            {weekAvg ? (
+              <p className="eyebrow">
+                Moyenne : {weekAvg.kcal} kcal · P {weekAvg.protein_g} · G {weekAvg.carbs_g} · L {weekAvg.fat_g}
+                {targets ? ` — cible ${targets.kcal} kcal` : ''}
+              </p>
+            ) : (
+              <p className="eyebrow">Logue tes repas pour voir ta moyenne.</p>
+            )}
+            <button type="button" className="link-button" onClick={() => setShowWeek(false)}>
               Masquer
             </button>
           </div>
