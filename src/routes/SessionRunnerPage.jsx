@@ -10,13 +10,6 @@ import Icon from '../components/onboarding/icons/Icon'
 import PremiumGate from '../components/PremiumGate'
 import { alternativesFor } from '../lib/equipment'
 
-const RPE_SCALE = Array.from({ length: 10 }, (_, i) => i + 1)
-
-function rpeColor(value) {
-  const hue = 120 - (value - 1) * (120 / 9)
-  return `hsl(${hue}, 70%, 45%)`
-}
-
 function parseTargetReps(repsText) {
   const match = String(repsText ?? '').match(/\d+/)
   return match ? Number(match[0]) : null
@@ -106,16 +99,16 @@ function fmtPace(sec) {
 
 // Libellé d'une série réalisée dans le résumé, selon sa nature.
 function setSummary(e, ex, running) {
-  if (e.metric_kind === 'effort_s') return `${e.metric_value}s d'effort`
-  const rpe = e.rpe ? ` · RPE ${e.rpe}` : ''
+  if (e.metric_kind === 'effort_s') return `${e.metric_value}s d'effort${e.note ? ` · ${e.note}` : ''}`
+  const note = e.note ? ` · ${e.note}` : ''
   const parts = []
   if (e.distance_km) parts.push(`${e.distance_km} km`)
   if (e.metric_kind === 'pace') parts.push(`${fmtPace(e.metric_value)} /km`)
   else if (e.metric_kind === 'speed') parts.push(`${e.metric_value} km/h`)
   else if (e.metric_kind === 'time') parts.push(`${e.metric_value} min`)
-  if (parts.length) return parts.join(' · ') + rpe
-  if (running) return `série faite${rpe}`
-  return `${e.weight_kg ? `${e.weight_kg} kg` : 'PdC'} × ${e.reps || ex.reps} reps${rpe}`
+  if (parts.length) return parts.join(' · ') + note
+  if (running) return `série faite${note}`
+  return `${e.weight_kg ? `${e.weight_kg} kg` : 'PdC'} × ${e.reps || ex.reps} reps${note}`
 }
 
 function countCompleted(entries, exerciseIndex, totalSets) {
@@ -151,7 +144,7 @@ function buildFromLoggedSets(day, loggedSets) {
       entries[key] = {
         reps: set.reps ?? '',
         weight_kg: set.weight_kg ?? '',
-        rpe: set.rpe ?? '',
+        note: set.note ?? '',
         metric_kind: set.metric_kind ?? null,
         metric_value: set.metric_value ?? null,
         distance_km: set.distance_km ?? null,
@@ -189,7 +182,7 @@ export default function SessionRunnerPage() {
   const [effortEndAt, setEffortEndAt] = useState(null)
 
   const [weight, setWeight] = useState('')
-  const [rpe, setRpe] = useState('')
+  const [note, setNote] = useState('')
   const [metricKind, setMetricKind] = useState('pace') // pace | speed | time
   const [metricValue, setMetricValue] = useState('')
   const [distanceKm, setDistanceKm] = useState('')
@@ -226,13 +219,13 @@ export default function SessionRunnerPage() {
     return w != null ? String(w) : ''
   }
 
-  // Charge les valeurs du champ (poids/RPE) pour une série donnée.
+  // Charge les valeurs du champ (poids/note) pour une série donnée.
   function loadFieldsFor(dayArg, exIdx, setIdx, { sameExercise } = {}) {
     const ex = dayArg.exercises[exIdx]
     const existing = entriesRef.current[`${exIdx}-${setIdx}`]
     if (existing) {
       setWeight(existing.weight_kg != null ? String(existing.weight_kg) : '')
-      setRpe(existing.rpe != null && existing.rpe !== '' ? String(existing.rpe) : '')
+      setNote(existing.note != null ? String(existing.note) : '')
       setDistanceKm(existing.distance_km != null ? String(existing.distance_km) : '')
       if (existing.metric_kind && existing.metric_kind !== 'effort_s') {
         setMetricKind(existing.metric_kind)
@@ -252,7 +245,7 @@ export default function SessionRunnerPage() {
     if (carry) setWeight(carry)
     else if (!sameExercise) setWeight('') // nouvel exercice sans reprise : on repart vide
     // même exercice sans reprise : on garde le poids déjà saisi
-    setRpe('')
+    setNote('')
     setMetricValue('')
     setDistanceKm('')
   }
@@ -336,7 +329,7 @@ export default function SessionRunnerPage() {
           const { data: existingLog } = await supabase
             .from('workout_logs')
             .select(
-              'id, performed_at, workout_log_sets(id, exercise_id, set_number, reps, weight_kg, rpe, metric_kind, metric_value, distance_km)'
+              'id, performed_at, workout_log_sets(id, exercise_id, set_number, reps, weight_kg, note, metric_kind, metric_value, distance_km)'
             )
             .eq('user_id', user.id)
             .eq('program_id', programData.id)
@@ -556,7 +549,7 @@ export default function SessionRunnerPage() {
       set_number: setIdx + 1,
       reps: entry.reps ? Number(entry.reps) : null,
       weight_kg: entry.weight_kg ? Number(entry.weight_kg) : null,
-      rpe: entry.rpe ? Number(entry.rpe) : null,
+      note: entry.note ? String(entry.note).trim() || null : null,
       metric_kind: entry.metric_kind ?? null,
       metric_value:
         entry.metric_value != null && entry.metric_value !== '' ? Number(entry.metric_value) : null,
@@ -636,12 +629,12 @@ export default function SessionRunnerPage() {
       const multiInterval = ic && ic.count > 1 && hasDistanceUnit(ic.target)
       let dist = distanceKm !== '' && Number.isFinite(Number(distanceKm)) ? Number(distanceKm) : null
       if (dist == null && multiInterval) dist = distanceKmOf(ic.target)
-      entry = { reps: null, weight_kg: '', rpe, metric_kind: mk, metric_value: mv, distance_km: dist }
+      entry = { reps: null, weight_kg: '', note, metric_kind: mk, metric_value: mv, distance_km: dist }
     } else {
       entry = {
         reps: parseTargetReps(exercise.reps),
         weight_kg: weight,
-        rpe,
+        note,
         metric_kind: null,
         metric_value: null,
         distance_km: null,
@@ -653,7 +646,7 @@ export default function SessionRunnerPage() {
     syncEntries(updated)
     persistSet(selectedExerciseIndex, idx, entry)
     setEditingDoneSet(false)
-    setRpe('')
+    setNote('')
 
     const total = setCount(exercise)
     const exNowDone = countCompleted(updated, selectedExerciseIndex, total) === total
@@ -719,7 +712,7 @@ export default function SessionRunnerPage() {
     const entry = {
       reps: null,
       weight_kg: '',
-      rpe: '',
+      note: '',
       metric_kind: 'effort_s',
       metric_value: seconds,
       distance_km: null,
@@ -902,7 +895,7 @@ export default function SessionRunnerPage() {
     rowIdsRef.current = {}
     syncEntries({})
     setWeight('')
-    setRpe('')
+    setNote('')
     setMetricValue('')
     setDistanceKm('')
     try {
@@ -955,7 +948,7 @@ export default function SessionRunnerPage() {
     setActiveSetIndex(0)
     setEditingDoneSet(false)
     setWeight('')
-    setRpe('')
+    setNote('')
     setMetricValue('')
     setDistanceKm('')
   }
@@ -1329,21 +1322,15 @@ export default function SessionRunnerPage() {
               </>
             )}
 
-            <label>RPE — difficulté ressentie (optionnel)</label>
-            <div className="rpe-scale" role="radiogroup" aria-label="RPE, 1 facile à 10 difficile">
-              {RPE_SCALE.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`rpe-option${rpe === String(value) ? ' rpe-option-selected' : ''}`}
-                  style={{ '--rpe-color': rpeColor(value) }}
-                  aria-pressed={rpe === String(value)}
-                  onClick={() => setRpe(rpe === String(value) ? '' : String(value))}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
+            <label htmlFor="set-note">Note / appréciation (optionnel)</label>
+            <input
+              id="set-note"
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="ex. bien senti, un peu lourd, gêne au genou…"
+              autoComplete="off"
+            />
 
             <button type="submit" className="btn-primary">
               {fillEntry ? `Mettre à jour la série ${fillIdx + 1}` : `Valider la série ${fillIdx + 1}`}
