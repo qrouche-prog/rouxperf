@@ -505,6 +505,10 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
         ? `\n\nPrécisions libres de l'utilisateur sur ses sports/objectifs : ${trainingProfile.other_sport_notes}`
         : ''
 
+      const injuriesSection = trainingProfile.injuries_limitations
+        ? `\n\nBLESSURES / LIMITATIONS déclarées par l'utilisateur (priorité de sécurité absolue, au même titre que les contre-indications) : ${trainingProfile.injuries_limitations}. Exclus tout exercice susceptible d'aggraver ces zones et propose des variantes plus sûres ; en cas de doute, abstiens-toi.`
+        : ''
+
       const runningPref = focusAreaPreferences.running
       const RUNNING_QUALITY_LABELS: Record<string, string> = {
         speed: 'vitesse',
@@ -568,7 +572,7 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
       const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${totalSessions} séance(s) par semaine au total, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
 Profil utilisateur :
-${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${otherSportSection}${wearableSection}${adjustmentSection}
+${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${injuriesSection}${otherSportSection}${wearableSection}${adjustmentSection}
 
 Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
 ${JSON.stringify(
