@@ -87,7 +87,8 @@ export default function NutritionAddPage() {
   const [quickAdd, setQuickAdd] = useState(false)
   const [status, setStatus] = useState('loading')
 
-  const day = todayIso()
+  const dayParam = params.get('day')
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(dayParam ?? '') ? dayParam : todayIso()
 
   async function loadRecents() {
     const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10)
@@ -136,7 +137,7 @@ export default function NutritionAddPage() {
   }, [user.id])
 
   function done() {
-    navigate('/nutrition')
+    navigate(`/nutrition?day=${day}`)
   }
 
   async function handleAdd(e) {
@@ -472,7 +473,7 @@ export default function NutritionAddPage() {
   return (
     <main className="nutri-add">
       <div className="nutri-add-top">
-        <button type="button" className="nutri-back" onClick={() => navigate('/nutrition')} aria-label="Retour">
+        <button type="button" className="nutri-back" onClick={() => navigate(`/nutrition?day=${day}`)} aria-label="Retour">
           ‹
         </button>
         <div className="nutri-meal-select">
@@ -489,7 +490,10 @@ export default function NutritionAddPage() {
 
       <form className="nutri-search" onSubmit={searchFood}>
         <span className="nutri-search-icon" aria-hidden="true">
-          🔍
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="16.5" y1="16.5" x2="21" y2="21" />
+          </svg>
         </span>
         <input
           type="search"
@@ -668,7 +672,7 @@ export default function NutritionAddPage() {
         ) : (
           <section className="card nutri-list">
             <div className="nutri-list-head">
-              <h2>Histoire</h2>
+              <h2>Historique</h2>
               <button
                 type="button"
                 className="nutri-filter"

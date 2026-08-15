@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -63,17 +63,41 @@ export default function NutritionPage() {
   const [planError, setPlanError] = useState(null)
   const [planPrefs, setPlanPrefs] = useState('')
   const [addingMeal, setAddingMeal] = useState(null)
+  const [params] = useSearchParams()
+  const dayParam = params.get('day')
+  const [selectedDay, setSelectedDay] = useState(
+    /^\d{4}-\d{2}-\d{2}$/.test(dayParam ?? '') ? dayParam : todayIso()
+  )
+  const day = selectedDay
 
-  const day = todayIso()
-
-  async function loadEntries() {
+  async function loadEntries(d) {
     const { data } = await supabase
       .from('food_entries')
       .select('*')
       .eq('user_id', user.id)
-      .eq('consumed_on', day)
+      .eq('consumed_on', d)
       .order('created_at', { ascending: true })
     setEntries(data ?? [])
+  }
+
+  function shiftDay(delta) {
+    const d = new Date(`${selectedDay}T00:00:00`)
+    d.setDate(d.getDate() + delta)
+    const tz = d.getTimezoneOffset() * 60000
+    setSelectedDay(new Date(d.getTime() - tz).toISOString().slice(0, 10))
+  }
+
+  function dayLabel(iso) {
+    const today = todayIso()
+    if (iso === today) return "Aujourd'hui"
+    const diff = Math.round((new Date(`${iso}T00:00:00`) - new Date(`${today}T00:00:00`)) / 86400000)
+    if (diff === -1) return 'Hier'
+    if (diff === 1) return 'Demain'
+    return new Date(`${iso}T00:00:00`).toLocaleDateString('fr-CH', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    })
   }
 
   async function loadTargets() {
@@ -121,12 +145,17 @@ export default function NutritionPage() {
       setWeightKg(measurement?.weight_kg ?? null)
       setGoal(goalData)
       setTrainingProfile(tp)
-      await Promise.all([loadEntries(), loadMealPlan(), loadTargets()])
+      await Promise.all([loadMealPlan(), loadTargets()])
       setStatus('idle')
     }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id])
+
+  useEffect(() => {
+    loadEntries(selectedDay)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id, selectedDay])
 
   if (status === 'loading') return null
 
@@ -149,7 +178,7 @@ export default function NutritionPage() {
 
   async function handleDelete(id) {
     await supabase.from('food_entries').delete().eq('id', id)
-    await loadEntries()
+    await loadEntries(selectedDay)
   }
 
   function openTargetEditor() {
@@ -245,14 +274,22 @@ export default function NutritionPage() {
     }))
     if (rows.length > 0) await supabase.from('food_entries').insert(rows)
     setAddingMeal(null)
-    await loadEntries()
+    await loadEntries(selectedDay)
   }
 
   return (
     <main>
       <TopNav />
       <h1>Nutrition</h1>
-      <p className="eyebrow">Aujourd'hui</p>
+      <div className="day-nav">
+        <button type="button" className="nav-arrow" onClick={() => shiftDay(-1)} aria-label="Jour précédent">
+          ‹
+        </button>
+        <span className="day-nav-label">{dayLabel(selectedDay)}</span>
+        <button type="button" className="nav-arrow" onClick={() => shiftDay(1)} aria-label="Jour suivant">
+          ›
+        </button>
+      </div>
 
       <div className="card">
         {targets ? (
@@ -363,7 +400,7 @@ export default function NutritionPage() {
               </ul>
             )}
             {m.key !== 'other' && (
-              <Link to={`/nutrition/add?meal=${m.key}`} className="btn-secondary meal-add-food">
+              <Link to={`/nutrition/add?meal=${m.key}&day=${selectedDay}`} className="btn-secondary meal-add-food">
                 + Ajouter un aliment
               </Link>
             )}

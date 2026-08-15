@@ -2433,6 +2433,32 @@ button:active,
   margin-top: 2px;
 }
 
+.day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 0 0 16px;
+}
+.day-nav .nav-arrow {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  min-height: 0;
+}
+.day-nav-label {
+  font-weight: 500;
+  min-width: 8ch;
+  text-align: center;
+  text-transform: capitalize;
+}
+
 .meal-section-head {
   display: flex;
   align-items: baseline;
@@ -2505,23 +2531,31 @@ button:active,
 
 .nutri-search {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
-  padding: 4px 14px;
-  margin-bottom: 14px;
+  padding: 0 16px;
+  height: 48px;
+  margin: 0 0 14px;
 }
 .nutri-search-icon {
+  flex: none;
+  display: inline-flex;
   color: var(--text-muted);
 }
 .nutri-search input {
   flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
-  padding: 8px 0;
+  border-radius: 0;
+  padding: 0;
+  height: 100%;
   color: var(--text);
-  min-height: var(--control-h);
+  -webkit-appearance: none;
+  appearance: none;
 }
 .nutri-search input:focus {
   outline: none;
