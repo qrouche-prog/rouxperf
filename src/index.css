@@ -2466,6 +2466,208 @@ button:active,
   margin: 0;
 }
 
+/* ---- Page d'ajout façon MyFitnessPal ---- */
+.nutri-add-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.nutri-back {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.8rem;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  flex: none;
+}
+.nutri-meal-select {
+  flex: 1;
+  text-align: center;
+}
+.nutri-meal-select select {
+  border: none;
+  background: transparent;
+  color: var(--accent-soft-fg, var(--accent));
+  font-size: 1.05rem;
+  font-weight: 500;
+  text-align: center;
+  text-align-last: center;
+  cursor: pointer;
+  max-width: 100%;
+}
+.nutri-top-spacer {
+  flex: none;
+  width: 40px;
+}
+
+.nutri-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 4px 14px;
+  margin-bottom: 14px;
+}
+.nutri-search-icon {
+  color: var(--text-muted);
+}
+.nutri-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  color: var(--text);
+  min-height: var(--control-h);
+}
+.nutri-search input:focus {
+  outline: none;
+}
+.nutri-search-error {
+  margin-top: -6px;
+}
+
+.nutri-tabs {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.nutri-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  padding: 8px 0;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  cursor: pointer;
+  min-height: 0;
+}
+.nutri-tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.nutri-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.nutri-actions > * {
+  flex: 1 1 45%;
+}
+.nutri-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--accent-soft-fg, var(--accent));
+  padding: 16px 10px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.nutri-action-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.nutri-list {
+  padding-top: 4px;
+}
+.nutri-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.nutri-list-head h2 {
+  margin: 0;
+}
+.nutri-filter {
+  background: var(--surface-sunken, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  min-height: 0;
+  cursor: pointer;
+}
+
+.food-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 2px;
+  cursor: pointer;
+  color: var(--text);
+}
+.food-row:last-child {
+  border-bottom: none;
+}
+.food-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.food-row-main strong {
+  font-weight: 500;
+}
+.food-row-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.food-row-tap {
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text);
+}
+.food-row-plus {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent-soft-fg, var(--accent));
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.food-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.food-row-static {
+  cursor: default;
+}
+
 .add-anchor {
   scroll-margin-top: 12px;
 }

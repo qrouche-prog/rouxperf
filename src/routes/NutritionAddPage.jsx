@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { searchGenericFoods } from '../lib/genericFoods'
 import { MEALS, MEAL_KEYS, MEAL_LABEL, todayIso } from '../lib/meals'
-import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import BarcodeScanner from '../components/BarcodeScanner'
 import PremiumGate from '../components/PremiumGate'
@@ -44,6 +43,20 @@ function fileToBase64(file) {
   })
 }
 
+function FoodRow({ name, sub, onAdd }) {
+  return (
+    <button type="button" className="food-row" onClick={onAdd}>
+      <span className="food-row-main">
+        <strong>{name}</strong>
+        <span className="food-row-sub">{sub}</span>
+      </span>
+      <span className="food-row-plus" aria-hidden="true">
+        +
+      </span>
+    </button>
+  )
+}
+
 export default function NutritionAddPage() {
   const { user, isPremium } = useAuth()
   const navigate = useNavigate()
@@ -69,6 +82,9 @@ export default function NutritionAddPage() {
   const [recipes, setRecipes] = useState([])
   const [recipeName, setRecipeName] = useState('')
   const [recipeServings, setRecipeServings] = useState('1')
+  const [allFoods, setAllFoods] = useState([])
+  const [tab, setTab] = useState('all') // all | meals | recipes | foods
+  const [quickAdd, setQuickAdd] = useState(false)
   const [status, setStatus] = useState('loading')
 
   const day = todayIso()
@@ -98,6 +114,7 @@ export default function NutritionAddPage() {
         .slice(0, 12)
         .map((x) => x.entry)
     )
+    setAllFoods(arr.map((x) => x.entry))
   }
 
   async function loadRecipes() {
@@ -183,6 +200,34 @@ export default function NutritionAddPage() {
   async function deleteRecipe(id) {
     await supabase.from('recipes').delete().eq('id', id)
     await loadRecipes()
+  }
+
+  // Charge les ingrédients d'une recette dans la liste « à ajouter » (édition).
+  async function editRecipe(rec) {
+    const { data } = await supabase
+      .from('recipe_items')
+      .select('name, quantity_g, kcal, protein_g, carbs_g, fat_g')
+      .eq('recipe_id', rec.id)
+    const items = (data ?? []).map((it) => {
+      const qty = Number(it.quantity_g) > 0 ? Number(it.quantity_g) : 100
+      return {
+        name: it.name,
+        quantity_g: qty,
+        kcal: Math.round(Number(it.kcal) || 0),
+        protein_g: Math.round(Number(it.protein_g) || 0),
+        carbs_g: Math.round(Number(it.carbs_g) || 0),
+        fat_g: Math.round(Number(it.fat_g) || 0),
+        per100: {
+          kcal: ((Number(it.kcal) || 0) / qty) * 100,
+          protein_g: ((Number(it.protein_g) || 0) / qty) * 100,
+          carbs_g: ((Number(it.carbs_g) || 0) / qty) * 100,
+          fat_g: ((Number(it.fat_g) || 0) / qty) * 100,
+        },
+      }
+    })
+    setReview(items)
+    setReviewNote(`Recette : ${rec.name}`)
+    setTab('all')
   }
 
   async function handlePhoto(e) {
@@ -413,128 +458,117 @@ export default function NutritionAddPage() {
   }
 
   const field = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const quickList = quickMode === 'frequent' ? frequents : recents
 
   if (status === 'loading') return null
 
+  const TABS = [
+    { key: 'all', label: 'Tous' },
+    { key: 'meals', label: 'Mes repas' },
+    { key: 'recipes', label: 'Mes recettes' },
+    { key: 'foods', label: 'Mes aliments' },
+  ]
+
   return (
-    <main>
-      <TopNav />
-      <div className="session-runner-header">
-        <button type="button" className="link-button" onClick={() => navigate('/nutrition')}>
-          ‹ Nutrition
+    <main className="nutri-add">
+      <div className="nutri-add-top">
+        <button type="button" className="nutri-back" onClick={() => navigate('/nutrition')} aria-label="Retour">
+          ‹
         </button>
-      </div>
-      <h1>Ajouter un aliment</h1>
-
-      <section className="card add-target">
-        <p className="eyebrow">Ajouter à</p>
-        <div className="meal-target-switch" role="group" aria-label="Repas cible">
-          {MEALS.map((m) => (
-            <button
-              key={m.key}
-              type="button"
-              className={`meal-target-btn${targetMeal === m.key ? ' is-active' : ''}`}
-              aria-pressed={targetMeal === m.key}
-              onClick={() => setTargetMeal(m.key)}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="card">
-        <h2>Rechercher un aliment</h2>
-        <form className="food-search" onSubmit={searchFood}>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ex. yaourt nature, banane…"
-            autoComplete="off"
-          />
-          <button type="submit" className="btn-primary" disabled={searching || !searchQuery.trim()}>
-            {searching ? '…' : 'Chercher'}
-          </button>
-        </form>
-        <div className="add-tools-row">
-          <button
-            type="button"
-            className="btn-secondary food-scan-btn"
-            onClick={() => {
-              setSearchError(null)
-              setShowScanner(true)
-            }}
-          >
-            🔦 Scanner un code-barres
-          </button>
-          <PremiumGate isPremium={isPremium} label="L'analyse photo">
-            <label className={`btn-secondary photo-btn${analyzing ? ' photo-btn-loading' : ''}`}>
-              {analyzing ? 'Analyse…' : '📷 Photo du repas'}
-              <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} disabled={analyzing} hidden />
-            </label>
-          </PremiumGate>
-        </div>
-        {analyzeError && <p role="alert">{analyzeError}</p>}
-        {searchError && <p className="eyebrow">{searchError}</p>}
-        {searchResults.length > 0 && (
-          <ul className="search-results">
-            {searchResults.map((r, i) => (
-              <li key={i}>
-                <button type="button" className="search-result" onClick={() => addFromSearch(r)}>
-                  <span className="search-result-name">
-                    {r.name}
-                    <span className={`search-result-tag${r.kind === 'generic' ? ' search-result-tag-generic' : ''}`}>
-                      {r.kind === 'generic' ? 'aliment' : 'produit'}
-                    </span>
-                  </span>
-                  <span className="eyebrow">
-                    {Math.round(r.per100.kcal)} kcal · P {Math.round(r.per100.protein_g)} · G{' '}
-                    {Math.round(r.per100.carbs_g)} · L {Math.round(r.per100.fat_g)} / 100 g
-                  </span>
-                </button>
-              </li>
+        <div className="nutri-meal-select">
+          <select value={targetMeal} onChange={(e) => setTargetMeal(e.target.value)} aria-label="Repas cible">
+            {MEALS.map((m) => (
+              <option key={m.key} value={m.key}>
+                {m.label}
+              </option>
             ))}
-          </ul>
-        )}
+          </select>
+        </div>
+        <span className="nutri-top-spacer" />
+      </div>
 
-        {(frequents.length > 0 || recents.length > 0) && (
-          <div className="recents">
-            <div className="quick-head">
-              <div className="chart-metric-switch" role="group" aria-label="Aliments rapides">
-                <button
-                  type="button"
-                  className={`chart-metric-btn${quickMode === 'frequent' ? ' is-active' : ''}`}
-                  aria-pressed={quickMode === 'frequent'}
-                  onClick={() => setQuickMode('frequent')}
-                >
-                  Fréquents
-                </button>
-                <button
-                  type="button"
-                  className={`chart-metric-btn${quickMode === 'recent' ? ' is-active' : ''}`}
-                  aria-pressed={quickMode === 'recent'}
-                  onClick={() => setQuickMode('recent')}
-                >
-                  Récents
-                </button>
-              </div>
-              <span className="eyebrow">→ {MEAL_LABEL[targetMeal]}</span>
+      <form className="nutri-search" onSubmit={searchFood}>
+        <span className="nutri-search-icon" aria-hidden="true">
+          🔍
+        </span>
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Rechercher"
+          autoComplete="off"
+        />
+      </form>
+
+      <div className="nutri-tabs" role="tablist">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            className={`nutri-tab${tab === t.key ? ' is-active' : ''}`}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="nutri-actions">
+        <button
+          type="button"
+          className="nutri-action"
+          onClick={() => {
+            setSearchError(null)
+            setShowScanner(true)
+          }}
+        >
+          <span className="nutri-action-icon" aria-hidden="true">
+            ▤
+          </span>
+          Scan de code-barres
+        </button>
+        <button type="button" className="nutri-action" onClick={() => setQuickAdd((v) => !v)}>
+          <span className="nutri-action-icon" aria-hidden="true">
+            ⊕
+          </span>
+          Ajout rapide
+        </button>
+        <PremiumGate isPremium={isPremium} label="L'analyse photo">
+          <label className="nutri-action nutri-action-wide">
+            <span className="nutri-action-icon" aria-hidden="true">
+              📷
+            </span>
+            {analyzing ? 'Analyse…' : 'Photo du repas'}
+            <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} disabled={analyzing} hidden />
+          </label>
+        </PremiumGate>
+      </div>
+      {analyzeError && <p role="alert">{analyzeError}</p>}
+      {searching && <p className="eyebrow nutri-search-error">Recherche…</p>}
+      {searchError && <p className="eyebrow nutri-search-error">{searchError}</p>}
+
+      {quickAdd && (
+        <section className="card">
+          <h2>Ajout rapide</h2>
+          <form className="nutrition-form" onSubmit={handleAdd}>
+            <label htmlFor="food-name">Aliment</label>
+            <input id="food-name" type="text" value={form.name} onChange={field('name')} placeholder="ex. Poulet grillé" autoComplete="off" />
+            <div className="nutrition-form-grid">
+              <label><span>Quantité (g)</span><input type="number" inputMode="decimal" value={form.quantity_g} onChange={field('quantity_g')} /></label>
+              <label><span>Calories</span><input type="number" inputMode="decimal" value={form.kcal} onChange={field('kcal')} /></label>
+              <label><span>Protéines (g)</span><input type="number" inputMode="decimal" value={form.protein_g} onChange={field('protein_g')} /></label>
+              <label><span>Glucides (g)</span><input type="number" inputMode="decimal" value={form.carbs_g} onChange={field('carbs_g')} /></label>
+              <label><span>Lipides (g)</span><input type="number" inputMode="decimal" value={form.fat_g} onChange={field('fat_g')} /></label>
             </div>
-            <div className="recent-chips">
-              {(quickMode === 'frequent' ? frequents : recents).map((r, i) => (
-                <button key={i} type="button" className="recent-chip" onClick={() => addRecent(r)}>
-                  <span className="recent-chip-name">{r.name}</span>
-                  <span className="recent-chip-kcal">{Math.round(r.kcal)} kcal</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <p className="nutrition-disclaimer">
-          Sources : table CIQUAL (ANSES) et Open Food Facts. Ajoute un aliment, puis ajuste la portion.
-        </p>
-      </section>
+            {error && <p role="alert">{error}</p>}
+            <button type="submit" className="btn-primary" disabled={saving || !form.name.trim()}>
+              {saving ? 'Ajout…' : `Ajouter à ${MEAL_LABEL[targetMeal]}`}
+            </button>
+          </form>
+        </section>
+      )}
 
       {review !== null && (
         <section className="card">
@@ -618,82 +652,114 @@ export default function NutritionAddPage() {
         </section>
       )}
 
-      <section className="card">
-        <h2>Mes recettes</h2>
-        {recipes.length === 0 ? (
-          <p className="eyebrow">Aucune recette. Constitue une liste ci-dessus, puis « Enregistrer comme recette ».</p>
+      {tab === 'all' &&
+        (searchResults.length > 0 ? (
+          <section className="card nutri-list">
+            <h2>Résultats</h2>
+            {searchResults.map((r, i) => (
+              <FoodRow
+                key={i}
+                name={r.name}
+                sub={`${Math.round(r.per100.kcal)} cal / 100 g · ${r.kind === 'generic' ? 'aliment' : 'produit'}`}
+                onAdd={() => addFromSearch(r)}
+              />
+            ))}
+          </section>
         ) : (
-          <ul className="recipe-list">
-            {recipes.map((rec) => {
-              const per = rec.servings || 1
-              return (
-                <li key={rec.id} className="recipe-row">
-                  <span className="recipe-info">
-                    <strong>{rec.name}</strong>
-                    <span className="eyebrow">
-                      {Math.round(rec.kcal / per)} kcal / portion · {rec.servings} portion(s)
-                    </span>
-                  </span>
-                  <span className="recipe-row-actions">
-                    <button type="button" className="btn-secondary" onClick={() => addRecipe(rec)}>
-                      + {MEAL_LABEL[targetMeal]}
-                    </button>
-                    <button
-                      type="button"
-                      className="food-entry-delete"
-                      onClick={() => deleteRecipe(rec.id)}
-                      aria-label={`Supprimer ${rec.name}`}
-                    >
-                      🗑
-                    </button>
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
+          <section className="card nutri-list">
+            <div className="nutri-list-head">
+              <h2>Histoire</h2>
+              <button
+                type="button"
+                className="nutri-filter"
+                onClick={() => setQuickMode(quickMode === 'frequent' ? 'recent' : 'frequent')}
+              >
+                {quickMode === 'frequent' ? 'Les plus fréquents' : 'Les plus récents'} ▾
+              </button>
+            </div>
+            {quickList.length === 0 ? (
+              <p className="eyebrow">Aucun historique pour l'instant.</p>
+            ) : (
+              quickList.map((r, i) => (
+                <FoodRow
+                  key={i}
+                  name={r.name}
+                  sub={`${Math.round(r.kcal)} cal${r.quantity_g ? `, ${r.quantity_g} g` : ''}`}
+                  onAdd={() => addRecent(r)}
+                />
+              ))
+            )}
+          </section>
+        ))}
 
-      <section className="card">
-        <h2>Saisie manuelle</h2>
-        <form className="nutrition-form" onSubmit={handleAdd}>
-          <label htmlFor="food-name">Aliment</label>
-          <input
-            id="food-name"
-            type="text"
-            value={form.name}
-            onChange={field('name')}
-            placeholder="ex. Poulet grillé"
-            autoComplete="off"
-          />
-          <div className="nutrition-form-grid">
-            <label>
-              <span>Quantité (g)</span>
-              <input type="number" inputMode="decimal" value={form.quantity_g} onChange={field('quantity_g')} />
-            </label>
-            <label>
-              <span>Calories</span>
-              <input type="number" inputMode="decimal" value={form.kcal} onChange={field('kcal')} />
-            </label>
-            <label>
-              <span>Protéines (g)</span>
-              <input type="number" inputMode="decimal" value={form.protein_g} onChange={field('protein_g')} />
-            </label>
-            <label>
-              <span>Glucides (g)</span>
-              <input type="number" inputMode="decimal" value={form.carbs_g} onChange={field('carbs_g')} />
-            </label>
-            <label>
-              <span>Lipides (g)</span>
-              <input type="number" inputMode="decimal" value={form.fat_g} onChange={field('fat_g')} />
-            </label>
-          </div>
-          {error && <p role="alert">{error}</p>}
-          <button type="submit" className="btn-primary" disabled={saving || !form.name.trim()}>
-            {saving ? 'Ajout…' : `Ajouter à ${MEAL_LABEL[targetMeal]}`}
-          </button>
-        </form>
-      </section>
+      {tab === 'meals' && (
+        <section className="card nutri-list">
+          <h2>Mes repas</h2>
+          {recipes.length === 0 ? (
+            <p className="eyebrow">Enregistre une recette pour la retrouver ici comme repas rapide.</p>
+          ) : (
+            recipes.map((rec) => (
+              <FoodRow
+                key={rec.id}
+                name={rec.name}
+                sub={`${Math.round(rec.kcal / (rec.servings || 1))} cal / portion → ${MEAL_LABEL[targetMeal]}`}
+                onAdd={() => addRecipe(rec)}
+              />
+            ))
+          )}
+        </section>
+      )}
+
+      {tab === 'recipes' && (
+        <section className="card nutri-list">
+          <h2>Mes recettes</h2>
+          {recipes.length === 0 ? (
+            <p className="eyebrow">Aucune recette. Ajoute des aliments (onglet Tous), puis « Enregistrer comme recette ».</p>
+          ) : (
+            recipes.map((rec) => (
+              <div key={rec.id} className="food-row food-row-static">
+                <button type="button" className="food-row-main food-row-tap" onClick={() => editRecipe(rec)}>
+                  <strong>{rec.name}</strong>
+                  <span className="food-row-sub">
+                    {Math.round(rec.kcal / (rec.servings || 1))} cal / portion · {rec.servings} portion(s) · modifier
+                  </span>
+                </button>
+                <span className="food-row-actions">
+                  <button type="button" className="food-row-plus" onClick={() => addRecipe(rec)} aria-label="Ajouter au repas">
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    className="food-entry-delete"
+                    onClick={() => deleteRecipe(rec.id)}
+                    aria-label={`Supprimer ${rec.name}`}
+                  >
+                    🗑
+                  </button>
+                </span>
+              </div>
+            ))
+          )}
+        </section>
+      )}
+
+      {tab === 'foods' && (
+        <section className="card nutri-list">
+          <h2>Mes aliments</h2>
+          {allFoods.length === 0 ? (
+            <p className="eyebrow">Aucun aliment enregistré pour l'instant.</p>
+          ) : (
+            allFoods.map((r, i) => (
+              <FoodRow
+                key={i}
+                name={r.name}
+                sub={`${Math.round(r.kcal)} cal${r.quantity_g ? `, ${r.quantity_g} g` : ''}`}
+                onAdd={() => addRecent(r)}
+              />
+            ))
+          )}
+        </section>
+      )}
 
       {showScanner && <BarcodeScanner onDetected={handleBarcode} onClose={() => setShowScanner(false)} />}
 
