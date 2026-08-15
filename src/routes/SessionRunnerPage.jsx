@@ -7,8 +7,16 @@ import { mediaForSlug } from '../lib/exerciseMedia'
 import ExerciseLoop from '../components/ExerciseLoop'
 import ExerciseAttribution from '../components/ExerciseAttribution'
 import Icon from '../components/onboarding/icons/Icon'
+import PremiumGate from '../components/PremiumGate'
 
 const RPE_SCALE = Array.from({ length: 10 }, (_, i) => i + 1)
+
+const EQUIPMENT_TIERS = {
+  bodyweight: ['bodyweight'],
+  home_dumbbells: ['bodyweight', 'dumbbell'],
+  home_full_gym: ['bodyweight', 'dumbbell', 'barbell', 'bench', 'pull_up_bar', 'kettlebell'],
+  commercial_gym: ['bodyweight', 'dumbbell', 'barbell', 'bench', 'pull_up_bar', 'kettlebell', 'cable_machine', 'machine'],
+}
 
 function rpeColor(value) {
   const hue = 120 - (value - 1) * (120 / 9)
@@ -162,11 +170,14 @@ function buildFromLoggedSets(day, loggedSets) {
 
 export default function SessionRunnerPage() {
   const { weekNumber, dayNumber } = useParams()
-  const { user } = useAuth()
+  const { user, isPremium } = useAuth()
   const navigate = useNavigate()
 
   const [program, setProgram] = useState(null)
   const [exercisesById, setExercisesById] = useState({})
+  const [equipmentAccess, setEquipmentAccess] = useState('bodyweight')
+  const [showAlts, setShowAlts] = useState(false)
+  const [swapping, setSwapping] = useState(false)
   const [status, setStatus] = useState('loading')
   const [loadError, setLoadError] = useState(null)
 
@@ -299,7 +310,7 @@ export default function SessionRunnerPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: programData, error }, { data: exercises }] = await Promise.all([
+      const [{ data: programData, error }, { data: exercises }, { data: tp }] = await Promise.all([
         supabase
           .from('user_programs')
           .select('*')
@@ -308,7 +319,10 @@ export default function SessionRunnerPage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase.from('exercises').select('id, name, instructions, illustration_slug, category'),
+        supabase
+          .from('exercises')
+          .select('id, name, instructions, illustration_slug, category, muscle_group, equipment_required, is_ai_generated'),
+        supabase.from('user_training_profile').select('equipment_access').eq('user_id', user.id).maybeSingle(),
       ])
       if (error) {
         setLoadError(error.message)
@@ -317,6 +331,7 @@ export default function SessionRunnerPage() {
       }
       setProgram(programData)
       setExercisesById(Object.fromEntries((exercises ?? []).map((exercise) => [exercise.id, exercise])))
+      if (tp?.equipment_access) setEquipmentAccess(tp.equipment_access)
 
       if (programData) {
         const wk = programData.structure.weeks.find((w) => w.week_number === Number(weekNumber))
@@ -904,6 +919,43 @@ export default function SessionRunnerPage() {
     setPhase('list')
   }
 
+  // Exercices de remplacement « du même style » : même groupe musculaire,
+  // compatibles avec le matériel de l'utilisateur (Premium).
+  function alternativesFor(det) {
+    if (!det) return []
+    const allowed = EQUIPMENT_TIERS[equipmentAccess] ?? EQUIPMENT_TIERS.bodyweight
+    const list = Object.values(exercisesById).filter(
+      (c) =>
+        c.id !== det.id &&
+        c.muscle_group === det.muscle_group &&
+        !c.is_ai_generated &&
+        (c.equipment_required ?? []).every((e) => allowed.includes(e))
+    )
+    // Même catégorie (compound/isolation) d'abord.
+    list.sort((a, b) => Number(b.category === det.category) - Number(a.category === det.category))
+    return list.slice(0, 15)
+  }
+
+  // Remplace l'exercice partout dans le programme et persiste.
+  async function swapExercise(newId) {
+    const oldId = day.exercises[selectedExerciseIndex]?.exercise_id
+    if (!oldId || !program?.structure) return
+    setSwapping(true)
+    const next = JSON.parse(JSON.stringify(program.structure))
+    for (const wk of next.weeks) {
+      for (const d of wk.days) {
+        for (const ex of d.exercises) {
+          if (ex.exercise_id === oldId) ex.exercise_id = newId
+        }
+      }
+    }
+    const { error } = await supabase.from('user_programs').update({ structure: next }).eq('id', program.id)
+    setSwapping(false)
+    if (error) return
+    setProgram((p) => ({ ...p, structure: next }))
+    setShowAlts(false)
+  }
+
   // ---- Écran : résumé ----
   if (phase === 'summary') {
     return (
@@ -1300,6 +1352,32 @@ export default function SessionRunnerPage() {
             <summary>Consignes</summary>
             <p>{details.instructions}</p>
           </details>
+        )}
+
+        <PremiumGate isPremium={isPremium} label="Les alternatives d'exercice">
+          <button type="button" className="link-button session-alt-toggle" onClick={() => setShowAlts((v) => !v)}>
+            ↔ Cet exercice ne me convient pas — alternatives
+          </button>
+        </PremiumGate>
+        {showAlts && (
+          <div className="alt-list">
+            {alternativesFor(details).length === 0 ? (
+              <p className="eyebrow">Aucune alternative compatible avec ton matériel.</p>
+            ) : (
+              alternativesFor(details).map((alt) => (
+                <button
+                  key={alt.id}
+                  type="button"
+                  className="alt-item"
+                  onClick={() => swapExercise(alt.id)}
+                  disabled={swapping}
+                >
+                  <span className="alt-item-name">{alt.name}</span>
+                  <span className="alt-item-action">Remplacer</span>
+                </button>
+              ))
+            )}
+          </div>
         )}
 
         {completed > 0 && (
