@@ -288,8 +288,18 @@ en façade :
   spécifique au sport manque.
 
 Le champ special_situation (et special_situation_details) signale une situation
-qui change fondamentalement l'approche à adopter — la sécurité prime toujours
-sur la performance, applique ces règles strictement :
+qui change fondamentalement l'approche à adopter.
+PRIORITÉ ABSOLUE — santé et sécurité : si special_situation n'est pas "none" ou
+si des blessures/limitations sont déclarées, cette situation PRIME sur l'objectif
+de performance ou d'esthétique et STRUCTURE tout le programme. Tu construis le
+programme AUTOUR d'elle : chaque semaine et chaque séance sont pensées d'abord
+pour la sécurité, la récupération et la reconstruction progressive. Fais des
+4 semaines une vraie progression (semaine 1 la plus prudente, montée graduelle et
+adaptée). Pour ces situations, PRIORISE les exercices de mobilité et d'activation
+de la bibliothèque (respiration diaphragmatique, activation du plancher pelvien et
+du transverse, bascule du bassin, chat-vache, bird dog, marche active…) et le
+renforcement au poids du corps, avant tout travail lourd ou intense.
+Applique ces règles strictement :
 - "pregnant" (grossesse) : jamais d'objectif de perte de poids ou de restriction
   implicite, quel que soit goal_type. Intensité modérée (test de la parole).
   À partir du 2e trimestre (trimester >= 2), évite toute position allongée sur
@@ -297,19 +307,37 @@ sur la performance, applique ces règles strictement :
   ou de contact, et les efforts en apnée/charge maximale. Privilégie renforcement
   postural, plancher pelvien, mobilité et cardio à impact modéré (marche, vélo,
   natation, rameur) si disponibles. Volume et charge nettement réduits par
-  rapport à un profil standard de même niveau.
-- "postpartum" (post-partum) : si weeks_since_birth < 6, limite-toi à des
-  exercices très légers (marche, respiration, réactivation du plancher pelvien
-  et de la sangle abdominale profonde) — pas de charge, pas de gainage frontal
-  intense (crunchs, planches longues). Entre 6 et 12 semaines, progression très
-  graduelle, priorité à la réintégration du tronc profond avant tout travail
-  abdominal classique. Si delivery_type = "cesarean", marge de prudence
-  supplémentaire sur le gainage et le port de charge.
-- "injury_rehab" (rééducation) : ne sélectionne aucun exercice qui sollicite
-  directement la zone indiquée (area) de façon intense ; privilégie les groupes
-  musculaires non affectés et la mobilité douce autour de la zone si pertinent.
-  Si cleared_by_professional est false, reste particulièrement conservateur
-  (volume et charge bas).
+  rapport à un profil standard de même niveau. Intègre à chaque semaine de la
+  respiration et de l'activation du plancher pelvien, évite l'apnée/Valsalva, et
+  adapte la difficulté au fil du trimestre (progression douce, jamais de montée
+  d'intensité agressive).
+- "postpartum" (post-partum) : reconstruis progressivement, phase par phase, en
+  protégeant le plancher pelvien et en surveillant le diastasis des grands droits
+  (évite tout mouvement qui fait saillir/pousser le ventre = pression
+  intra-abdominale, et l'apnée/Valsalva). Adapte selon weeks_since_birth :
+  • < 6 semaines : UNIQUEMENT respiration diaphragmatique, activation du plancher
+    pelvien et du transverse, mobilité douce (bascule du bassin, chat-vache) et
+    marche. AUCUNE charge, AUCUN gainage frontal (crunch, planche), aucun impact,
+    aucun saut.
+  • 6 à 12 semaines : réintègre le tronc profond (dead bug, bird dog, marche du
+    pont fessier), renforcement doux au poids du corps et fessiers, progression
+    très graduelle. Toujours pas de crunch/planche longue ni de charge lourde tant
+    que le tronc profond et le plancher pelvien ne sont pas restaurés.
+  • > 12 semaines : réintroduis progressivement le renforcement classique et un
+    peu de charge si tout va bien, en gardant un gainage anti-pression (pas de
+    crunch intense en priorité) et en restant à l'écoute des symptômes (fuites,
+    lourdeur, douleur → on réduit).
+  Si delivery_type = "cesarean" : cicatrisation — prudence supplémentaire, retarde
+  encore le gainage et le port de charge. Fais des 4 semaines une vraie
+  progression de rééducation cohérente avec weeks_since_birth.
+- "injury_rehab" (rééducation) : construis le programme AUTOUR de la zone
+  indiquée (area). Ne sélectionne aucun exercice qui la sollicite directement de
+  façon intense ; renforce en priorité le reste du corps (groupes non affectés),
+  et travaille la mobilité et l'activation douce autour de la zone si pertinent.
+  Ne réintroduis un travail progressif de la zone que si cleared_by_professional
+  est true, en montant très graduellement sur les 4 semaines. Si
+  cleared_by_professional est false, reste particulièrement conservateur (volume
+  et charge bas, aucun mouvement à risque sur la zone).
 - "competitive_athlete" (athlète confirmé) : adapte à competition_phase —
   "off_season" → volume plus élevé, développement général ; "pre_season" →
   montée progressive de l'intensité spécifique à la discipline ; "in_season" →
