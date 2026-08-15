@@ -155,6 +155,8 @@ export default function NutritionPage() {
   const [tError, setTError] = useState(null)
   const [targetMeal, setTargetMeal] = useState('breakfast')
   const [recents, setRecents] = useState([])
+  const [frequents, setFrequents] = useState([])
+  const [quickMode, setQuickMode] = useState('frequent') // frequent | recent
   const [recipes, setRecipes] = useState([])
   const [recipeName, setRecipeName] = useState('')
   const [recipeServings, setRecipeServings] = useState('1')
@@ -162,25 +164,33 @@ export default function NutritionPage() {
 
   const day = todayIso()
 
+  // Récents (par récence) et fréquents (par nombre d'ajouts) sur 90 jours.
   async function loadRecents() {
-    const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+    const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10)
     const { data } = await supabase
       .from('food_entries')
       .select('name, quantity_g, kcal, protein_g, carbs_g, fat_g')
       .eq('user_id', user.id)
       .gte('consumed_on', since)
       .order('created_at', { ascending: false })
-      .limit(200)
-    const seen = new Set()
-    const out = []
+      .limit(500)
+    // Map en ordre d'insertion = ordre de récence (données déjà triées desc).
+    const byName = new Map()
     for (const e of data ?? []) {
       const key = (e.name ?? '').trim().toLowerCase()
-      if (!key || seen.has(key)) continue
-      seen.add(key)
-      out.push(e)
-      if (out.length >= 12) break
+      if (!key) continue
+      const cur = byName.get(key)
+      if (cur) cur.count += 1
+      else byName.set(key, { entry: e, count: 1 })
     }
-    setRecents(out)
+    const arr = [...byName.values()]
+    setRecents(arr.slice(0, 12).map((x) => x.entry))
+    setFrequents(
+      [...arr]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 12)
+        .map((x) => x.entry)
+    )
   }
 
   async function loadRecipes() {
@@ -986,11 +996,31 @@ export default function NutritionPage() {
             ))}
           </ul>
         )}
-        {recents.length > 0 && (
+        {(frequents.length > 0 || recents.length > 0) && (
           <div className="recents">
-            <p className="eyebrow">Récents — ajout direct à {MEAL_LABEL[targetMeal]}</p>
+            <div className="quick-head">
+              <div className="chart-metric-switch" role="group" aria-label="Aliments rapides">
+                <button
+                  type="button"
+                  className={`chart-metric-btn${quickMode === 'frequent' ? ' is-active' : ''}`}
+                  aria-pressed={quickMode === 'frequent'}
+                  onClick={() => setQuickMode('frequent')}
+                >
+                  Fréquents
+                </button>
+                <button
+                  type="button"
+                  className={`chart-metric-btn${quickMode === 'recent' ? ' is-active' : ''}`}
+                  aria-pressed={quickMode === 'recent'}
+                  onClick={() => setQuickMode('recent')}
+                >
+                  Récents
+                </button>
+              </div>
+              <span className="eyebrow">→ {MEAL_LABEL[targetMeal]}</span>
+            </div>
             <div className="recent-chips">
-              {recents.map((r, i) => (
+              {(quickMode === 'frequent' ? frequents : recents).map((r, i) => (
                 <button key={i} type="button" className="recent-chip" onClick={() => addRecent(r)}>
                   <span className="recent-chip-name">{r.name}</span>
                   <span className="recent-chip-kcal">{Math.round(r.kcal)} kcal</span>

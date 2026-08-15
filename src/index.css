@@ -2479,6 +2479,13 @@ button:active,
 .recents {
   margin-top: 12px;
 }
+.quick-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 .recent-chips {
   display: flex;
   flex-wrap: wrap;
