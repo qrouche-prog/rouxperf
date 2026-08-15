@@ -1,9 +1,12 @@
 -- Extension de la bibliothèque : travail du tronc (abdos/gainage), cardio doux
--- (perte de poids) et accessoires de renforcement. À exécuter une fois dans le
--- SQL Editor, après exercises.sql. Idempotent via l'index unique sur le nom.
-create unique index if not exists exercises_name_key on public.exercises (name);
-
-insert into public.exercises (name, category, muscle_group, equipment_required, contraindications, instructions) values
+-- (perte de poids) et accessoires de renforcement. À exécuter dans le SQL
+-- Editor, après exercises.sql.
+-- Idempotent SANS index unique (n'insère que les noms absents) : ne dépend
+-- donc pas de l'unicité des noms existants et n'entre pas en conflit avec
+-- d'éventuels doublons déjà présents.
+insert into public.exercises (name, category, muscle_group, equipment_required, contraindications, instructions)
+select v.name, v.category, v.muscle_group, v.equipment_required::text[], v.contraindications::text[], v.instructions
+from (values
   -- ---- Tronc / abdos (le gros manque) ----
   ('Crunch', 'isolation', 'core', '{bodyweight}', '{lower_back}', 'Allongé sur le dos, genoux fléchis, décolle les omoplates en enroulant le buste vers les cuisses, expire, puis redescends contrôlé sans relâcher.'),
   ('Crunch inversé', 'isolation', 'core', '{bodyweight}', '{lower_back}', 'Allongé sur le dos, ramène les genoux vers la poitrine en décollant le bassin, contracte les abdos du bas, puis redescends lentement.'),
@@ -34,4 +37,7 @@ insert into public.exercises (name, category, muscle_group, equipment_required, 
   ('Écarté couché haltères', 'isolation', 'chest', '{dumbbell,bench}', '{shoulder}', 'Allongé sur un banc, bras légèrement fléchis, ouvre les haltères en arc de cercle jusqu''à étirement de la poitrine, puis referme en contractant les pectoraux.'),
   ('Curl marteau haltères', 'isolation', 'arms', '{bodyweight,dumbbell}', '{}', 'Haltères en prise neutre (paumes face à face), plie les bras en gardant les coudes fixes, puis redescends contrôlé ; cible biceps et avant-bras.'),
   ('Good morning barre', 'compound', 'legs', '{barbell}', '{lower_back}', 'Barre sur le haut du dos, jambes légèrement fléchies, penche le buste vers l''avant en reculant les hanches, dos plat, jusqu''à tension des ischios, puis redresse.')
-on conflict (name) do nothing;
+) as v(name, category, muscle_group, equipment_required, contraindications, instructions)
+where not exists (
+  select 1 from public.exercises e where e.name = v.name
+);
