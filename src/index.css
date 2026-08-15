@@ -2447,8 +2447,23 @@ button:active,
   margin: 0 0 8px;
 }
 .meal-add-food {
+  display: block;
   width: 100%;
   margin-top: 8px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.add-tools-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.add-tools-row .btn-secondary,
+.add-tools-row .photo-btn {
+  flex: 1 1 140px;
+  margin: 0;
 }
 
 .add-anchor {
