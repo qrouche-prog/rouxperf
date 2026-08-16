@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const price = Deno.env.get(priceEnv)
     if (!price) return json({ error: 'Tarif non configuré.' }, 500)
 
-    const base = Deno.env.get('APP_URL') || String(body?.origin || '').replace(/\/$/, '')
+    const base = String(Deno.env.get('APP_URL') || body?.origin || '').trim().replace(/\/+$/, '')
     if (!base) return json({ error: 'Origine manquante.' }, 400)
 
     const supabase = serviceClient()

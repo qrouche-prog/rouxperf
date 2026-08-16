@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}))
-    const base = Deno.env.get('APP_URL') || String(body?.origin || '').replace(/\/$/, '')
+    const base = String(Deno.env.get('APP_URL') || body?.origin || '').trim().replace(/\/+$/, '')
 
     const supabase = serviceClient()
     const { data } = await supabase
