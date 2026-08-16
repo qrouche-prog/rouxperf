@@ -106,7 +106,7 @@ export default function PremiumPage() {
             <div className="premium-plan-head">
               <span className="premium-plan-name">Mensuel</span>
               <span className="premium-plan-price">
-                CHF 9.90<span className="premium-plan-per">/mois</span>
+                CHF 12<span className="premium-plan-per">/mois</span>
               </span>
             </div>
             <button type="button" className="btn-secondary" onClick={() => startCheckout('monthly')} disabled={busy}>
@@ -114,15 +114,28 @@ export default function PremiumPage() {
             </button>
           </div>
 
+          <div className="premium-plan">
+            <div className="premium-plan-head">
+              <span className="premium-plan-name">3 mois</span>
+              <span className="premium-plan-price">
+                CHF 30<span className="premium-plan-per">/3 mois</span>
+              </span>
+            </div>
+            <p className="eyebrow">Soit ≈ CHF 10/mois</p>
+            <button type="button" className="btn-secondary" onClick={() => startCheckout('quarterly')} disabled={busy}>
+              {busy === 'quarterly' ? 'Redirection…' : 'Choisir les 3 mois'}
+            </button>
+          </div>
+
           <div className="premium-plan premium-plan-featured">
-            <span className="premium-plan-badge">−33 %</span>
+            <span className="premium-plan-badge">Meilleur prix</span>
             <div className="premium-plan-head">
               <span className="premium-plan-name">Annuel</span>
               <span className="premium-plan-price">
-                CHF 79<span className="premium-plan-per">/an</span>
+                CHF 100<span className="premium-plan-per">/an</span>
               </span>
             </div>
-            <p className="eyebrow">Soit ≈ CHF 6.60/mois</p>
+            <p className="eyebrow">Soit ≈ CHF 8.30/mois</p>
             <button type="button" className="btn-primary" onClick={() => startCheckout('annual')} disabled={busy}>
               {busy === 'annual' ? 'Redirection…' : 'Choisir l’annuel'}
             </button>

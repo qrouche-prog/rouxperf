@@ -16,8 +16,10 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}))
-    const plan = body?.plan === 'annual' ? 'annual' : 'monthly'
-    const price = plan === 'annual' ? Deno.env.get('STRIPE_PRICE_ANNUAL') : Deno.env.get('STRIPE_PRICE_MONTHLY')
+    const plan = ['monthly', 'quarterly', 'annual'].includes(body?.plan) ? body.plan : 'monthly'
+    const priceEnv =
+      plan === 'annual' ? 'STRIPE_PRICE_ANNUAL' : plan === 'quarterly' ? 'STRIPE_PRICE_QUARTERLY' : 'STRIPE_PRICE_MONTHLY'
+    const price = Deno.env.get(priceEnv)
     if (!price) return json({ error: 'Tarif non configuré.' }, 500)
 
     const base = Deno.env.get('APP_URL') || String(body?.origin || '').replace(/\/$/, '')
