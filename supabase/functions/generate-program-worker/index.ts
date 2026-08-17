@@ -366,7 +366,7 @@ Deno.serve(async (req: Request) => {
   // toute façon pas accès à celui de l'utilisateur cible).
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-  const { program_id, user_id } = await req.json().catch(() => ({}))
+  const { program_id, user_id, effort: forcedEffort } = await req.json().catch(() => ({}))
   if (!program_id || !user_id) {
     return new Response(JSON.stringify({ error: 'program_id ou user_id manquant' }), { status: 400 })
   }
@@ -618,17 +618,27 @@ ${JSON.stringify(
   2
 )}`
 
-      // Effort "low" : réflexion réduite → génération plus rapide, moins de
-      // tokens (donc moins chère) et pas de troncature. Le prompt détaillé
-      // (structure, objectifs, pathologies) porte la qualité. Plafond 40k :
-      // largement assez pour un bloc de 4 semaines.
+      // Effort adaptatif : "medium" (réflexion plus poussée, plus cohérent) dès
+      // qu'il y a de la course à pied, une situation particulière (pathologie)
+      // ou des blessures ; sinon "low" (rapide, économique). Un override peut
+      // être passé dans le body (effort) pour comparer.
+      const focusAreas = Array.isArray(trainingProfile.focus_areas) ? trainingProfile.focus_areas : []
+      const hasRunning =
+        !!focusAreaPreferences.running || focusAreas.includes('running') || !!trainingProfile.event_details?.trail_km
+      const hasSituation =
+        trainingProfile.special_situation && trainingProfile.special_situation !== 'none'
+      const hasInjuries = !!String(trainingProfile.injuries_limitations ?? '').trim()
+      const autoEffort = hasRunning || hasSituation || hasInjuries ? 'medium' : 'low'
+      const effort = ['low', 'medium', 'high'].includes(forcedEffort) ? forcedEffort : autoEffort
+
+      // Plafond 40k : assez pour un bloc de 4 semaines sans troncature.
       const t0 = Date.now()
       const stream = anthropic.messages.stream({
         model: 'claude-sonnet-5',
         max_tokens: 40000,
         thinking: { type: 'adaptive' },
         output_config: {
-          effort: 'low',
+          effort,
           format: { type: 'json_schema', schema: programSchema(exerciseIds) },
         },
         system: SYSTEM_PROMPT,
@@ -636,7 +646,7 @@ ${JSON.stringify(
       })
       const response = await stream.finalMessage()
       console.log(
-        `[generate-program] user=${user_id} durée=${Date.now() - t0}ms tokens_in=${response.usage?.input_tokens} tokens_out=${response.usage?.output_tokens} stop=${response.stop_reason}`
+        `[generate-program] user=${user_id} effort=${effort} durée=${Date.now() - t0}ms tokens_in=${response.usage?.input_tokens} tokens_out=${response.usage?.output_tokens} stop=${response.stop_reason}`
       )
 
       if (response.stop_reason === 'refusal') {

@@ -13,11 +13,12 @@ export default async function handler(req, res) {
   if (!admin) return
   const { adminClient } = admin
 
-  const { user_id } = req.body ?? {}
+  const { user_id, effort } = req.body ?? {}
   if (!user_id) {
     res.status(400).json({ error: 'user_id manquant' })
     return
   }
+  const forcedEffort = ['low', 'medium', 'high'].includes(effort) ? effort : undefined
 
   const { data: last } = await adminClient
     .from('user_programs')
@@ -48,7 +49,7 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ program_id: program.id, user_id }),
+      body: JSON.stringify({ program_id: program.id, user_id, effort: forcedEffort }),
       signal: AbortSignal.timeout(8000),
     })
     if (!workerResponse.ok) {

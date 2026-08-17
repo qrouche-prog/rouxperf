@@ -108,10 +108,11 @@ export default function AdminPage() {
     setPremiumBusyId(null)
   }
 
-  async function handleRegenerate(u) {
+  async function handleRegenerate(u, effort) {
+    const label = effort ? ` (effort forcé : ${effort})` : ' (effort auto)'
     if (
       !window.confirm(
-        `Régénérer le programme de ${u.full_name || u.email} ? L'IA générera un nouveau programme à partir de ses réglages à jour.`
+        `Régénérer le programme de ${u.full_name || u.email}${label} ? L'IA générera un nouveau programme à partir de ses réglages à jour.`
       )
     ) {
       return
@@ -122,9 +123,9 @@ export default function AdminPage() {
       await authedFetch('/api/admin/regenerate-program', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: u.id }),
+        body: JSON.stringify({ user_id: u.id, effort }),
       })
-      setAdminMsg(`Régénération lancée pour ${u.full_name || u.email}.`)
+      setAdminMsg(`Régénération lancée pour ${u.full_name || u.email}${label}.`)
       if (selectedUser?.id === u.id) openUser(u)
     } catch (err) {
       setAdminMsg(err.message)
@@ -402,7 +403,25 @@ export default function AdminPage() {
                 onClick={() => handleRegenerate(selectedUser)}
                 disabled={regenBusyId === selectedUser.id}
               >
-                {regenBusyId === selectedUser.id ? 'Régénération…' : '↻ Régénérer le programme'}
+                {regenBusyId === selectedUser.id ? 'Régénération…' : '↻ Régénérer (auto)'}
+              </button>
+              <button
+                type="button"
+                className="admin-regen-btn"
+                onClick={() => handleRegenerate(selectedUser, 'low')}
+                disabled={regenBusyId === selectedUser.id}
+                title="Forcer l'effort low (comparaison)"
+              >
+                low
+              </button>
+              <button
+                type="button"
+                className="admin-regen-btn"
+                onClick={() => handleRegenerate(selectedUser, 'medium')}
+                disabled={regenBusyId === selectedUser.id}
+                title="Forcer l'effort medium (comparaison)"
+              >
+                medium
               </button>
             </div>
 
