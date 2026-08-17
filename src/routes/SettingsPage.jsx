@@ -199,6 +199,7 @@ export default function SettingsPage() {
       .from('program_adjustments')
       .select('created_at')
       .eq('user_id', user.id)
+      .eq('applied', true)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()

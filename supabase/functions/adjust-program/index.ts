@@ -23,12 +23,15 @@ Deno.serve(async (req) => {
     const prompt = String(body?.prompt ?? '').trim().slice(0, 1000)
     if (prompt.length < 3) return json({ error: 'Décris les changements souhaités.' }, 400)
 
-    // Rate limit : une demande par période glissante de 7 jours.
+    // Rate limit : une régénération RÉUSSIE par période glissante de 7 jours.
+    // On ne compte que les ajustements appliqués (applied=true) : une génération
+    // échouée ne doit pas consommer le quota.
     const weekAgo = new Date(Date.now() - WEEK_MS).toISOString()
     const { data: recent } = await supabase
       .from('program_adjustments')
       .select('created_at')
       .eq('user_id', userId)
+      .eq('applied', true)
       .gte('created_at', weekAgo)
       .order('created_at', { ascending: false })
       .limit(1)
