@@ -14,9 +14,11 @@ import PremiumGate from '../components/PremiumGate'
 import { ThemePicker } from '../components/theme'
 import { parseActivityFile } from '../lib/activityFiles'
 import { frActivityLabel } from '../lib/activityLabels'
+import { usePwaInstall } from '../lib/pwaInstall'
 
 export default function SettingsPage() {
   const { user, isPremium } = useAuth()
+  const { canInstall, isIOS, isStandalone, promptInstall } = usePwaInstall()
   const [lastAdjustAt, setLastAdjustAt] = useState(null)
   const [regenBusy, setRegenBusy] = useState(false)
   const [regenMsg, setRegenMsg] = useState(null)
@@ -334,6 +336,32 @@ export default function SettingsPage() {
         </span>
         <span aria-hidden="true">→</span>
       </Link>
+
+      {!isStandalone && (
+        <section className="card settings-section">
+          <h2>Installer l'application</h2>
+          {canInstall ? (
+            <>
+              <p className="eyebrow">
+                Ajoute rouXperf à ton écran d'accueil : plein écran, accès direct, comme une vraie app.
+              </p>
+              <button type="button" className="btn-secondary" onClick={promptInstall}>
+                📲 Installer l'application
+              </button>
+            </>
+          ) : isIOS ? (
+            <p className="eyebrow">
+              Sur iPhone : appuie sur le bouton <strong>Partager</strong> de Safari, puis «&nbsp;Sur l'écran
+              d'accueil&nbsp;».
+            </p>
+          ) : (
+            <p className="eyebrow">
+              Dans le menu de ton navigateur, choisis «&nbsp;Installer l'application&nbsp;» ou «&nbsp;Ajouter à
+              l'écran d'accueil&nbsp;».
+            </p>
+          )}
+        </section>
+      )}
 
       <section id="apparence" className="card settings-section">
         <h2>Apparence</h2>

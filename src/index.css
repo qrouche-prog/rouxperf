@@ -2409,6 +2409,24 @@ button:active,
   width: 100%;
 }
 
+.premium-upsell-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-decoration: none;
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg, var(--accent));
+  border: 1px solid var(--accent-soft-border, var(--border));
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+.premium-upsell-banner strong {
+  color: var(--accent-soft-fg, var(--accent));
+}
+
 .settings-premium-link {
   display: flex;
   align-items: center;

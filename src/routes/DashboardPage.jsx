@@ -212,6 +212,16 @@ export default function DashboardPage() {
       </p>
       <h1>Tableau de bord</h1>
 
+      {!isPremium && (
+        <Link to="/premium" className="premium-upsell-banner">
+          <span>
+            <strong>⭐ Passe à Premium</strong> — débloque le coach IA : photo repas, plans repas, analyses et
+            ajustements de programme.
+          </span>
+          <span aria-hidden="true">→</span>
+        </Link>
+      )}
+
       {program?.status === 'pending_approval' && (
         <p className="situation-disclaimer">
           Ta demande de génération a bien été reçue et est en attente de validation par l'équipe rouXperf. Tu seras
