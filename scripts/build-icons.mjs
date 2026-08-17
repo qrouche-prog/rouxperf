@@ -15,8 +15,8 @@ import sharp from 'sharp'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const BG = '#C4552B' // --roux-500
-const MARK = '#FBEDE6' // --roux-50
+const BG = '#0A0A0A' // noir
+const MARK = '#C4552B' // --roux-500
 
 /**
  * La marque est dessinée dans un carré 32×32, puis mise à l'échelle et centrée.

@@ -1,7 +1,7 @@
 <!-- Généré par scripts/build-icons.mjs — ne pas éditer à la main -->
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <rect width="32" height="32" fill="#C4552B"/>
-  <g transform="translate(2.5600000000000005 2.5600000000000005) scale(0.84)" fill="none" stroke="#FBEDE6" stroke-linejoin="round" stroke-linecap="round">
+  <rect width="32" height="32" fill="#0A0A0A"/>
+  <g transform="translate(2.5600000000000005 2.5600000000000005) scale(0.84)" fill="none" stroke="#C4552B" stroke-linejoin="round" stroke-linecap="round">
     <path d="M16 2 L30 16 L16 30 L2 16 Z" stroke-width="1.8"/>
     <path d="M12.5 12.5 L19.5 19.5 M19.5 12.5 L12.5 19.5" stroke-width="3.2"/>
   </g>
