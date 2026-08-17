@@ -618,23 +618,26 @@ ${JSON.stringify(
   2
 )}`
 
+      // Effort "low" : réflexion réduite → génération plus rapide, moins de
+      // tokens (donc moins chère) et pas de troncature. Le prompt détaillé
+      // (structure, objectifs, pathologies) porte la qualité. Plafond 40k :
+      // largement assez pour un bloc de 4 semaines.
+      const t0 = Date.now()
       const stream = anthropic.messages.stream({
         model: 'claude-sonnet-5',
-        // La réflexion adaptive et la sortie JSON partagent ce plafond : un
-        // budget large évite la troncature sur les blocs de 4 semaines chargés
-        // (plusieurs séances/semaine, notes de progression). Le prompt enrichi
-        // (structure, objectifs, pathologies) augmente la réflexion → on monte
-        // le plafond pour laisser toute la place au JSON.
-        max_tokens: 64000,
+        max_tokens: 40000,
         thinking: { type: 'adaptive' },
         output_config: {
-          effort: 'medium',
+          effort: 'low',
           format: { type: 'json_schema', schema: programSchema(exerciseIds) },
         },
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userPrompt }],
       })
       const response = await stream.finalMessage()
+      console.log(
+        `[generate-program] user=${user_id} durée=${Date.now() - t0}ms tokens_in=${response.usage?.input_tokens} tokens_out=${response.usage?.output_tokens} stop=${response.stop_reason}`
+      )
 
       if (response.stop_reason === 'refusal') {
         throw new Error("Le modèle n'a pas pu générer de programme pour ce profil.")
