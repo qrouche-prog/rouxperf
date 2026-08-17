@@ -59,7 +59,7 @@ export default function InstallPrompt() {
     dismiss()
   }
 
-  if (isStandalone() || dismissed) return null
+  if (isStandalone || dismissed) return null
 
   const showAndroid = canInstall
   const showIOS = !canInstall && isIOS && iosReady
