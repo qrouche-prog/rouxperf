@@ -597,10 +597,38 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
         .order('started_at', { ascending: false })
       const wearableSection = buildWearableSection(wearables ?? [])
 
+      // Retours de l'utilisateur : notes libres saisies par série lors des
+      // séances (ressentis, douleurs, exercices qui ne conviennent pas).
+      const { data: noteRows } = await supabase
+        .from('workout_log_sets')
+        .select('note, exercise_id, created_at')
+        .eq('user_id', user_id)
+        .not('note', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(40)
+      const exNameById: Record<string, string> = Object.fromEntries(
+        (allExercises ?? []).map((e: any) => [e.id, e.name])
+      )
+      const seenNotes = new Set<string>()
+      const notesList: string[] = []
+      for (const n of noteRows ?? []) {
+        const t = String(n.note ?? '').trim()
+        if (!t) continue
+        const name = exNameById[n.exercise_id] ?? 'exercice'
+        const line = `- ${name} : ${t}`
+        if (seenNotes.has(line)) continue
+        seenNotes.add(line)
+        notesList.push(line)
+        if (notesList.length >= 25) break
+      }
+      const notesSection = notesList.length
+        ? `\n\nRetours de l'utilisateur sur ses séances récentes (notes libres par exercice) — tiens-en compte concrètement : s'il signale une douleur, une gêne ou qu'un exercice ne convient pas, remplace-le par une variante plus adaptée ; s'il apprécie un exercice, tu peux le conserver.\n${notesList.join('\n')}`
+        : ''
+
       const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${totalSessions} séance(s) par semaine au total, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
 Profil utilisateur :
-${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${injuriesSection}${otherSportSection}${wearableSection}${adjustmentSection}
+${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${injuriesSection}${otherSportSection}${wearableSection}${notesSection}${adjustmentSection}
 
 Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
 ${JSON.stringify(

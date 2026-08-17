@@ -3532,6 +3532,31 @@ button:active,
   min-width: 0;
 }
 
+.notes-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.note-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.note-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+.note-row-text {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
 .set-fill-target strong {
   color: var(--ink);
 }

@@ -35,6 +35,7 @@ export default function ProgressPage() {
   const [insight, setInsight] = useState(null)
   const [insightBusy, setInsightBusy] = useState(false)
   const [insightError, setInsightError] = useState(null)
+  const [notes, setNotes] = useState([])
   const [status, setStatus] = useState('loading')
   const [measureView, setMeasureView] = useState('hidden') // hidden | filled | all
   const [chartMetric, setChartMetric] = useState('min') // min | km | sessions
@@ -98,9 +99,20 @@ export default function ProgressPage() {
     setWorkoutLogs(data ?? [])
   }
 
+  async function loadNotes() {
+    const { data } = await supabase
+      .from('workout_log_sets')
+      .select('note, created_at, exercises(name)')
+      .eq('user_id', user.id)
+      .not('note', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    setNotes(data ?? [])
+  }
+
   useEffect(() => {
     async function load() {
-      await Promise.all([loadMeasurements(), loadWorkoutLogs(), loadActivities(), loadInsight()])
+      await Promise.all([loadMeasurements(), loadWorkoutLogs(), loadActivities(), loadInsight(), loadNotes()])
       setStatus('idle')
     }
     load()
@@ -353,6 +365,23 @@ export default function ProgressPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {notes.length > 0 && (
+        <>
+          <h2>Notes de séance</h2>
+          <ul className="notes-list">
+            {notes.map((n, i) => (
+              <li key={i} className="note-row">
+                <span className="note-row-head">
+                  <strong>{n.exercises?.name ?? 'Exercice'}</strong>
+                  <span className="eyebrow">{new Date(n.created_at).toLocaleDateString('fr-CH')}</span>
+                </span>
+                <span className="note-row-text">{n.note}</span>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       <div className="bottom-nav-spacer" />
