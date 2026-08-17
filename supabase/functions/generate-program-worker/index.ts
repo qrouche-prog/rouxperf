@@ -622,8 +622,10 @@ ${JSON.stringify(
         model: 'claude-sonnet-5',
         // La réflexion adaptive et la sortie JSON partagent ce plafond : un
         // budget large évite la troncature sur les blocs de 4 semaines chargés
-        // (plusieurs séances/semaine, notes de progression).
-        max_tokens: 32000,
+        // (plusieurs séances/semaine, notes de progression). Le prompt enrichi
+        // (structure, objectifs, pathologies) augmente la réflexion → on monte
+        // le plafond pour laisser toute la place au JSON.
+        max_tokens: 64000,
         thinking: { type: 'adaptive' },
         output_config: {
           effort: 'medium',
