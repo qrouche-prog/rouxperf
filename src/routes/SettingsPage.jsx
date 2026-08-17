@@ -14,11 +14,9 @@ import PremiumGate from '../components/PremiumGate'
 import { ThemePicker } from '../components/theme'
 import { parseActivityFile } from '../lib/activityFiles'
 import { frActivityLabel } from '../lib/activityLabels'
-import { usePwaInstall } from '../lib/pwaInstall'
 
 export default function SettingsPage() {
   const { user, isPremium } = useAuth()
-  const { canInstall, isIOS, isStandalone, promptInstall } = usePwaInstall()
   const [lastAdjustAt, setLastAdjustAt] = useState(null)
   const [regenBusy, setRegenBusy] = useState(false)
   const [regenMsg, setRegenMsg] = useState(null)
@@ -243,6 +241,18 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Ouvre la section correspondant à l'ancre (#objectif, #objets…) et y défile.
+  useEffect(() => {
+    if (status !== 'idle') return
+    const hash = window.location.hash
+    if (!hash || hash.length < 2) return
+    const el = document.querySelector(hash)
+    if (el && el.tagName === 'DETAILS') {
+      el.open = true
+      el.scrollIntoView({ block: 'start' })
+    }
+  }, [status])
+
   function flashSaved(section) {
     setSavedSection(section)
     setTimeout(() => setSavedSection((current) => (current === section ? null : current)), 2500)
@@ -260,19 +270,17 @@ export default function SettingsPage() {
   // sinon un titre + renvoi vers l'offre Premium.
   function programSection(id, title, node) {
     return (
-      <section id={id} className="card settings-section">
+      <details id={id} className="card settings-section">
+        <summary className="settings-summary">{title}</summary>
         {isPremium ? (
           node
         ) : (
-          <>
-            <h2>{title}</h2>
-            <p className="eyebrow">
-              Modifier ces réglages est réservé aux membres Premium. <Link to="/premium">Passer Premium →</Link>
-            </p>
-          </>
+          <p className="eyebrow">
+            Modifier ces réglages est réservé aux membres Premium. <Link to="/premium">Passer Premium →</Link>
+          </p>
         )}
         {savedSection === id && <p className="settings-saved">Enregistré ✓</p>}
-      </section>
+      </details>
     )
   }
 
@@ -337,39 +345,13 @@ export default function SettingsPage() {
         <span aria-hidden="true">→</span>
       </Link>
 
-      {!isStandalone && (
-        <section className="card settings-section">
-          <h2>Installer l'application</h2>
-          {canInstall ? (
-            <>
-              <p className="eyebrow">
-                Ajoute rouXperf à ton écran d'accueil : plein écran, accès direct, comme une vraie app.
-              </p>
-              <button type="button" className="btn-secondary" onClick={promptInstall}>
-                📲 Installer l'application
-              </button>
-            </>
-          ) : isIOS ? (
-            <p className="eyebrow">
-              Sur iPhone : appuie sur le bouton <strong>Partager</strong> de Safari, puis «&nbsp;Sur l'écran
-              d'accueil&nbsp;».
-            </p>
-          ) : (
-            <p className="eyebrow">
-              Dans le menu de ton navigateur, choisis «&nbsp;Installer l'application&nbsp;» ou «&nbsp;Ajouter à
-              l'écran d'accueil&nbsp;».
-            </p>
-          )}
-        </section>
-      )}
-
-      <section id="apparence" className="card settings-section">
-        <h2>Apparence</h2>
+      <details id="apparence" className="card settings-section">
+        <summary className="settings-summary">Apparence</summary>
         <ThemePicker />
-      </section>
+      </details>
 
-      <section id="objets" className="card settings-section">
-        <h2>Objets connectés</h2>
+      <details id="objets" className="card settings-section">
+        <summary className="settings-summary">Objets connectés</summary>
         <p className="settings-hint">
           Connecte <strong>intervals.icu</strong> (gratuit) pour importer automatiquement tes séances. Garmin,
           Strava, etc. s'y synchronisent tout seuls.
@@ -482,7 +464,7 @@ export default function SettingsPage() {
             </ul>
           </>
         )}
-      </section>
+      </details>
 
       <p className="eyebrow settings-program-note">
         Réglages liés à ton programme — modifiables par les membres Premium. Enregistre tous tes changements, puis
@@ -545,8 +527,8 @@ export default function SettingsPage() {
         />
       )}
 
-      <section className="card settings-section">
-        <h2>Régénérer mon programme</h2>
+      <details className="card settings-section">
+        <summary className="settings-summary">Régénérer mon programme</summary>
         <p className="eyebrow">
           Applique tes réglages à jour à ton programme. Une fois par semaine — fais toutes tes modifications avant.
         </p>
@@ -563,7 +545,7 @@ export default function SettingsPage() {
             </button>
           </PremiumGate>
         )}
-      </section>
+      </details>
 
       <div className="bottom-nav-spacer" />
       <BottomNav />

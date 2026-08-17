@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { withResolvedDayOfWeek, withStableDayNumbers, programSchedule } from '../lib/programDays'
+import { computeMacroTargets, sessionsPerWeekFrom, macrosFromSplit } from '../lib/nutrition'
+import { frActivityLabel, activityEmoji } from '../lib/activityLabels'
+import { todayIso } from '../lib/meals'
 import Icon from '../components/onboarding/icons/Icon'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
@@ -55,6 +58,9 @@ export default function DashboardPage() {
   const [goal, setGoal] = useState(null)
   const [sessionCount, setSessionCount] = useState(null)
   const [latestWeight, setLatestWeight] = useState(null)
+  const [todayKcal, setTodayKcal] = useState(0)
+  const [customTarget, setCustomTarget] = useState(null)
+  const [lastActivity, setLastActivity] = useState(null)
   const [setsLoggedByDay, setSetsLoggedByDay] = useState({})
   const [status, setStatus] = useState('loading')
   const [selectedDate, setSelectedDate] = useState(() => new Date())
@@ -95,7 +101,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: profileData }, { data: goalData }, { count }, { data: measurement }] = await Promise.all([
+      const today = todayIso()
+      const [
+        { data: profileData },
+        { data: goalData },
+        { count },
+        { data: measurement },
+        { data: foodToday },
+        { data: nutTarget },
+        { data: activity },
+      ] = await Promise.all([
         supabase.from('user_training_profile').select('*').eq('user_id', user.id).maybeSingle(),
         supabase
           .from('goals')
@@ -113,12 +128,28 @@ export default function DashboardPage() {
           .order('measured_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase.from('food_entries').select('kcal').eq('user_id', user.id).eq('consumed_on', today),
+        supabase
+          .from('nutrition_targets')
+          .select('kcal, protein_pct, carbs_pct, fat_pct')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('wearable_activities')
+          .select('activity_type, started_at, duration_s, distance_m, avg_hr')
+          .eq('user_id', user.id)
+          .order('started_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ])
 
       setTrainingProfile(profileData)
       setGoal(goalData)
       setSessionCount(count ?? 0)
       setLatestWeight(measurement?.weight_kg ?? null)
+      setTodayKcal((foodToday ?? []).reduce((s, e) => s + (Number(e.kcal) || 0), 0))
+      setCustomTarget(nutTarget ?? null)
+      setLastActivity(activity ?? null)
 
       await loadProgram()
       setStatus('idle')
@@ -172,6 +203,17 @@ export default function DashboardPage() {
   if (status === 'loading') return null
 
   const firstName = profile?.full_name?.trim().split(' ')[0] || null
+
+  const computedTarget = computeMacroTargets({
+    sex: profile?.sex,
+    birthDate: profile?.birth_date,
+    heightCm: profile?.height_cm,
+    weightKg: latestWeight,
+    goalType: goal?.goal_type,
+    sessionsPerWeek: sessionsPerWeekFrom(trainingProfile),
+  })
+  const targetKcal = customTarget ? macrosFromSplit(customTarget.kcal, customTarget).kcal : (computedTarget?.kcal ?? null)
+  const kcalPct = targetKcal ? Math.min(100, Math.round((todayKcal / targetKcal) * 100)) : 0
 
   const totalWeeks = program?.structure?.weeks?.length ?? null
   const weekDates = getCurrentWeekDates()
@@ -424,21 +466,42 @@ export default function DashboardPage() {
         </Link>
       )}
 
-      <div className="dashboard-links">
-        <Link to="/program" className="card dashboard-link">
-          <Icon name="dumbbell" size={30} />
-          <h3>Ton programme</h3>
-          <p>Semaines, jours, exercices — ce que tu dois faire aujourd'hui.</p>
+      <div className="dashboard-info">
+        <Link to="/nutrition" className="card info-card">
+          <span className="eyebrow">Nutrition du jour</span>
+          <span className="info-card-value">
+            {Math.round(todayKcal)}
+            {targetKcal ? <span className="info-card-sub"> / {targetKcal}</span> : ''}{' '}
+            <span className="info-card-unit">kcal</span>
+          </span>
+          {targetKcal ? (
+            <div className="info-bar">
+              <div className="info-bar-fill" style={{ width: `${kcalPct}%` }} />
+            </div>
+          ) : (
+            <span className="eyebrow">Définis tes cibles dans Nutrition.</span>
+          )}
         </Link>
-        <Link to="/progress" className="card dashboard-link">
-          <Icon name="run" size={30} />
-          <h3>Ta progression</h3>
-          <p>Mesures dans le temps, séances loggées.</p>
-        </Link>
-        <Link to="/settings" className="card dashboard-link">
-          <Icon name="settings" size={30} />
-          <h3>Réglages</h3>
-          <p>Modifie tes infos, ton objectif et tes préférences.</p>
+
+        <Link to="/progress" className="card info-card">
+          <span className="eyebrow">Dernière activité</span>
+          {lastActivity ? (
+            <>
+              <span className="info-card-value info-card-value-sm">
+                {activityEmoji(lastActivity.activity_type)} {frActivityLabel(lastActivity.activity_type)}
+              </span>
+              <span className="eyebrow">
+                {lastActivity.started_at
+                  ? new Date(lastActivity.started_at).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })
+                  : ''}
+                {lastActivity.duration_s ? ` · ${Math.round(lastActivity.duration_s / 60)} min` : ''}
+                {lastActivity.distance_m ? ` · ${(lastActivity.distance_m / 1000).toFixed(1)} km` : ''}
+                {lastActivity.avg_hr ? ` · ❤️ ${lastActivity.avg_hr}` : ''}
+              </span>
+            </>
+          ) : (
+            <span className="eyebrow">Aucune séance importée. Connecte ta montre dans Réglages.</span>
+          )}
         </Link>
       </div>
 

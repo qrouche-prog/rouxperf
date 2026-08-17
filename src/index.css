@@ -2662,6 +2662,129 @@ button:active,
   color: var(--accent-soft-fg, var(--accent));
 }
 
+/* ---- Réglages repliables ---- */
+details.settings-section > summary.settings-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+details.settings-section > summary.settings-summary::-webkit-details-marker {
+  display: none;
+}
+details.settings-section > summary.settings-summary::after {
+  content: '▾';
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+  flex: none;
+}
+details.settings-section[open] > summary.settings-summary::after {
+  transform: rotate(180deg);
+}
+details.settings-section[open] > summary.settings-summary {
+  margin-bottom: 12px;
+}
+/* Le titre de la section vit dans le summary : on masque le h2 interne des étapes. */
+details.settings-section h2 {
+  display: none;
+}
+
+/* ---- Bouton d'installation dans le menu ---- */
+.install-btn-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.install-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--accent-soft-fg, var(--accent));
+  cursor: pointer;
+  padding: 6px;
+  min-height: 0;
+}
+.install-tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+.install-tip p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.install-tip-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  min-height: 0;
+}
+
+/* ---- Cartes d'info du tableau de bord ---- */
+.dashboard-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 480px) {
+  .dashboard-info {
+    grid-template-columns: 1fr;
+  }
+}
+.info-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-decoration: none;
+  color: var(--text, var(--ink));
+}
+.info-card-value {
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+.info-card-value-sm {
+  font-size: 1.05rem;
+}
+.info-card-sub {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.info-card-unit {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.info-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.info-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
 .settings-premium-link {
   display: flex;
   align-items: center;

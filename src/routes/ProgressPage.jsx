@@ -31,8 +31,8 @@ const MEASUREMENT_FIELDS = [
 export default function ProgressPage() {
   const { user, isPremium } = useAuth()
   const [measurements, setMeasurements] = useState([])
-  const [workoutLogs, setWorkoutLogs] = useState([])
   const [activities, setActivities] = useState([])
+  const [showAllActivities, setShowAllActivities] = useState(false)
   const [insight, setInsight] = useState(null)
   const [insightBusy, setInsightBusy] = useState(false)
   const [insightError, setInsightError] = useState(null)
@@ -90,16 +90,6 @@ export default function ProgressPage() {
     setMeasurements(data ?? [])
   }
 
-  async function loadWorkoutLogs() {
-    const { data } = await supabase
-      .from('workout_logs')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('performed_at', { ascending: false })
-      .limit(10)
-    setWorkoutLogs(data ?? [])
-  }
-
   async function loadNotes() {
     const { data } = await supabase
       .from('workout_log_sets')
@@ -113,7 +103,7 @@ export default function ProgressPage() {
 
   useEffect(() => {
     async function load() {
-      await Promise.all([loadMeasurements(), loadWorkoutLogs(), loadActivities(), loadInsight(), loadNotes()])
+      await Promise.all([loadMeasurements(), loadActivities(), loadInsight(), loadNotes()])
       setStatus('idle')
     }
     load()
@@ -302,7 +292,7 @@ export default function ProgressPage() {
             </div>
           )}
           <ul className="activity-cards">
-            {activities.slice(0, 15).map((a) => (
+            {activities.slice(0, showAllActivities ? 40 : 5).map((a) => (
               <li key={a.id} className="activity-card">
                 <span className="activity-emoji">{activityEmoji(a.activity_type)}</span>
                 <div className="activity-card-body">
@@ -327,6 +317,15 @@ export default function ProgressPage() {
               </li>
             ))}
           </ul>
+          {activities.length > 5 && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowAllActivities((v) => !v)}
+            >
+              {showAllActivities ? 'Afficher moins' : `Afficher plus (${activities.length - 5})`}
+            </button>
+          )}
         </>
       )}
 
@@ -354,21 +353,6 @@ export default function ProgressPage() {
         </>
       )}
 
-      <h2>Séances récentes</h2>
-      {workoutLogs.length === 0 ? (
-        <p>Aucune séance loggée pour l'instant.</p>
-      ) : (
-        <ul className="workout-log-list">
-          {workoutLogs.map((log) => (
-            <li key={log.id}>
-              <span className="eyebrow">{new Date(log.performed_at).toLocaleDateString('fr-CH')}</span>
-              <span>
-                Semaine {log.week_number}, jour {log.day_number}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
 
       {notes.length > 0 && (
         <>

@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import LogoMark from './Logo'
+import InstallButton from './InstallButton'
 
 const LINKS = [
   { to: '/dashboard', label: 'Accueil' },
@@ -41,9 +42,12 @@ export default function TopNav() {
       </nav>
       <div className="top-nav-account">
         {user ? (
-          <button type="button" className="top-nav-link top-nav-signout" onClick={handleSignOut}>
-            Se déconnecter
-          </button>
+          <>
+            <InstallButton />
+            <button type="button" className="top-nav-link top-nav-signout" onClick={handleSignOut}>
+              Se déconnecter
+            </button>
+          </>
         ) : (
           <>
             <Link to="/login" className="top-nav-link">
