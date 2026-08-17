@@ -145,6 +145,62 @@ export default function PremiumPage() {
 
       {error && <p role="alert">{error}</p>}
 
+      {!isPremium && (
+        <p className="eyebrow premium-reassure">
+          Sans engagement · annulable à tout moment · paiement sécurisé par Stripe.
+        </p>
+      )}
+
+      <div className="card">
+        <h2>Gratuit vs Premium</h2>
+        <ul className="premium-compare">
+          <li>
+            <span>Journal alimentaire, recherche &amp; code-barres</span>
+            <span className="premium-compare-free">Gratuit</span>
+          </li>
+          <li>
+            <span>Programme &amp; séances guidées</span>
+            <span className="premium-compare-free">Gratuit</span>
+          </li>
+          <li>
+            <span>Import montre &amp; graphes de progression</span>
+            <span className="premium-compare-free">Gratuit</span>
+          </li>
+          <li>
+            <span>Analyse photo d’un repas → macros</span>
+            <span className="premium-compare-prem">Premium</span>
+          </li>
+          <li>
+            <span>Plans repas générés par l’IA</span>
+            <span className="premium-compare-prem">Premium</span>
+          </li>
+          <li>
+            <span>Analyse IA de ta charge d’entraînement</span>
+            <span className="premium-compare-prem">Premium</span>
+          </li>
+          <li>
+            <span>Ajustement du programme par l’IA</span>
+            <span className="premium-compare-prem">Premium</span>
+          </li>
+        </ul>
+      </div>
+
+      <div className="card">
+        <h2>Questions fréquentes</h2>
+        <details className="premium-faq">
+          <summary>Puis-je annuler quand je veux ?</summary>
+          <p>Oui, depuis « Gérer mon abonnement ». Tu gardes l’accès jusqu’à la fin de la période déjà payée.</p>
+        </details>
+        <details className="premium-faq">
+          <summary>Le renouvellement est-il automatique ?</summary>
+          <p>Oui : ta carte est débitée automatiquement à chaque échéance (mois / 3 mois / an) jusqu’à annulation.</p>
+        </details>
+        <details className="premium-faq">
+          <summary>Le paiement est-il sécurisé ?</summary>
+          <p>Oui, tout est géré par Stripe. Tes données de carte ne sont jamais stockées chez nous.</p>
+        </details>
+      </div>
+
       <div className="bottom-nav-spacer" />
       <BottomNav />
     </main>

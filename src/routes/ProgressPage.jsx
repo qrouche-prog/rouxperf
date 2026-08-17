@@ -10,6 +10,7 @@ import WeeklyHrChart from '../components/progress/WeeklyHrChart'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 import PremiumGate from '../components/PremiumGate'
+import PremiumBanner from '../components/PremiumBanner'
 
 const CHART_METRICS = {
   min: { key: 'min', label: 'Minutes', unit: 'min' },
@@ -191,6 +192,8 @@ export default function ProgressPage() {
     <main>
       <TopNav />
       <h1>Ta progression</h1>
+
+      {!isPremium && <PremiumBanner />}
 
       <MeasurementSummaryRow measurements={measurements} />
 

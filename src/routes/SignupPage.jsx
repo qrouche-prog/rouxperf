@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import GoogleButton from '../components/GoogleButton'
+import AuthHeader from '../components/AuthHeader'
 
 export default function SignupPage() {
   const { signUp } = useAuth()
@@ -39,7 +40,8 @@ export default function SignupPage() {
   }
 
   return (
-    <main>
+    <main className="auth-page">
+      <AuthHeader subtitle="Crée ton compte gratuit — ton coach IA t'attend." />
       <h1>Créer un compte</h1>
       <GoogleButton />
       <p className="auth-divider">ou avec ton email</p>

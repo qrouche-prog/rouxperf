@@ -13,6 +13,7 @@ import { MEALS, MEAL_KEYS, mealKeyFromName, todayIso } from '../lib/meals'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import PremiumGate from '../components/PremiumGate'
+import PremiumBanner from '../components/PremiumBanner'
 import WeeklyKcalChart from '../components/nutrition/WeeklyKcalChart'
 
 function mealTotals(meal) {
@@ -395,6 +396,8 @@ export default function NutritionPage() {
           ›
         </button>
       </div>
+
+      {!isPremium && <PremiumBanner />}
 
       <div className="card">
         {targets ? (

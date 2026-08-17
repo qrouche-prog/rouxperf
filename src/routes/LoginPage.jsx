@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import GoogleButton from '../components/GoogleButton'
+import AuthHeader from '../components/AuthHeader'
 
 export default function LoginPage() {
   const { signIn } = useAuth()
@@ -30,7 +31,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
+    <main className="auth-page">
+      <AuthHeader subtitle="Content de te revoir 👋" />
       <h1>Se connecter</h1>
       {location.state?.justSignedUp && (
         <p>Compte créé. Vérifie tes emails pour confirmer ton adresse, puis connecte-toi.</p>

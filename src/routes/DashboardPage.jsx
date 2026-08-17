@@ -7,6 +7,7 @@ import Icon from '../components/onboarding/icons/Icon'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 import ProgramAdjustment from '../components/ProgramAdjustment'
+import PremiumBanner from '../components/PremiumBanner'
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
@@ -212,15 +213,7 @@ export default function DashboardPage() {
       </p>
       <h1>Tableau de bord</h1>
 
-      {!isPremium && (
-        <Link to="/premium" className="premium-upsell-banner">
-          <span>
-            <strong>⭐ Passe à Premium</strong> — débloque le coach IA : photo repas, plans repas, analyses et
-            ajustements de programme.
-          </span>
-          <span aria-hidden="true">→</span>
-        </Link>
-      )}
+      {!isPremium && <PremiumBanner />}
 
       {program?.status === 'pending_approval' && (
         <p className="situation-disclaimer">

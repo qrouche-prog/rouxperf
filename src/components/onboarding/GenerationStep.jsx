@@ -105,6 +105,14 @@ export default function GenerationStep({ onBack }) {
         quelques secondes — un message t'avertira là-bas dès que ton programme sera prêt.
       </p>
 
+      {!isLoading && (
+        <p className="onboarding-premium-note">
+          💡 Ton programme, tes séances et le journal alimentaire sont <strong>gratuits</strong>. Le Premium débloque
+          les fonctions IA (analyse photo, plans repas, analyses et ajustements) — tu pourras t'y abonner à tout
+          moment.
+        </p>
+      )}
+
       {isLoading && (
         <div>
           <div className="generation-progress-bar">
