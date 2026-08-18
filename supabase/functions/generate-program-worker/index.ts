@@ -618,18 +618,15 @@ ${JSON.stringify(
   2
 )}`
 
-      // Effort adaptatif : "medium" (réflexion plus poussée, plus cohérent) dès
-      // qu'il y a de la course à pied, une situation particulière (pathologie)
-      // ou des blessures ; sinon "low" (rapide, économique). Un override peut
-      // être passé dans le body (effort) pour comparer.
-      const focusAreas = Array.isArray(trainingProfile.focus_areas) ? trainingProfile.focus_areas : []
-      const hasRunning =
-        !!focusAreaPreferences.running || focusAreas.includes('running') || !!trainingProfile.event_details?.trail_km
-      const hasSituation =
-        trainingProfile.special_situation && trainingProfile.special_situation !== 'none'
-      const hasInjuries = !!String(trainingProfile.injuries_limitations ?? '').trim()
-      const autoEffort = hasRunning || hasSituation || hasInjuries ? 'medium' : 'low'
-      const effort = ['low', 'medium', 'high'].includes(forcedEffort) ? forcedEffort : autoEffort
+      // Effort forcé à "low" pour tout le monde : "medium"/"high" avec
+      // réflexion adaptative dépassent la limite d'exécution en arrière-plan
+      // des Edge Functions (waitUntil) et bloquent silencieusement la
+      // génération — testé et confirmé à deux reprises (30min puis 11min sans
+      // log ni erreur, alors que "low" aboutit en ~105s). Un override reste
+      // possible depuis l'admin (forcedEffort) pour tester une fois le
+      // problème de timeout résolu autrement (ex. génération hors Edge
+      // Function).
+      const effort = ['low', 'medium', 'high'].includes(forcedEffort) ? forcedEffort : 'low'
 
       // Plafond 40k : assez pour un bloc de 4 semaines sans troncature.
       const t0 = Date.now()
