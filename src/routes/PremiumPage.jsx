@@ -5,16 +5,38 @@ import { useAuth } from '../context/AuthContext'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 
-// Ordre volontaire : ce qui fait vivre le programme dans la durée d'abord. La
-// modification du profil était jusqu'ici invisible alors que c'est ce qu'on
-// perd de plus concret à la fin de l'essai.
-const BENEFITS = [
-  { icon: '🔄', text: 'Modifie ton profil, ton objectif ou ta situation — ton programme est refait en conséquence' },
-  { icon: '💬', text: 'Demande un ajustement en langage libre, une fois par semaine' },
-  { icon: '📊', text: 'Analyse IA de ta charge d’entraînement, séances et montre comprises' },
-  { icon: '↔️', text: 'Jusqu’à 3 alternatives par exercice, sans limite hebdomadaire' },
-  { icon: '📷', text: 'Photo d’un repas → macros automatiques' },
-  { icon: '🍽️', text: 'Plans de repas générés sur tes cibles' },
+// Le gratuit est un vrai produit : programme structuré, séances, journal,
+// suivi. Premium ne « débloque » donc pas l'app — il l'emmène plus loin, sur
+// trois axes. C'est cette structure qui est montrée, plutôt qu'une liste plate
+// où tout se vaut.
+const BENEFIT_GROUPS = [
+  {
+    title: 'Plus loin',
+    lead: 'Ton programme ne reste pas figé.',
+    items: [
+      { icon: '🔄', text: 'Modifie ton profil, ton objectif ou ta situation — le programme est refait en conséquence' },
+      { icon: '💬', text: 'Demande un ajustement en langage libre, une fois par semaine' },
+      { icon: '♻️', text: 'Régénère entièrement ton programme quand tu repars sur autre chose' },
+    ],
+  },
+  {
+    title: 'Plus personnel',
+    lead: 'Il tient compte de ce qui te concerne, toi.',
+    items: [
+      { icon: '🩹', text: 'Blessure, grossesse, reprise : tu mets ta situation à jour et les séances suivent' },
+      { icon: '📊', text: 'Analyse IA de ta charge d’entraînement, séances et montre comprises' },
+      { icon: '↔️', text: 'Jusqu’à 3 alternatives par exercice, resserrées sur la vraie similarité' },
+    ],
+  },
+  {
+    title: 'Plus simple au quotidien',
+    lead: 'Moins de saisie, moins de décisions à prendre.',
+    items: [
+      { icon: '📷', text: 'Photo d’un repas → macros automatiques' },
+      { icon: '🍽️', text: 'Plans de repas générés sur tes cibles' },
+      { icon: '🧭', text: 'Tu te laisses guider — l’entretien du programme ne repose plus sur toi' },
+    ],
+  },
 ]
 
 const COMPARE = [
@@ -101,19 +123,26 @@ export default function PremiumPage() {
       )}
 
       <div className="card">
-        <p className="eyebrow">Le coach qui travaille dans la durée</p>
-        <ul className="premium-benefits">
-          {BENEFITS.map((b) => (
-            <li key={b.text}>
-              <span className="premium-benefit-icon">{b.icon}</span>
-              <span>{b.text}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="nutrition-disclaimer">
-          En gratuit, tu gardes tes séances, ton journal alimentaire et ton suivi. Ce qui fait <em>évoluer</em> ton
-          programme est ici.
+        <p className="eyebrow">Ce que Premium change</p>
+        <p className="premium-lead">
+          Le gratuit te donne un programme structuré et personnalisé, les séances guidées, le journal alimentaire
+          et ton suivi — pour de bon. Premium emmène tout ça nettement plus loin.
         </p>
+
+        {BENEFIT_GROUPS.map((g) => (
+          <div key={g.title} className="premium-group">
+            <h3 className="premium-group-title">{g.title}</h3>
+            <p className="premium-group-lead">{g.lead}</p>
+            <ul className="premium-benefits">
+              {g.items.map((b) => (
+                <li key={b.text}>
+                  <span className="premium-benefit-icon">{b.icon}</span>
+                  <span>{b.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
 
       {isSubscribed ? (

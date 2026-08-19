@@ -2361,6 +2361,36 @@ button:active,
   color: var(--text-muted);
 }
 
+.premium-lead {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+/* Les trois axes de la promesse Premium. Le filet supérieur les sépare sans
+   ajouter d'encadré : la carte porte déjà une bordure. */
+.premium-group {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.premium-group-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 500;
+}
+
+.premium-group-lead {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.premium-group .premium-benefits {
+  margin-top: 10px;
+}
+
 .premium-benefits {
   list-style: none;
   margin: 8px 0 0;

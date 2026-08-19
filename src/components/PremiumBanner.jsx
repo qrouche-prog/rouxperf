@@ -25,8 +25,8 @@ export default function PremiumBanner() {
   return (
     <Link to="/premium" className="premium-upsell-banner">
       <span>
-        <strong>⭐ Fais évoluer ton programme</strong> — modifie ton profil, demande un ajustement, laisse l'IA lire
-        ta charge d'entraînement.
+        <strong>⭐ Va plus loin avec Premium</strong> — un programme qui s'adapte quand ta situation change, plus
+        l'analyse de ta charge et la nutrition par l'IA.
       </span>
       <span aria-hidden="true">→</span>
     </Link>

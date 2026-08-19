@@ -107,9 +107,9 @@ export default function GenerationStep({ onBack }) {
 
       {!isLoading && (
         <p className="onboarding-premium-note">
-          💡 Tu démarres avec <strong>7 jours en Premium complet</strong>, sans carte bancaire — le coach au
-          complet : ajuster ton programme quand ta situation change, analyse de ta charge d'entraînement, photo
-          repas, plans de repas. Ensuite, tu décides si tu continues.
+          💡 Ton programme, tes séances et le journal alimentaire sont <strong>gratuits, sans limite de durée</strong>.
+          Et tu démarres avec <strong>7 jours en Premium complet</strong>, sans carte bancaire : ajustements par
+          l'IA, analyse de ta charge, photo des repas, plans de repas. Ensuite, tu décides si tu continues.
         </p>
       )}
 

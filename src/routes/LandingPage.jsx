@@ -42,12 +42,12 @@ export default function LandingPage() {
           rou<span className="landing-x">X</span>perf
         </h1>
         <p className="landing-tagline">
-          Un coach qui construit ton programme d’entraînement, comprend ta situation et le fait évoluer avec toi.
-          7 jours en Premium complet à l’inscription, sans carte bancaire.
+          Un programme d’entraînement structuré et personnalisé, construit sur ta situation — gratuit. Et 7 jours
+          en Premium complet à l’inscription, sans carte bancaire.
         </p>
         <div className="landing-cta">
           <Link to="/signup" className="btn-primary">
-            Essayer 7 jours
+            Commencer gratuitement
           </Link>
           <Link to="/login" className="btn-secondary">
             Se connecter
@@ -69,16 +69,15 @@ export default function LandingPage() {
       </section>
 
       <section className="landing-section">
-        <h2>7 jours en Premium complet, puis tu décides</h2>
+        <h2>Gratuit pour de bon. Premium pour aller plus loin.</h2>
         <p className="landing-free-note">
-          Dès l’inscription, tu as accès à tout pendant 7 jours — <strong>sans carte bancaire</strong>. De quoi te
-          faire un vrai avis : les ajustements, l’analyse de ta charge d’entraînement, la photo repas, les plans
-          de repas.
+          Le gratuit n’est pas une démo : tu gardes un programme structuré et personnalisé, les séances guidées,
+          le journal alimentaire et ton suivi — mesures, montre connectée, graphes. Sans limite de durée.
         </p>
         <p className="landing-free-note">
-          Ensuite, le gratuit te laisse continuer tes séances, ton journal alimentaire et ton suivi — mesures,
-          montre connectée, graphes. Mais <strong>faire évoluer ton programme</strong> — modifier ton profil, demander
-          un ajustement, le régénérer — fait partie du Premium. C’est là que le coach travaille vraiment.
+          <strong>Premium va nettement plus loin</strong> : ton programme s’adapte quand ta situation change au lieu
+          de rester figé, l’IA lit ta charge d’entraînement et tes repas en photo, et le quotidien demande moins de
+          saisie et moins de décisions. Les 7 premiers jours te le montrent en entier, sans carte bancaire.
         </p>
         <div className="landing-plans">
           {PLANS.map((p) => (
