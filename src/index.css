@@ -235,6 +235,31 @@ a.btn-primary {
   border: 1px solid transparent;
 }
 
+/* Bouton secondaire. Sur un <button>, le style de base suffisait déjà ; sur un
+   <a> il ne s'appliquait pas — d'où des liens « secondaires » sans habillage
+   (landing). Cette règle couvre les deux. */
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border-strong, var(--border));
+  color: var(--text);
+}
+
+a.btn-secondary {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 11px 20px;
+  border-radius: 3px;
+}
+
+.btn-secondary:hover {
+  background: var(--surface-hover, transparent);
+}
+
 [role='alert'] {
   color: var(--error);
   font-size: 0.9em;
@@ -2556,7 +2581,10 @@ button:active,
   color: var(--text-muted);
   margin-left: 3px;
 }
-.landing-plans-cta {
+/* Sélecteur volontairement aussi spécifique que a.btn-primary / a.btn-secondary,
+   qui posent display:inline-block et empêcheraient sinon le centrage. */
+a.btn-primary.landing-plans-cta,
+a.btn-secondary.landing-plans-cta {
   display: block;
   max-width: 300px;
   margin: 22px auto 0;
@@ -2604,33 +2632,50 @@ button:active,
   text-align: center;
   margin: 4px 0 16px;
 }
-.premium-compare {
+/* Comparatif à trois colonnes. L'ancienne version n'avait qu'une valeur par
+   ligne (« Gratuit » ou « Premium »), ce qui ne pouvait pas dire les cas
+   nuancés — les alternatives d'exercice existent des deux côtés, à des
+   niveaux différents. Les libellés de valeur sont volontairement courts :
+   la grille doit tenir sur un écran de téléphone. */
+.premium-table {
   list-style: none;
   margin: 8px 0 0;
   padding: 0;
 }
-.premium-compare li {
-  display: flex;
+.premium-table li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.75rem 4.5rem;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
+  gap: 6px;
+  padding: 9px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
 }
-.premium-compare li:last-child {
+.premium-table li:last-child {
   border-bottom: none;
 }
-.premium-compare-free {
-  flex: none;
+.premium-table-head {
   color: var(--text-muted);
   font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
-.premium-compare-prem {
-  flex: none;
-  color: var(--accent-soft-fg, var(--accent));
+.premium-table-free,
+.premium-table-prem {
   font-size: var(--text-xs);
+  text-align: right;
+}
+.premium-table-free {
+  color: var(--text-muted);
+}
+.premium-table-prem {
+  color: var(--accent-soft-fg, var(--accent));
   font-weight: 500;
+}
+.premium-table-note {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 .premium-faq {
   border-bottom: 1px solid var(--border);

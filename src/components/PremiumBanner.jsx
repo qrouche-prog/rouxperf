@@ -15,7 +15,7 @@ export default function PremiumBanner() {
           <strong>
             ⏳ Essai Premium — {trialDaysLeft} jour{trialDaysLeft > 1 ? 's' : ''} restant{trialDaysLeft > 1 ? 's' : ''}
           </strong>{' '}
-          — abonne-toi pour ne rien perdre : photo repas, plans repas, analyses et ajustements de programme.
+          — choisis un plan pour que ton programme continue d'évoluer avec toi.
         </span>
         <span aria-hidden="true">→</span>
       </Link>
@@ -25,8 +25,8 @@ export default function PremiumBanner() {
   return (
     <Link to="/premium" className="premium-upsell-banner">
       <span>
-        <strong>⭐ Passe à Premium</strong> — débloque le coach IA : photo repas, plans repas, analyses et
-        ajustements de programme.
+        <strong>⭐ Fais évoluer ton programme</strong> — modifie ton profil, demande un ajustement, laisse l'IA lire
+        ta charge d'entraînement.
       </span>
       <span aria-hidden="true">→</span>
     </Link>

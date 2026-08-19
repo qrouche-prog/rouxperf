@@ -1,10 +1,30 @@
 import { Link } from 'react-router-dom'
 
-const FEATURES = [
-  { icon: '🏋️', title: 'Programme sur-mesure', text: "Un plan d'entraînement généré par l'IA selon ton objectif, ton matériel et ton niveau — musculation, perte de poids, course…" },
-  { icon: '🥗', title: 'Nutrition complète', text: 'Journal par repas, recherche d’aliments, scan code-barres, cibles de macros, et plans repas générés par l’IA.' },
-  { icon: '📲', title: 'Séances guidées', text: 'Chrono de repos et d’effort, suivi série par série, alternatives d’exercices, notes personnelles.' },
-  { icon: '⌚', title: 'Montre connectée', text: 'Importe tes séances (intervals.icu), visualise ta charge et laisse l’IA analyser tes tendances.' },
+// Positionnement : rouXperf est un coach IA de performance, pas une app
+// gratuite avec des options payantes. Les piliers ci-dessous décrivent donc ce
+// que fait le coach dans la durée — en particulier le fait que le programme
+// évolue avec l'utilisateur — plutôt qu'une liste de fonctionnalités.
+const PILLARS = [
+  {
+    icon: '🎯',
+    title: 'Il part de ta situation',
+    text: "Objectif, niveau, matériel, blessure ou situation particulière : ton programme se construit sur ce que tu lui dis. Pas un modèle qu'on ressort à tout le monde.",
+  },
+  {
+    icon: '🔄',
+    title: 'Il évolue avec toi',
+    text: "Ton objectif change, une douleur apparaît, tu n'as plus la même salle ? Tu mets ton profil à jour et ton programme est refait en conséquence. Un plan figé ne sert que les premières semaines.",
+  },
+  {
+    icon: '💬',
+    title: 'Tu lui parles normalement',
+    text: "« J'ai mal à l'épaule au développé », « je veux plus de cardio » : tu écris ce que tu veux changer, il reconstruit les séances autour. Une demande par semaine.",
+  },
+  {
+    icon: '🥗',
+    title: 'La nutrition suit',
+    text: "Photo d'un repas pour en tirer les macros, plans de repas calés sur tes cibles, journal complet avec recherche et code-barres.",
+  },
 ]
 
 const PLANS = [
@@ -17,17 +37,17 @@ export default function LandingPage() {
   return (
     <main className="landing">
       <header className="landing-hero">
-        <p className="eyebrow">Coach sportif &amp; nutrition · IA · Suisse</p>
+        <p className="eyebrow">Coach IA de performance · Suisse</p>
         <h1 className="landing-title">
           rou<span className="landing-x">X</span>perf
         </h1>
         <p className="landing-tagline">
-          Ton coach sportif et nutrition, personnalisé par l’intelligence artificielle. 7 jours d’essai Premium
-          offerts, sans carte bancaire.
+          Un coach qui construit ton programme d’entraînement, comprend ta situation et le fait évoluer avec toi.
+          7 jours en Premium complet à l’inscription, sans carte bancaire.
         </p>
         <div className="landing-cta">
           <Link to="/signup" className="btn-primary">
-            Commencer gratuitement
+            Essayer 7 jours
           </Link>
           <Link to="/login" className="btn-secondary">
             Se connecter
@@ -36,25 +56,29 @@ export default function LandingPage() {
       </header>
 
       <section className="landing-section">
-        <h2>Tout pour progresser, au même endroit</h2>
+        <h2>Ce que fait ton coach</h2>
         <div className="landing-features">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="landing-feature">
-              <span className="landing-feature-icon">{f.icon}</span>
-              <strong>{f.title}</strong>
-              <p>{f.text}</p>
+          {PILLARS.map((p) => (
+            <div key={p.title} className="landing-feature">
+              <span className="landing-feature-icon">{p.icon}</span>
+              <strong>{p.title}</strong>
+              <p>{p.text}</p>
             </div>
           ))}
         </div>
       </section>
 
       <section className="landing-section">
-        <h2>7 jours d’essai Premium, puis à toi de choisir</h2>
+        <h2>7 jours en Premium complet, puis tu décides</h2>
         <p className="landing-free-note">
-          Dès l’inscription, profite de <strong>7 jours d’essai Premium complet</strong> — sans carte bancaire :
-          analyse photo, plans repas, analyses et ajustements par l’IA. Le journal, la recherche d’aliments, ton
-          programme et les séances guidées restent <strong>gratuits</strong> ensuite ; abonne-toi quand tu veux pour
-          garder les fonctions IA.
+          Dès l’inscription, tu as accès à tout pendant 7 jours — <strong>sans carte bancaire</strong>. De quoi te
+          faire un vrai avis : les ajustements, l’analyse de ta charge d’entraînement, la photo repas, les plans
+          de repas.
+        </p>
+        <p className="landing-free-note">
+          Ensuite, le gratuit te laisse continuer tes séances, ton journal alimentaire et ton suivi — mesures,
+          montre connectée, graphes. Mais <strong>faire évoluer ton programme</strong> — modifier ton profil, demander
+          un ajustement, le régénérer — fait partie du Premium. C’est là que le coach travaille vraiment.
         </p>
         <div className="landing-plans">
           {PLANS.map((p) => (
@@ -69,10 +93,13 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
-        <Link to="/signup" className="btn-primary landing-plans-cta">
+        {/* Secondaire : le primaire de l'écran est le CTA du hero. */}
+        <Link to="/signup" className="btn-secondary landing-plans-cta">
           Créer mon compte
         </Link>
-        <p className="eyebrow landing-reassure">Sans engagement · annulable à tout moment · paiement sécurisé Stripe.</p>
+        <p className="eyebrow landing-reassure">
+          Sans engagement · annulable à tout moment · paiement sécurisé Stripe.
+        </p>
       </section>
 
       <footer className="landing-foot">

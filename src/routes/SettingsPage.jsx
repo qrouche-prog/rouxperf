@@ -277,7 +277,8 @@ export default function SettingsPage() {
           node
         ) : (
           <p className="eyebrow">
-            Modifier ces réglages est réservé aux membres Premium. <Link to="/premium">Passer Premium →</Link>
+            C’est ici que ton programme s’adapte quand ta situation change — réservé aux membres Premium.{' '}
+            <Link to="/premium">Découvrir Premium →</Link>
           </p>
         )}
         {savedSection === id && <p className="settings-saved">Enregistré ✓</p>}
@@ -349,8 +350,8 @@ export default function SettingsPage() {
             {isSubscribed
               ? 'Gérer mon abonnement'
               : isTrialing
-                ? 'Choisir un plan pour garder l’accès'
-                : 'Débloque les fonctions IA (analyse photo, plans repas, analyses)'}
+                ? 'Choisir un plan pour que ton programme continue d’évoluer'
+                : 'Modifier ton profil, ajuster ton programme, analyser ta charge'}
           </span>
         </span>
         <span aria-hidden="true">→</span>

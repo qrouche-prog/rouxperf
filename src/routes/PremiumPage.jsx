@@ -5,11 +5,29 @@ import { useAuth } from '../context/AuthContext'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 
+// Ordre volontaire : ce qui fait vivre le programme dans la durée d'abord. La
+// modification du profil était jusqu'ici invisible alors que c'est ce qu'on
+// perd de plus concret à la fin de l'essai.
 const BENEFITS = [
-  { icon: '📷', text: 'Analyse photo de tes repas → macros automatiques' },
-  { icon: '🍽️', text: 'Génération de plans repas calés sur tes cibles' },
-  { icon: '📊', text: 'Analyse IA de ta charge d’entraînement' },
-  { icon: '⌚', text: 'Lecture intelligente de tes données de montre' },
+  { icon: '🔄', text: 'Modifie ton profil, ton objectif ou ta situation — ton programme est refait en conséquence' },
+  { icon: '💬', text: 'Demande un ajustement en langage libre, une fois par semaine' },
+  { icon: '📊', text: 'Analyse IA de ta charge d’entraînement, séances et montre comprises' },
+  { icon: '↔️', text: 'Jusqu’à 3 alternatives par exercice, sans limite hebdomadaire' },
+  { icon: '📷', text: 'Photo d’un repas → macros automatiques' },
+  { icon: '🍽️', text: 'Plans de repas générés sur tes cibles' },
+]
+
+const COMPARE = [
+  { label: 'Programme initial et séances guidées', free: 'Inclus', prem: 'Inclus' },
+  { label: 'Journal alimentaire, recherche, code-barres', free: 'Inclus', prem: 'Inclus' },
+  { label: 'Mesures, montre connectée, graphes', free: 'Inclus', prem: 'Inclus' },
+  { label: 'Alternatives d’exercice', free: '1×/sem.', prem: 'Jusqu’à 3' },
+  { label: 'Modifier profil, objectif, situation', free: '—', prem: 'Inclus' },
+  { label: 'Ajustement du programme en langage libre', free: '—', prem: '1×/sem.' },
+  { label: 'Régénérer entièrement le programme', free: '—', prem: '1×/sem.' },
+  { label: 'Analyse IA de la charge d’entraînement', free: '—', prem: 'Inclus' },
+  { label: 'Photo d’un repas → macros', free: '—', prem: 'Inclus' },
+  { label: 'Plans de repas par l’IA', free: '—', prem: 'Inclus' },
 ]
 
 export default function PremiumPage() {
@@ -69,19 +87,21 @@ export default function PremiumPage() {
       <h1>Premium</h1>
 
       {returnStatus === 'success' && (
-        <p className="generation-ready-banner">🎉 Bienvenue dans Premium ! Tes fonctions IA sont débloquées.</p>
+        <p className="generation-ready-banner">
+          🎉 Bienvenue dans Premium — ton coach peut maintenant faire évoluer ton programme avec toi.
+        </p>
       )}
       {returnStatus === 'cancel' && <p className="eyebrow">Paiement annulé — tu peux réessayer quand tu veux.</p>}
 
       {isTrialing && !isSubscribed && (
         <p className="generation-ready-banner">
           ⏳ Ton essai Premium se termine dans {trialDaysLeft} jour{trialDaysLeft > 1 ? 's' : ''} — choisis un plan
-          ci-dessous pour garder l'accès sans interruption.
+          ci-dessous pour que ton programme continue d’évoluer avec toi.
         </p>
       )}
 
       <div className="card">
-        <p className="eyebrow">Ce que débloque Premium</p>
+        <p className="eyebrow">Le coach qui travaille dans la durée</p>
         <ul className="premium-benefits">
           {BENEFITS.map((b) => (
             <li key={b.text}>
@@ -91,7 +111,8 @@ export default function PremiumPage() {
           ))}
         </ul>
         <p className="nutrition-disclaimer">
-          Tout le reste (journal, recherche d’aliments, code-barres, programme, séances, graphes) reste gratuit.
+          En gratuit, tu gardes tes séances, ton journal alimentaire et ton suivi. Ce qui fait <em>évoluer</em> ton
+          programme est ici.
         </p>
       </div>
 
@@ -160,40 +181,59 @@ export default function PremiumPage() {
 
       <div className="card">
         <h2>Gratuit vs Premium</h2>
-        <ul className="premium-compare">
-          <li>
-            <span>Journal alimentaire, recherche &amp; code-barres</span>
-            <span className="premium-compare-free">Gratuit</span>
+        <ul className="premium-table">
+          <li className="premium-table-head">
+            <span>Fonction</span>
+            <span className="premium-table-free">Gratuit</span>
+            <span className="premium-table-prem">Premium</span>
           </li>
-          <li>
-            <span>Programme &amp; séances guidées</span>
-            <span className="premium-compare-free">Gratuit</span>
-          </li>
-          <li>
-            <span>Import montre &amp; graphes de progression</span>
-            <span className="premium-compare-free">Gratuit</span>
-          </li>
-          <li>
-            <span>Analyse photo d’un repas → macros</span>
-            <span className="premium-compare-prem">Premium</span>
-          </li>
-          <li>
-            <span>Plans repas générés par l’IA</span>
-            <span className="premium-compare-prem">Premium</span>
-          </li>
-          <li>
-            <span>Analyse IA de ta charge d’entraînement</span>
-            <span className="premium-compare-prem">Premium</span>
-          </li>
-          <li>
-            <span>Ajustement du programme par l’IA</span>
-            <span className="premium-compare-prem">Premium</span>
-          </li>
+          {COMPARE.map((row) => (
+            <li key={row.label}>
+              <span>{row.label}</span>
+              <span className="premium-table-free">{row.free}</span>
+              <span className="premium-table-prem">{row.prem}</span>
+            </li>
+          ))}
         </ul>
+        <p className="premium-table-note">
+          L’ajustement et la régénération partagent le même quota : une demande tous les 7 jours. Pendant l’essai,
+          tout est au niveau Premium.
+        </p>
       </div>
 
       <div className="card">
         <h2>Questions fréquentes</h2>
+        <details className="premium-faq">
+          <summary>Que se passe-t-il au bout des 7 jours si je ne choisis rien ?</summary>
+          <p>
+            Rien n’est débité — tu n’as donné aucune carte. Ton compte repasse simplement en gratuit. Tu gardes
+            l’accès à ton programme en cours, à tes séances guidées, à ton journal alimentaire et à ton suivi. Ce
+            que tu perds, c’est la capacité à faire évoluer ce programme : modifier ton profil ou ton objectif,
+            demander un ajustement, le régénérer — ainsi que l’analyse de charge et les fonctions nutrition par
+            l’IA.
+          </p>
+        </details>
+        <details className="premium-faq">
+          <summary>Faut-il une carte bancaire pour l’essai ?</summary>
+          <p>Non. L’essai démarre à la création de ton compte et s’arrête tout seul. Aucun moyen de paiement n’est demandé.</p>
+        </details>
+        <details className="premium-faq">
+          <summary>Pourquoi un seul ajustement par semaine ?</summary>
+          <p>
+            L’ajustement en langage libre et la régénération complète partagent le même quota : une demande tous
+            les 7 jours. Modifier ton profil, lui, n’est pas limité — c’est la sollicitation de l’IA qui l’est.
+            C’est volontaire : un programme qu’on refait tous les jours n’est plus un programme, et la progression
+            se juge sur des semaines.
+          </p>
+        </details>
+        <details className="premium-faq">
+          <summary>Et les alternatives d’exercice ?</summary>
+          <p>
+            En gratuit, tu peux essayer une alternative vraiment proche d’un exercice, une fois par semaine — de
+            quoi voir à quoi ça ressemble. En Premium, tu as jusqu’à 3 propositions par exercice, resserrées sur la
+            vraie similarité, sans limite de fréquence.
+          </p>
+        </details>
         <details className="premium-faq">
           <summary>Puis-je annuler quand je veux ?</summary>
           <p>Oui, depuis « Gérer mon abonnement ». Tu gardes l’accès jusqu’à la fin de la période déjà payée.</p>
