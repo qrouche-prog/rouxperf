@@ -255,7 +255,7 @@ export default function DashboardPage() {
       </p>
       <h1>Tableau de bord</h1>
 
-      {!isPremium && <PremiumBanner />}
+      <PremiumBanner />
 
       {program?.status === 'pending_approval' && (
         <p className="situation-disclaimer">

@@ -13,7 +13,7 @@ const BENEFITS = [
 ]
 
 export default function PremiumPage() {
-  const { isPremium, subscription, refreshProfile } = useAuth()
+  const { isSubscribed, isTrialing, trialDaysLeft, subscription, refreshProfile } = useAuth()
   const [params] = useSearchParams()
   const [busy, setBusy] = useState(null) // 'monthly' | 'annual' | 'portal'
   const [error, setError] = useState(null)
@@ -73,6 +73,13 @@ export default function PremiumPage() {
       )}
       {returnStatus === 'cancel' && <p className="eyebrow">Paiement annulé — tu peux réessayer quand tu veux.</p>}
 
+      {isTrialing && !isSubscribed && (
+        <p className="generation-ready-banner">
+          ⏳ Ton essai Premium se termine dans {trialDaysLeft} jour{trialDaysLeft > 1 ? 's' : ''} — choisis un plan
+          ci-dessous pour garder l'accès sans interruption.
+        </p>
+      )}
+
       <div className="card">
         <p className="eyebrow">Ce que débloque Premium</p>
         <ul className="premium-benefits">
@@ -88,7 +95,7 @@ export default function PremiumPage() {
         </p>
       </div>
 
-      {isPremium ? (
+      {isSubscribed ? (
         <div className="card">
           <p>
             <strong>Tu es membre Premium.</strong>
@@ -145,7 +152,7 @@ export default function PremiumPage() {
 
       {error && <p role="alert">{error}</p>}
 
-      {!isPremium && (
+      {!isSubscribed && (
         <p className="eyebrow premium-reassure">
           Sans engagement · annulable à tout moment · paiement sécurisé par Stripe.
         </p>

@@ -3,12 +3,27 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(undefined)
 
-// Premium actif = abonnement 'premium', statut vivant, période non expirée.
+// Essai Premium offert à tous les nouveaux comptes : 7 jours complets dès la
+// création du profil, sans carte bancaire. Passé ce délai, l'utilisateur
+// retombe automatiquement sur son statut réel (abonné ou gratuit).
+const TRIAL_DAYS = 7
+const TRIAL_MS = TRIAL_DAYS * 86400000
+
+// Premium payant = abonnement 'premium', statut vivant, période non expirée.
 function computeIsPremium(sub) {
   if (!sub || sub.tier !== 'premium') return false
   if (sub.status && !['active', 'trialing'].includes(sub.status)) return false
   if (sub.current_period_end && new Date(sub.current_period_end) < new Date()) return false
   return true
+}
+
+function computeTrial(profileCreatedAt) {
+  if (!profileCreatedAt) return { isTrialing: false, trialEndsAt: null, trialDaysLeft: 0 }
+  const trialEndsAt = new Date(new Date(profileCreatedAt).getTime() + TRIAL_MS)
+  const msLeft = trialEndsAt.getTime() - Date.now()
+  const isTrialing = msLeft > 0
+  const trialDaysLeft = isTrialing ? Math.max(1, Math.ceil(msLeft / 86400000)) : 0
+  return { isTrialing, trialEndsAt, trialDaysLeft }
 }
 
 export function AuthProvider({ children }) {
@@ -54,6 +69,9 @@ export function AuthProvider({ children }) {
     return () => subscription.subscription.unsubscribe()
   }, [])
 
+  const isSubscribed = computeIsPremium(subscription)
+  const trial = computeTrial(profile?.created_at)
+
   const value = {
     session,
     user: session?.user ?? null,
@@ -61,7 +79,14 @@ export function AuthProvider({ children }) {
     profile,
     profileLoading,
     subscription,
-    isPremium: computeIsPremium(subscription),
+    // Premium payant OU dans les 7 jours d'essai gratuit — c'est ce booléen
+    // que tous les gates (PremiumGate, ExerciseAlternatives, Réglages…)
+    // consomment déjà, donc l'essai s'applique automatiquement partout.
+    isPremium: isSubscribed || trial.isTrialing,
+    isSubscribed,
+    isTrialing: trial.isTrialing,
+    trialDaysLeft: trial.trialDaysLeft,
+    trialEndsAt: trial.trialEndsAt,
     refreshProfile: () => refreshProfile(session?.user?.id),
     signUp: (email, password) => supabase.auth.signUp({ email, password }),
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),

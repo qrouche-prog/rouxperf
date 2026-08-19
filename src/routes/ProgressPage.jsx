@@ -183,7 +183,7 @@ export default function ProgressPage() {
       <TopNav />
       <h1>Ta progression</h1>
 
-      {!isPremium && <PremiumBanner />}
+      <PremiumBanner />
 
       <MeasurementSummaryRow measurements={measurements} />
 

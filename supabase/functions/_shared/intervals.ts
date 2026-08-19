@@ -13,19 +13,31 @@ export function serviceClient(): SupabaseClient {
   return createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 }
 
-// Vérifie côté serveur qu'un utilisateur a un abonnement Premium actif.
-// Garde-fou pour les fonctions qui consomment des crédits IA : le grisage
-// côté client ne suffit pas (un JWT valide pourrait appeler la fonction).
+// Essai Premium offert à tous les nouveaux comptes : 7 jours dès la création
+// du profil (dupliqué volontairement depuis AuthContext.jsx — pas de module
+// partageable entre le frontend et les Edge Functions Deno).
+const TRIAL_DAYS = 7
+
+// Vérifie côté serveur qu'un utilisateur a un accès Premium actif (abonnement
+// payant OU dans les 7 jours d'essai gratuit). Garde-fou pour les fonctions
+// qui consomment des crédits IA : le grisage côté client ne suffit pas (un
+// JWT valide pourrait appeler la fonction).
 export async function isPremium(supabase: SupabaseClient, userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('subscriptions')
-    .select('tier, status, current_period_end')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (!data || data.tier !== 'premium') return false
-  if (data.status && !['active', 'trialing'].includes(data.status)) return false
-  if (data.current_period_end && new Date(data.current_period_end) < new Date()) return false
-  return true
+  const [{ data: sub }, { data: profile }] = await Promise.all([
+    supabase.from('subscriptions').select('tier, status, current_period_end').eq('user_id', userId).maybeSingle(),
+    supabase.from('profiles').select('created_at').eq('user_id', userId).maybeSingle(),
+  ])
+  const subscribed =
+    !!sub &&
+    sub.tier === 'premium' &&
+    (!sub.status || ['active', 'trialing'].includes(sub.status)) &&
+    (!sub.current_period_end || new Date(sub.current_period_end) >= new Date())
+  if (subscribed) return true
+  if (profile?.created_at) {
+    const trialEnd = new Date(new Date(profile.created_at).getTime() + TRIAL_DAYS * 86400000)
+    if (trialEnd > new Date()) return true
+  }
+  return false
 }
 
 export async function getUserId(req: Request): Promise<string | null> {

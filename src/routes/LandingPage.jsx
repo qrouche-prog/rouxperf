@@ -22,7 +22,8 @@ export default function LandingPage() {
           rou<span className="landing-x">X</span>perf
         </h1>
         <p className="landing-tagline">
-          Ton coach sportif et nutrition, personnalisé par l’intelligence artificielle. Gratuit pour commencer.
+          Ton coach sportif et nutrition, personnalisé par l’intelligence artificielle. 7 jours d’essai Premium
+          offerts, sans carte bancaire.
         </p>
         <div className="landing-cta">
           <Link to="/signup" className="btn-primary">
@@ -48,10 +49,12 @@ export default function LandingPage() {
       </section>
 
       <section className="landing-section">
-        <h2>Gratuit, puis Premium quand tu veux</h2>
+        <h2>7 jours d’essai Premium, puis à toi de choisir</h2>
         <p className="landing-free-note">
-          Le journal, la recherche d’aliments, ton programme et les séances guidées sont <strong>gratuits</strong>. Le
-          Premium débloque les fonctions IA (photo repas, plans repas, analyses, ajustements).
+          Dès l’inscription, profite de <strong>7 jours d’essai Premium complet</strong> — sans carte bancaire :
+          analyse photo, plans repas, analyses et ajustements par l’IA. Le journal, la recherche d’aliments, ton
+          programme et les séances guidées restent <strong>gratuits</strong> ensuite ; abonne-toi quand tu veux pour
+          garder les fonctions IA.
         </p>
         <div className="landing-plans">
           {PLANS.map((p) => (

@@ -16,7 +16,7 @@ import { parseActivityFile } from '../lib/activityFiles'
 import { frActivityLabel } from '../lib/activityLabels'
 
 export default function SettingsPage() {
-  const { user, isPremium } = useAuth()
+  const { user, isPremium, isSubscribed, isTrialing, trialDaysLeft } = useAuth()
   const [lastAdjustAt, setLastAdjustAt] = useState(null)
   const [regenBusy, setRegenBusy] = useState(false)
   const [regenMsg, setRegenMsg] = useState(null)
@@ -338,9 +338,19 @@ export default function SettingsPage() {
 
       <Link to="/premium" className="card settings-premium-link">
         <span>
-          <strong>{isPremium ? 'Membre Premium' : 'Passer Premium'}</strong>
+          <strong>
+            {isSubscribed
+              ? 'Membre Premium'
+              : isTrialing
+                ? `Essai Premium — ${trialDaysLeft} j restant${trialDaysLeft > 1 ? 's' : ''}`
+                : 'Passer Premium'}
+          </strong>
           <span className="eyebrow">
-            {isPremium ? 'Gérer mon abonnement' : 'Débloque les fonctions IA (analyse photo, plans repas, analyses)'}
+            {isSubscribed
+              ? 'Gérer mon abonnement'
+              : isTrialing
+                ? 'Choisir un plan pour garder l’accès'
+                : 'Débloque les fonctions IA (analyse photo, plans repas, analyses)'}
           </span>
         </span>
         <span aria-hidden="true">→</span>

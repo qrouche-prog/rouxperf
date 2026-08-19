@@ -107,9 +107,9 @@ export default function GenerationStep({ onBack }) {
 
       {!isLoading && (
         <p className="onboarding-premium-note">
-          💡 Ton programme, tes séances et le journal alimentaire sont <strong>gratuits</strong>. Le Premium débloque
-          les fonctions IA (analyse photo, plans repas, analyses et ajustements) — tu pourras t'y abonner à tout
-          moment.
+          💡 Ton programme, tes séances et le journal alimentaire sont <strong>gratuits</strong>, et tu profites de{' '}
+          <strong>7 jours d'essai Premium</strong> dès maintenant, sans carte bancaire : analyse photo, plans repas,
+          analyses et ajustements de programme par l'IA. Tu pourras t'abonner à tout moment pour garder l'accès.
         </p>
       )}
 

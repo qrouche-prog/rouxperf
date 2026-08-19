@@ -397,7 +397,7 @@ export default function NutritionPage() {
         </button>
       </div>
 
-      {!isPremium && <PremiumBanner />}
+      <PremiumBanner />
 
       <div className="card">
         {targets ? (
