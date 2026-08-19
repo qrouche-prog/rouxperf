@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { withResolvedDayOfWeek, withStableDayNumbers, programSchedule } from '../lib/programDays'
-import { alternativesFor } from '../lib/equipment'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
-import PremiumGate from '../components/PremiumGate'
+import ExerciseAlternatives from '../components/ExerciseAlternatives'
 
 const SITUATION_LABELS = {
   pregnant: 'grossesse',
@@ -34,7 +33,7 @@ function dayLabel(day, date) {
 }
 
 export default function ProgramPage() {
-  const { user, isPremium } = useAuth()
+  const { user } = useAuth()
   const [program, setProgram] = useState(null)
   const [specialSituation, setSpecialSituation] = useState(null)
   const [preferredDays, setPreferredDays] = useState([])
@@ -42,7 +41,6 @@ export default function ProgramPage() {
   const [exercisesById, setExercisesById] = useState({})
   const [equipmentAccess, setEquipmentAccess] = useState('bodyweight')
   const [expandedDay, setExpandedDay] = useState(null)
-  const [altsKey, setAltsKey] = useState(null)
   const [swapping, setSwapping] = useState(false)
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
@@ -301,10 +299,7 @@ export default function ProgramPage() {
                 <button
                   type="button"
                   className="program-day-expand"
-                  onClick={() => {
-                    setExpandedDay(expandedDay === dayKey ? null : dayKey)
-                    setAltsKey(null)
-                  }}
+                  onClick={() => setExpandedDay(expandedDay === dayKey ? null : dayKey)}
                 >
                   {expandedDay === dayKey ? 'Masquer les exercices' : 'Voir / adapter les exercices'}
                 </button>
@@ -313,42 +308,18 @@ export default function ProgramPage() {
                 <ul className="program-exos">
                   {day.exercises.map((ex, i) => {
                     const det = exercisesById[ex.exercise_id]
-                    const exKey = `${dayKey}-${i}`
-                    const alts = altsKey === exKey ? alternativesFor(exercisesById, det, equipmentAccess) : []
                     return (
                       <li key={i} className="program-exo">
                         <div className="program-exo-head">
                           <span className="program-exo-name">{det?.name ?? 'Exercice'}</span>
-                          <PremiumGate isPremium={isPremium} label="Les alternatives d'exercice">
-                            <button
-                              type="button"
-                              className="link-button"
-                              onClick={() => setAltsKey(altsKey === exKey ? null : exKey)}
-                            >
-                              ↔ alternatives
-                            </button>
-                          </PremiumGate>
                         </div>
-                        {altsKey === exKey && (
-                          <div className="alt-list">
-                            {alts.length === 0 ? (
-                              <p className="eyebrow">Aucune alternative compatible avec ton matériel.</p>
-                            ) : (
-                              alts.map((alt) => (
-                                <button
-                                  key={alt.id}
-                                  type="button"
-                                  className="alt-item"
-                                  disabled={swapping}
-                                  onClick={() => swapExercise(det.id, alt.id)}
-                                >
-                                  <span className="alt-item-name">{alt.name}</span>
-                                  <span className="alt-item-action">Remplacer</span>
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        )}
+                        <ExerciseAlternatives
+                          exercisesById={exercisesById}
+                          details={det}
+                          equipmentAccess={equipmentAccess}
+                          swapping={swapping}
+                          onSwap={(newId) => swapExercise(det.id, newId)}
+                        />
                       </li>
                     )
                   })}

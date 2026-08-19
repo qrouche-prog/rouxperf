@@ -7,8 +7,7 @@ import { mediaForSlug } from '../lib/exerciseMedia'
 import ExerciseLoop from '../components/ExerciseLoop'
 import ExerciseAttribution from '../components/ExerciseAttribution'
 import Icon from '../components/onboarding/icons/Icon'
-import PremiumGate from '../components/PremiumGate'
-import { alternativesFor } from '../lib/equipment'
+import ExerciseAlternatives from '../components/ExerciseAlternatives'
 
 function parseTargetReps(repsText) {
   const match = String(repsText ?? '').match(/\d+/)
@@ -157,13 +156,12 @@ function buildFromLoggedSets(day, loggedSets) {
 
 export default function SessionRunnerPage() {
   const { weekNumber, dayNumber } = useParams()
-  const { user, isPremium } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   const [program, setProgram] = useState(null)
   const [exercisesById, setExercisesById] = useState({})
   const [equipmentAccess, setEquipmentAccess] = useState('bodyweight')
-  const [showAlts, setShowAlts] = useState(false)
   const [swapping, setSwapping] = useState(false)
   const [status, setStatus] = useState('loading')
   const [loadError, setLoadError] = useState(null)
@@ -943,7 +941,6 @@ export default function SessionRunnerPage() {
     setSwapping(false)
     if (error) return
     setProgram((p) => ({ ...p, structure: next }))
-    setShowAlts(false)
     // 3. Rouvre l'exercice à neuf (première série vide).
     setActiveSetIndex(0)
     setEditingDoneSet(false)
@@ -1345,31 +1342,15 @@ export default function SessionRunnerPage() {
           </details>
         )}
 
-        <PremiumGate isPremium={isPremium} label="Les alternatives d'exercice">
-          <button type="button" className="link-button session-alt-toggle" onClick={() => setShowAlts((v) => !v)}>
-            ↔ Cet exercice ne me convient pas — alternatives
-          </button>
-        </PremiumGate>
-        {showAlts && (
-          <div className="alt-list">
-            {alternativesFor(exercisesById, details, equipmentAccess).length === 0 ? (
-              <p className="eyebrow">Aucune alternative compatible avec ton matériel.</p>
-            ) : (
-              alternativesFor(exercisesById, details, equipmentAccess).map((alt) => (
-                <button
-                  key={alt.id}
-                  type="button"
-                  className="alt-item"
-                  onClick={() => swapExercise(alt.id)}
-                  disabled={swapping}
-                >
-                  <span className="alt-item-name">{alt.name}</span>
-                  <span className="alt-item-action">Remplacer</span>
-                </button>
-              ))
-            )}
-          </div>
-        )}
+        <ExerciseAlternatives
+          exercisesById={exercisesById}
+          details={details}
+          equipmentAccess={equipmentAccess}
+          swapping={swapping}
+          onSwap={swapExercise}
+          label="↔ Cet exercice ne me convient pas — alternatives"
+          triggerClassName="session-alt-toggle"
+        />
 
         {completed > 0 && (
           <button

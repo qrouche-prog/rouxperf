@@ -9,18 +9,21 @@ export function allowedEquipment(access) {
   return EQUIPMENT_TIERS[access] ?? EQUIPMENT_TIERS.bodyweight
 }
 
-// Exercices de remplacement « du même style » : même groupe musculaire,
-// compatibles avec le matériel, même catégorie en priorité.
-export function alternativesFor(exercisesById, det, access) {
+// Exercices de remplacement vraiment similaires : même groupe musculaire ET
+// même catégorie (pas juste priorisé), compatibles avec le matériel. `limit`
+// borne le nombre de suggestions (accès Premium limité, ou aperçu gratuit
+// à 1 pour les non-abonnés — cf. ExerciseAlternatives.jsx).
+export function alternativesFor(exercisesById, det, access, limit = 3) {
   if (!det) return []
   const allowed = allowedEquipment(access)
   const list = Object.values(exercisesById).filter(
     (c) =>
       c.id !== det.id &&
       c.muscle_group === det.muscle_group &&
+      c.category === det.category &&
       !c.is_ai_generated &&
       (c.equipment_required ?? []).every((e) => allowed.includes(e))
   )
-  list.sort((a, b) => Number(b.category === det.category) - Number(a.category === det.category))
-  return list.slice(0, 15)
+  list.sort((a, b) => a.name.localeCompare(b.name))
+  return list.slice(0, limit)
 }
