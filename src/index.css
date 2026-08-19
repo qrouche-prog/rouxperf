@@ -2690,6 +2690,18 @@ a.btn-secondary.landing-plans-cta {
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+
+/* En-tête de groupe : occupe la ligne entière, pas les trois colonnes. */
+.premium-table li.premium-table-group {
+  display: block;
+  padding: 16px 0 6px;
+  border-bottom: none;
+  color: var(--accent-soft-fg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 .premium-table-free,
 .premium-table-prem {
   font-size: var(--text-xs);

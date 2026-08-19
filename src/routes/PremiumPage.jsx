@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -39,17 +39,37 @@ const BENEFIT_GROUPS = [
   },
 ]
 
-const COMPARE = [
-  { label: 'Programme initial et séances guidées', free: 'Inclus', prem: 'Inclus' },
-  { label: 'Journal alimentaire, recherche, code-barres', free: 'Inclus', prem: 'Inclus' },
-  { label: 'Mesures, montre connectée, graphes', free: 'Inclus', prem: 'Inclus' },
-  { label: 'Alternatives d’exercice', free: '1×/sem.', prem: 'Jusqu’à 3' },
-  { label: 'Modifier profil, objectif, situation', free: '—', prem: 'Inclus' },
-  { label: 'Ajustement du programme en langage libre', free: '—', prem: '1×/sem.' },
-  { label: 'Régénérer entièrement le programme', free: '—', prem: '1×/sem.' },
-  { label: 'Analyse IA de la charge d’entraînement', free: '—', prem: 'Inclus' },
-  { label: 'Photo d’un repas → macros', free: '—', prem: 'Inclus' },
-  { label: 'Plans de repas par l’IA', free: '—', prem: 'Inclus' },
+// Mêmes lignes et mêmes groupes que le comparatif de rouxperf.ch : un
+// visiteur qui arrive du site doit retrouver exactement le même tableau.
+const COMPARE_GROUPS = [
+  {
+    title: 'Programme',
+    rows: [
+      { label: 'Programme personnalisé et séances guidées', free: 'Inclus', prem: 'Inclus' },
+      { label: 'Chrono de repos, suivi série par série, notes', free: 'Inclus', prem: 'Inclus' },
+      { label: 'Alternatives d’exercice', free: '1×/sem.', prem: 'Jusqu’à 3' },
+      { label: 'Modifier ton profil, ton objectif, ta situation', free: '—', prem: 'Inclus' },
+      { label: 'Ajustement du programme en langage libre', free: '—', prem: '1×/sem.' },
+      { label: 'Régénérer entièrement ton programme', free: '—', prem: '1×/sem.' },
+    ],
+  },
+  {
+    title: 'Nutrition',
+    rows: [
+      { label: 'Journal, recherche d’aliments, code-barres', free: 'Inclus', prem: 'Inclus' },
+      { label: 'Cibles de macros modifiables à la main', free: 'Inclus', prem: 'Inclus' },
+      { label: 'Photo d’un repas → macros automatiques', free: '—', prem: 'Inclus' },
+      { label: 'Plans de repas générés sur tes cibles', free: '—', prem: 'Inclus' },
+    ],
+  },
+  {
+    title: 'Suivi',
+    rows: [
+      { label: 'Mesures corporelles et graphes de progression', free: 'Inclus', prem: 'Inclus' },
+      { label: 'Import de ta montre connectée', free: 'Inclus', prem: 'Inclus' },
+      { label: 'Analyse IA de ta charge d’entraînement', free: '—', prem: 'Inclus' },
+    ],
+  },
 ]
 
 export default function PremiumPage() {
@@ -216,12 +236,17 @@ export default function PremiumPage() {
             <span className="premium-table-free">Gratuit</span>
             <span className="premium-table-prem">Premium</span>
           </li>
-          {COMPARE.map((row) => (
-            <li key={row.label}>
-              <span>{row.label}</span>
-              <span className="premium-table-free">{row.free}</span>
-              <span className="premium-table-prem">{row.prem}</span>
-            </li>
+          {COMPARE_GROUPS.map((g) => (
+            <Fragment key={g.title}>
+              <li className="premium-table-group">{g.title}</li>
+              {g.rows.map((row) => (
+                <li key={row.label}>
+                  <span>{row.label}</span>
+                  <span className="premium-table-free">{row.free}</span>
+                  <span className="premium-table-prem">{row.prem}</span>
+                </li>
+              ))}
+            </Fragment>
           ))}
         </ul>
         <p className="premium-table-note">
