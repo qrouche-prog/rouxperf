@@ -11,14 +11,20 @@
   --iron: #8f8f89;
   --border: rgba(245, 245, 240, 0.12);
 
-  --ember: #d6ff23;
-  --ember-ink: #0a0a0a;
-  --error: #ff5252;
-  --flame-1: #a8cc00;
-  --flame-2: #d6ff23;
-  --flame-3: #eaff70;
+  /* Famille accent héritée de FORGE. Les valeurs lime d'origine ont été
+     remplacées par les tokens du thème : rouxperf-forge-bridge.css les
+     redéfinit déjà à l'identique, mais il est explicitement temporaire — le
+     jour où il sera retiré, ces lignes reprendraient effet et le lime
+     reviendrait. La substitution se fait à l'usage, donc le fait que
+     rouxperf-theme.css soit importé après ce fichier ne pose pas problème. */
+  --ember: var(--accent);
+  --ember-ink: var(--accent-fg);
+  --error: var(--danger);
+  --flame-1: var(--accent-active);
+  --flame-2: var(--accent);
+  --flame-3: var(--accent-hover);
   --flame-gradient: linear-gradient(135deg, var(--flame-1) 0%, var(--flame-2) 55%, var(--flame-3) 100%);
-  --moss: #d6ff23;
+  --moss: var(--accent);
   --badge-max-bg: #3a1a12;
   --badge-max-ink: #ff8a5c;
   --badge-mid-bg: #12263a;
@@ -212,13 +218,17 @@ button[type='submit']:hover,
   filter: brightness(1.08);
 }
 
+/* Halo du chrono de repos. Passe par color-mix plutôt que par un rgba() :
+   une variable CSS contient une couleur complète, pas des composantes r,g,b
+   séparées, donc rgba(var(--x), .55) ne fonctionnerait pas. Le mélange avec
+   `transparent` reproduit exactement l'alpha d'origine. */
 @keyframes ember-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 rgba(214, 255, 35, 0);
+    box-shadow: 0 0 0 transparent;
   }
   50% {
-    box-shadow: 0 0 18px rgba(214, 255, 35, 0.55);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
   }
 }
 
@@ -825,10 +835,13 @@ a.btn-secondary {
   color: var(--iron);
 }
 
+/* --accent-soft / --accent-soft-fg forment déjà la paire « fond teinté +
+   texte accent lisible » des deux thèmes. --flame-2 (= --accent) posé sur ce
+   fond ne passait pas le contraste en sombre. */
 .badge-high {
-  background: rgba(214, 255, 35, 0.12);
-  color: var(--flame-2);
-  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+  border-color: var(--accent-soft-border);
 }
 
 .badge-max {
