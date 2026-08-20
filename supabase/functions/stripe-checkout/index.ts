@@ -6,7 +6,13 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
 })
 
 // Crée une session Stripe Checkout (abonnement) pour l'utilisateur connecté.
-// Body : { plan: 'monthly' | 'annual', origin }.
+// Body : { plan: 'monthly' | 'quarterly', origin }.
+//
+// Le plan annuel a été retiré de l'offre. Le contrôle est ici et pas seulement
+// dans l'interface : sans ça, un POST { plan: 'annual' } continuerait à créer
+// une session au tarif annuel. Une valeur inconnue retombe sur le mensuel.
+// Le prix Stripe annuel et le secret STRIPE_PRICE_ANNUAL restent en place —
+// les abonnements annuels déjà souscrits continuent de se renouveler.
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return json({ error: 'Méthode non autorisée' }, 405)
@@ -16,9 +22,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}))
-    const plan = ['monthly', 'quarterly', 'annual'].includes(body?.plan) ? body.plan : 'monthly'
-    const priceEnv =
-      plan === 'annual' ? 'STRIPE_PRICE_ANNUAL' : plan === 'quarterly' ? 'STRIPE_PRICE_QUARTERLY' : 'STRIPE_PRICE_MONTHLY'
+    const plan = ['monthly', 'quarterly'].includes(body?.plan) ? body.plan : 'monthly'
+    const priceEnv = plan === 'quarterly' ? 'STRIPE_PRICE_QUARTERLY' : 'STRIPE_PRICE_MONTHLY'
     const price = Deno.env.get(priceEnv)
     if (!price) return json({ error: 'Tarif non configuré.' }, 500)
 

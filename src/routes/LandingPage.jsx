@@ -27,10 +27,11 @@ const PILLARS = [
   },
 ]
 
+// Plus de plan annuel : engager quelqu'un sur un an pour un programme qui se
+// pilote au mois n'avait pas de sens. « Meilleur prix » passe au trimestriel.
 const PLANS = [
   { name: 'Mensuel', price: 'CHF 12', per: '/mois' },
-  { name: '3 mois', price: 'CHF 30', per: '/3 mois', hint: '≈ CHF 10/mois' },
-  { name: 'Annuel', price: 'CHF 100', per: '/an', hint: '≈ CHF 8.30/mois', featured: true },
+  { name: '3 mois', price: 'CHF 30', per: '/3 mois', hint: '≈ CHF 10/mois', featured: true },
 ]
 
 export default function LandingPage() {

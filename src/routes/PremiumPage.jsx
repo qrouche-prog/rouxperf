@@ -75,7 +75,7 @@ const COMPARE_GROUPS = [
 export default function PremiumPage() {
   const { isSubscribed, isTrialing, trialDaysLeft, subscription, refreshProfile } = useAuth()
   const [params] = useSearchParams()
-  const [busy, setBusy] = useState(null) // 'monthly' | 'annual' | 'portal'
+  const [busy, setBusy] = useState(null) // 'monthly' | 'quarterly' | 'portal'
   const [error, setError] = useState(null)
 
   const returnStatus = params.get('status')
@@ -191,7 +191,10 @@ export default function PremiumPage() {
             </button>
           </div>
 
-          <div className="premium-plan">
+          {/* Le trimestriel devient le meilleur tarif, donc le plan mis en
+              avant — et le seul bouton plein de l'écran. */}
+          <div className="premium-plan premium-plan-featured">
+            <span className="premium-plan-badge">Meilleur prix</span>
             <div className="premium-plan-head">
               <span className="premium-plan-name">3 mois</span>
               <span className="premium-plan-price">
@@ -199,22 +202,8 @@ export default function PremiumPage() {
               </span>
             </div>
             <p className="eyebrow">Soit ≈ CHF 10/mois</p>
-            <button type="button" className="btn-secondary" onClick={() => startCheckout('quarterly')} disabled={busy}>
+            <button type="button" className="btn-primary" onClick={() => startCheckout('quarterly')} disabled={busy}>
               {busy === 'quarterly' ? 'Redirection…' : 'Choisir les 3 mois'}
-            </button>
-          </div>
-
-          <div className="premium-plan premium-plan-featured">
-            <span className="premium-plan-badge">Meilleur prix</span>
-            <div className="premium-plan-head">
-              <span className="premium-plan-name">Annuel</span>
-              <span className="premium-plan-price">
-                CHF 100<span className="premium-plan-per">/an</span>
-              </span>
-            </div>
-            <p className="eyebrow">Soit ≈ CHF 8.30/mois</p>
-            <button type="button" className="btn-primary" onClick={() => startCheckout('annual')} disabled={busy}>
-              {busy === 'annual' ? 'Redirection…' : 'Choisir l’annuel'}
             </button>
           </div>
         </div>
