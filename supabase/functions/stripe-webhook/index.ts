@@ -12,10 +12,23 @@ function tierFromStatus(status: string): string {
   return ['active', 'trialing'].includes(status) ? 'premium' : 'free'
 }
 
+// Traduit la cadence Stripe en libellé d'offre. Retourne null plutôt que de
+// deviner : price_id reste la source de vérité, et une cadence inconnue ne
+// doit pas se faire passer pour un plan existant.
+function planFromPrice(price?: Stripe.Price | null): string | null {
+  const r = price?.recurring
+  if (!r) return null
+  if (r.interval === 'year' && r.interval_count === 1) return 'annual'
+  if (r.interval === 'month' && r.interval_count === 1) return 'monthly'
+  if (r.interval === 'month' && r.interval_count === 3) return 'quarterly'
+  return null
+}
+
 async function upsertFromSubscription(sub: Stripe.Subscription) {
   const userId = sub.metadata?.user_id
   if (!userId) return
   const supabase = serviceClient()
+  const price = sub.items?.data?.[0]?.price ?? null
   await supabase.from('subscriptions').upsert(
     {
       user_id: userId,
@@ -24,6 +37,8 @@ async function upsertFromSubscription(sub: Stripe.Subscription) {
       provider: 'stripe',
       provider_customer_id: String(sub.customer),
       provider_subscription_id: sub.id,
+      price_id: price?.id ?? null,
+      plan: planFromPrice(price),
       current_period_end: sub.current_period_end
         ? new Date(sub.current_period_end * 1000).toISOString()
         : null,
