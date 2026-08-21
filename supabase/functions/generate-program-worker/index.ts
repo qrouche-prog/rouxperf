@@ -338,7 +338,7 @@ Adapte la programmation à goal_type :
 - "endurance" : répétitions élevées/circuits + cardio régulier.
 - "recomposition"/"hybrid" : musculation (8-12 reps, repos modérés) + cardio régulier, dosage équilibré sauf signal de focus_areas.
 - "general_fitness" : équilibré et varié (force, tronc, mobilité, cardio léger).
-Croise avec focus_areas : "weight_loss" présent → applique aussi la densité/repos courts/cardio du bloc weight_loss même si goal_type diffère. "muscle_gain" présent (goal_type différent) → pondère vers l'hypertrophie sur les groupes ciblés sans abandonner goal_type.
+Croise avec focus_areas : "weight_loss" présent → applique aussi la densité/repos courts/cardio du bloc weight_loss même si goal_type diffère. "muscle_gain" présent (goal_type différent) → pondère vers l'hypertrophie sur les groupes ciblés sans abandonner goal_type. "strength" présent (goal_type différent) → sur les exercices poly-articulaires principaux, insère aussi des séries lourdes à faibles répétitions (3-6 reps, repos 2-4 min) en plus de ce que demande goal_type, sans transformer toute la séance en pur travail de force.
 
 Sécurité (prioritaire) : croise "contraindications" de chaque exercice avec blessures/limitations/special_situation ; jamais d'exercice à contre-indication en zone à risque, variante plus sûre en cas de doute.
 

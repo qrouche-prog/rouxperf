@@ -5,15 +5,20 @@ import SelectableCardGrid from './SelectableCardGrid'
 
 // Liste resserrée : "Endurance aérobie" et "Capacité anaérobie" ont été
 // fusionnées dans "Cardio" / "Explosivité" respectivement (recouvrement quasi
-// total côté génération, aucune règle distincte) ; "Force" retirée (case sans
-// aucun effet — la fréquence de musculation a déjà sa propre ligne dédiée) ;
-// "Mobilité" retirée (l'app ne proposait qu'un exemple vague de 12 min sans
-// vraie structure) — remplacée par un échauffement systématique et adapté à
-// chaque séance, généré automatiquement, plutôt qu'un choix à part qui ne
-// tenait pas ses promesses.
+// total côté génération, aucune règle distincte) ; "Mobilité" retirée (l'app
+// ne proposait qu'un exemple vague de 12 min sans vraie structure) —
+// remplacée par un échauffement systématique et adapté à chaque séance,
+// généré automatiquement, plutôt qu'un choix à part qui ne tenait pas ses
+// promesses. "Force" a été retirée puis réintégrée : contrairement à
+// "Perte de poids"/"Prise de muscle" elle n'était pas croisée avec goal_type
+// dans le prompt (case sans effet) — corrigé, elle fonctionne maintenant
+// comme un aspect secondaire réel (insister sur du lourd/faibles répétitions
+// même quand l'objectif principal est autre chose), au même titre que les deux
+// autres objectifs listés ici.
 const FOCUS_AREAS = [
   { value: 'cardio', label: 'Cardio', icon: 'heart' },
   { value: 'running', label: 'Course à pied', icon: 'run' },
+  { value: 'strength', label: 'Force', icon: 'dumbbell' },
   { value: 'explosiveness', label: 'Explosivité / puissance', icon: 'jump' },
   { value: 'weight_loss', label: 'Perte de poids', icon: 'scale' },
   { value: 'muscle_gain', label: 'Prise de muscle', icon: 'bicep' },
