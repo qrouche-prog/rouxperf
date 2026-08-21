@@ -111,12 +111,17 @@ function exerciseInputSchema(exerciseIds: string[]) {
   }
 }
 
+// Schéma d'UNE semaine (la génération se fait semaine par semaine, voir
+// runGeneration) — minItems/maxItems=1 contraint explicitement le modèle à
+// ne renvoyer que la semaine demandée, pas tout le mésocycle d'un coup.
 function programSchema(exerciseIds: string[]) {
   return {
     type: 'object',
     properties: {
       weeks: {
         type: 'array',
+        minItems: 1,
+        maxItems: 1,
         items: {
           type: 'object',
           properties: {
@@ -316,6 +321,25 @@ function expandBlocks(baseStructure: any, blocks: number): any {
     }
   }
   return { ...baseStructure, weeks }
+}
+
+// Résumé compact d'une semaine déjà générée (sans notes/champs block_*),
+// injecté dans le prompt de la semaine suivante pour assurer une progression
+// cohérente sans repasser tout l'historique complet à chaque appel.
+function recapWeek(week: any): string {
+  const compact = week.days.map((d: any) => ({
+    day_of_week: d.day_of_week,
+    slot: d.slot,
+    modality: d.modality,
+    name: d.name,
+    exercises: d.exercises.map((e: any) => ({
+      exercise_id: e.exercise_id,
+      sets: e.sets,
+      reps: e.reps,
+      rest_seconds: e.rest_seconds,
+    })),
+  }))
+  return JSON.stringify(compact)
 }
 
 const SYSTEM_PROMPT = `Tu es un coach sportif expérimenté qui conçoit des programmes d'entraînement personnalisés, sûrs et progressifs.
@@ -593,7 +617,7 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
       const blocks = durationMonths === 3 ? 3 : 1
       const durationSection =
         blocks > 1
-          ? `\n\nCe bloc de ${WEEKS_COUNT} semaines est un mésocycle qui sera répété ${blocks} fois pour couvrir ${durationMonths} mois d'entraînement, avec une montée progressive de la charge à chaque répétition (la répétition et l'augmentation entre blocs sont gérées automatiquement après ta génération). Conçois donc une progression cohérente et logique à l'intérieur de ces 4 semaines.`
+          ? `\n\nCe mésocycle de ${WEEKS_COUNT} semaines sera répété ${blocks} fois pour couvrir ${durationMonths} mois d'entraînement, avec une montée de charge automatique à chaque répétition (gérée après coup, pas par toi). Assure une progression cohérente d'une semaine à l'autre au sein de ce mésocycle.`
           : ''
 
       // Calculé en code plutôt que laissé à l'arithmétique de dates du modèle
@@ -648,127 +672,158 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
         .order('started_at', { ascending: false })
       const wearableSection = buildWearableSection(wearables ?? [])
 
-      const userPrompt = `Génère un programme d'entraînement de ${WEEKS_COUNT} semaines, avec ${totalSessions} séance(s) par semaine au total, d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
-
-Profil utilisateur :
-${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${injuriesSection}${otherSportSection}${wearableSection}${adjustmentSection}
-
-Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
-${JSON.stringify(
-  availableExercises.map(
-    ({ id, name, category, muscle_group, contraindications, instructions }: any) => ({
-      id,
-      name,
-      category,
-      muscle_group,
-      contraindications,
-      instructions,
-    })
-  ),
-  null,
-  2
-)}`
+      const exerciseCatalogText = JSON.stringify(
+        availableExercises.map(
+          ({ id, name, category, muscle_group, contraindications, instructions }: any) => ({
+            id,
+            name,
+            category,
+            muscle_group,
+            contraindications,
+            instructions,
+          })
+        ),
+        null,
+        2
+      )
+      const validExerciseIdSet = new Set(exerciseIds)
 
       // Effort forcé à "low" pour tout le monde : "medium"/"high" avec
       // réflexion adaptative dépassent la limite d'exécution en arrière-plan
       // des Edge Functions (waitUntil) et bloquent silencieusement la
-      // génération — testé et confirmé à deux reprises (30min puis 11min sans
-      // log ni erreur, alors que "low" aboutit en ~105s). Un override reste
-      // possible depuis l'admin (forcedEffort) pour tester une fois le
-      // problème de timeout résolu autrement (ex. génération hors Edge
-      // Function).
+      // génération — testé et confirmé à plusieurs reprises. Un override
+      // reste possible depuis l'admin (forcedEffort) pour comparer.
       const effort = ['low', 'medium', 'high'].includes(forcedEffort) ? forcedEffort : 'low'
 
-      // Plafond 40k : assez pour un bloc de 4 semaines sans troncature.
-      //
-      // Timeout explicite (4 min) sur l'appel Claude : sans lui, un appel qui
-      // reste bloqué (réseau, API qui traîne) n'écrit jamais rien — ni succès
-      // ni erreur — et le programme reste "generating" indéfiniment sans
-      // qu'aucune trace n'apparaisse nulle part (déjà observé plusieurs fois).
-      // Avec ce filet, toute génération anormalement longue échoue proprement
-      // et vite plutôt que de bloquer l'utilisateur sans explication.
-      const GENERATION_TIMEOUT_MS = 4 * 60 * 1000
-      const abortController = new AbortController()
-      const timeoutId = setTimeout(() => abortController.abort(), GENERATION_TIMEOUT_MS)
-      const t0 = Date.now()
-      let response
-      try {
-        const stream = anthropic.messages.stream(
-          {
-            model: 'claude-sonnet-5',
-            max_tokens: 40000,
-            thinking: { type: 'adaptive' },
-            output_config: {
-              effort,
-              format: { type: 'json_schema', schema: programSchema(exerciseIds) },
+      // Génération SEMAINE PAR SEMAINE plutôt qu'en un seul appel pour les
+      // 4 semaines : chaque appel est ~4x plus petit (donc plus rapide et
+      // bien moins exposé au blocage silencieux observé sur de gros appels —
+      // probablement un timeout d'infrastructure sur la requête HTTP
+      // individuelle, pas sur la durée totale de la fonction). Bénéfice
+      // supplémentaire : la semaine 1 est sauvegardée et rendue active dès
+      // qu'elle est prête, sans attendre les 4 semaines pour être utilisable.
+      const allWeeks: any[] = []
+      for (let weekNum = 1; weekNum <= WEEKS_COUNT; weekNum += 1) {
+        const recapSection =
+          weekNum > 1
+            ? `\n\nVoici la semaine précédente (semaine ${weekNum - 1}), pour assurer une progression cohérente d'une semaine à l'autre — garde la même structure de jours/modalités sauf besoin réel de changement, fais évoluer charge/volume/intensité perçue, et indique cette progression dans "notes" :\n${recapWeek(allWeeks[allWeeks.length - 1])}`
+            : ''
+
+        const userPrompt = `Génère UNIQUEMENT la semaine ${weekNum} sur ${WEEKS_COUNT} d'un programme d'entraînement (les autres semaines sont générées séparément, une par une) — le champ week_number de cette semaine doit valoir ${weekNum}. Cette semaine compte ${totalSessions} séance(s), d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
+
+Profil utilisateur :
+${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${injuriesSection}${otherSportSection}${wearableSection}${adjustmentSection}${recapSection}
+
+Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
+${exerciseCatalogText}`
+
+        // Timeout explicite par semaine : sans lui, un appel qui reste bloqué
+        // n'écrit jamais rien et le programme reste "generating" sans trace.
+        // Plus court qu'avant (90s vs 4min) car chaque appel est désormais
+        // ~4x plus petit.
+        const GENERATION_TIMEOUT_MS = 90 * 1000
+        const abortController = new AbortController()
+        const timeoutId = setTimeout(() => abortController.abort(), GENERATION_TIMEOUT_MS)
+        const t0 = Date.now()
+        let response
+        try {
+          const stream = anthropic.messages.stream(
+            {
+              model: 'claude-sonnet-5',
+              max_tokens: 12000,
+              thinking: { type: 'adaptive' },
+              output_config: {
+                effort,
+                format: { type: 'json_schema', schema: programSchema(exerciseIds) },
+              },
+              system: SYSTEM_PROMPT,
+              messages: [{ role: 'user', content: userPrompt }],
             },
-            system: SYSTEM_PROMPT,
-            messages: [{ role: 'user', content: userPrompt }],
-          },
-          { signal: abortController.signal }
-        )
-        response = await stream.finalMessage()
-      } catch (err) {
-        if (abortController.signal.aborted) {
-          throw new Error(
-            `La génération a dépassé ${GENERATION_TIMEOUT_MS / 60000} minutes — réessaie (effort actuel : ${effort}).`
+            { signal: abortController.signal }
           )
+          response = await stream.finalMessage()
+        } catch (err) {
+          if (abortController.signal.aborted) {
+            throw new Error(
+              `Semaine ${weekNum} : génération au-delà de ${GENERATION_TIMEOUT_MS / 1000}s — réessaie.`
+            )
+          }
+          throw err
+        } finally {
+          clearTimeout(timeoutId)
         }
-        throw err
-      } finally {
-        clearTimeout(timeoutId)
-      }
-      console.log(
-        `[generate-program] user=${user_id} effort=${effort} durée=${Date.now() - t0}ms tokens_in=${response.usage?.input_tokens} tokens_out=${response.usage?.output_tokens} stop=${response.stop_reason}`
-      )
+        console.log(
+          `[generate-program] user=${user_id} week=${weekNum}/${WEEKS_COUNT} effort=${effort} durée=${Date.now() - t0}ms tokens_in=${response.usage?.input_tokens} tokens_out=${response.usage?.output_tokens} stop=${response.stop_reason}`
+        )
 
-      if (response.stop_reason === 'refusal') {
-        throw new Error("Le modèle n'a pas pu générer de programme pour ce profil.")
-      }
-      if (response.stop_reason === 'max_tokens') {
-        throw new Error('La génération a été tronquée, réessaie.')
-      }
+        if (response.stop_reason === 'refusal') {
+          throw new Error(`Le modèle n'a pas pu générer la semaine ${weekNum} pour ce profil.`)
+        }
+        if (response.stop_reason === 'max_tokens') {
+          throw new Error(`La génération de la semaine ${weekNum} a été tronquée, réessaie.`)
+        }
 
-      const textBlock = response.content.find((block: any) => block.type === 'text')
-      if (!textBlock) {
-        throw new Error('Réponse du modèle invalide.')
-      }
+        const textBlock = response.content.find((block: any) => block.type === 'text')
+        if (!textBlock) {
+          throw new Error(`Réponse du modèle invalide (semaine ${weekNum}).`)
+        }
 
-      let structure
-      try {
-        structure = JSON.parse((textBlock as any).text)
-      } catch {
-        throw new Error('Réponse du modèle mal formée.')
-      }
+        let weekStructure
+        try {
+          weekStructure = JSON.parse((textBlock as any).text)
+        } catch {
+          throw new Error(`Réponse du modèle mal formée (semaine ${weekNum}).`)
+        }
 
-      const validationError = validateProgramStructure(structure, new Set(exerciseIds), {
-        sameDayCombining,
-        totalSessions,
-        expectedModalityCounts,
-      })
-      if (validationError) {
-        throw new Error(`Programme invalide : ${validationError}`)
-      }
+        if (!Array.isArray(weekStructure.weeks) || weekStructure.weeks.length !== 1) {
+          throw new Error(`Semaine ${weekNum} : nombre de semaines inattendu dans la réponse.`)
+        }
 
-      structure = await resolveCustomExercises(structure)
+        let validationError = validateProgramStructure(weekStructure, validExerciseIdSet, {
+          sameDayCombining,
+          totalSessions,
+          expectedModalityCounts,
+        })
+        if (validationError) {
+          throw new Error(`Semaine ${weekNum} invalide : ${validationError}`)
+        }
 
-      const finalValidationError = validateProgramStructure(
-        structure,
-        new Set([...exerciseIds, ...structure.weeks.flatMap((w: any) => w.days.flatMap((d: any) => d.exercises.map((e: any) => e.exercise_id)))]),
-        { sameDayCombining, totalSessions, expectedModalityCounts }
-      )
-      if (finalValidationError) {
-        throw new Error(`Programme invalide après résolution des exercices personnalisés : ${finalValidationError}`)
+        weekStructure = await resolveCustomExercises(weekStructure)
+
+        const resolvedIds = new Set([
+          ...exerciseIds,
+          ...weekStructure.weeks.flatMap((w: any) => w.days.flatMap((d: any) => d.exercises.map((e: any) => e.exercise_id))),
+        ])
+        validationError = validateProgramStructure(weekStructure, resolvedIds, {
+          sameDayCombining,
+          totalSessions,
+          expectedModalityCounts,
+        })
+        if (validationError) {
+          throw new Error(`Semaine ${weekNum} invalide après résolution des exercices personnalisés : ${validationError}`)
+        }
+
+        const generatedWeek = weekStructure.weeks[0]
+        generatedWeek.week_number = weekNum
+        allWeeks.push(generatedWeek)
+
+        // Sauvegarde incrémentale : dès la semaine 1, le programme passe
+        // "active" et devient utilisable — pas besoin d'attendre les 4
+        // semaines. Si une semaine suivante échoue, ce qui est déjà
+        // sauvegardé reste utilisable (voir le catch plus bas).
+        await supabase
+          .from('user_programs')
+          .update({ status: 'active', structure: { weeks: allWeeks }, generation_prompt_snapshot: promptSnapshot })
+          .eq('id', program_id)
       }
 
       // Répète le mésocycle de 4 semaines pour couvrir la durée choisie, avec
-      // une directive de progression de charge à chaque bloc.
-      structure = expandBlocks(structure, blocks)
-
-      await supabase
-        .from('user_programs')
-        .update({ status: 'active', structure, generation_prompt_snapshot: promptSnapshot })
-        .eq('id', program_id)
+      // une directive de progression de charge à chaque bloc — pur calcul
+      // local, pas d'appel supplémentaire au modèle.
+      if (blocks > 1) {
+        const expanded = expandBlocks({ weeks: allWeeks }, blocks)
+        await supabase.from('user_programs').update({ structure: expanded }).eq('id', program_id)
+      }
 
       if (adjustment) {
         await supabase
@@ -779,10 +834,19 @@ ${JSON.stringify(
 
       await supabase.from('profiles').update({ onboarding_completed_at: new Date().toISOString() }).eq('user_id', user_id)
     } catch (err) {
-      await supabase
-        .from('user_programs')
-        .update({ status: 'failed', error_message: err instanceof Error ? err.message : String(err) })
-        .eq('id', program_id)
+      // Si des semaines ont déjà été sauvegardées, le programme est déjà
+      // "active" et utilisable — ne pas l'écraser en "failed", juste
+      // consigner l'échec de la suite pour visibilité (ex. dans /admin).
+      const { data: current } = await supabase.from('user_programs').select('status').eq('id', program_id).maybeSingle()
+      const message = err instanceof Error ? err.message : String(err)
+      if (current?.status === 'active') {
+        await supabase
+          .from('user_programs')
+          .update({ error_message: `Génération partielle (certaines semaines manquantes) : ${message}` })
+          .eq('id', program_id)
+      } else {
+        await supabase.from('user_programs').update({ status: 'failed', error_message: message }).eq('id', program_id)
+      }
     }
   }
 
