@@ -31,19 +31,34 @@ function clearStored(key) {
   }
 }
 
-// Calcule l'état à reprendre à partir de l'heure de démarrage persistée,
-// plutôt que de faire confiance à un compteur figé au moment de la fermeture.
-function computeResume(stored, format, timeCapSeconds, intervalSeconds, rounds) {
-  if (!stored?.startedAt) return null
+// Calcule l'état à reprendre à partir du stockage persisté, plutôt que de
+// faire confiance à un compteur figé au moment de la fermeture — deux cas :
+// un décompte en cours (recalculé depuis l'heure de démarrage), ou un bloc
+// déjà terminé mais pas encore validé (l'utilisateur a fermé l'app pendant
+// qu'il ajustait le nombre de tours/rounds sur l'écran de confirmation).
+function loadResume(storageKey, format, timeCapSeconds, intervalSeconds, rounds) {
+  if (!storageKey) return null
+  const stored = readStored(storageKey)
+  if (!stored) return null
+  if (stored.finished) {
+    return { kind: 'finished', roundsDone: stored.roundsDone ?? 0 }
+  }
+  if (!stored.startedAt) return null
   if (format === 'amrap') {
     const left = timeCapSeconds - Math.floor((Date.now() - stored.startedAt) / 1000)
-    if (left <= 0) return { done: true, roundsDone: stored.amrapRounds ?? 0 }
-    return { done: false, remaining: left, roundIndex: 0 }
+    if (left <= 0) return { kind: 'finished', roundsDone: stored.amrapRounds ?? 0 }
+    return { kind: 'running', remaining: left, roundIndex: 0, startedAt: stored.startedAt, amrapRounds: stored.amrapRounds ?? 0 }
   }
   const elapsedS = Math.floor((Date.now() - stored.startedAt) / 1000)
   const computedRound = Math.floor(elapsedS / intervalSeconds)
-  if (computedRound >= rounds) return { done: true, roundsDone: rounds }
-  return { done: false, remaining: intervalSeconds - (elapsedS % intervalSeconds), roundIndex: computedRound }
+  if (computedRound >= rounds) return { kind: 'finished', roundsDone: rounds }
+  return {
+    kind: 'running',
+    remaining: intervalSeconds - (elapsedS % intervalSeconds),
+    roundIndex: computedRound,
+    startedAt: stored.startedAt,
+    amrapRounds: 0,
+  }
 }
 
 // Minuteur autonome pour un bloc de conditionnement AMRAP ou EMOM. Tout se
@@ -62,29 +77,30 @@ export default function BlockRunner({
   onComplete,
   onCancel,
 }) {
-  const stored = storageKey ? readStored(storageKey) : null
-  const resume = stored ? computeResume(stored, format, timeCapSeconds, intervalSeconds, rounds) : null
+  const resume = loadResume(storageKey, format, timeCapSeconds, intervalSeconds, rounds)
+  const resumeRunning = resume?.kind === 'running'
+  const resumeFinished = resume?.kind === 'finished'
 
-  const [running, setRunning] = useState(Boolean(resume) && !resume.done)
+  const [running, setRunning] = useState(resumeRunning)
   const [remaining, setRemaining] = useState(
-    resume && !resume.done ? resume.remaining : format === 'amrap' ? timeCapSeconds : intervalSeconds
+    resumeRunning ? resume.remaining : format === 'amrap' ? timeCapSeconds : intervalSeconds
   )
-  const [roundIndex, setRoundIndex] = useState(resume && !resume.done ? resume.roundIndex : 0)
-  const [amrapRounds, setAmrapRounds] = useState(stored?.amrapRounds ?? 0)
-  const [finishing, setFinishing] = useState(Boolean(resume?.done))
-  const [finalRounds, setFinalRounds] = useState(resume?.done ? resume.roundsDone : 0)
-  const startedAtRef = useRef(resume && !resume.done ? stored.startedAt : null)
+  const [roundIndex, setRoundIndex] = useState(resumeRunning ? resume.roundIndex : 0)
+  const [amrapRounds, setAmrapRounds] = useState(resumeRunning ? resume.amrapRounds : 0)
+  const [finishing, setFinishing] = useState(resumeFinished)
+  const [finalRounds, setFinalRounds] = useState(resumeFinished ? resume.roundsDone : 0)
+  const startedAtRef = useRef(resumeRunning ? resume.startedAt : null)
   const firedRef = useRef(false)
   // Lu depuis le tick() ci-dessous : l'effet ne dépend pas de amrapRounds
   // (pour ne pas relancer l'intervalle à chaque tour tapé), donc la valeur
   // fermée par la closure de tick() serait figée au démarrage sans ce ref.
-  const amrapRoundsRef = useRef(stored?.amrapRounds ?? 0)
+  const amrapRoundsRef = useRef(resumeRunning ? resume.amrapRounds : 0)
 
-  // Bloc déjà terminé pendant la fermeture (temps/rounds écoulés depuis) :
-  // libère le stockage tout de suite, l'utilisateur arrive direct sur l'écran
-  // de validation du nombre de tours/rounds.
+  // Le temps/les rounds se sont écoulés pendant la fermeture sans que le
+  // bloc ait encore été marqué "finished" en stock : le fige maintenant,
+  // pour rester cohérent si l'app est refermée à nouveau avant validation.
   useEffect(() => {
-    if (resume?.done && storageKey) clearStored(storageKey)
+    if (resumeFinished && storageKey) writeStored(storageKey, { finished: true, roundsDone: resume.roundsDone })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -96,11 +112,19 @@ export default function BlockRunner({
     }
   }
 
+  // Marque le bloc terminé et EN ATTENTE DE VALIDATION — reste persisté
+  // (pas effacé) tant que l'utilisateur n'a pas appuyé sur "Valider", pour
+  // survivre à une fermeture de l'app pendant l'ajustement du compteur.
   function finishNow(roundsDone) {
     setRunning(false)
     setFinalRounds(roundsDone)
     setFinishing(true)
+    if (storageKey) writeStored(storageKey, { finished: true, roundsDone })
+  }
+
+  function validate() {
     if (storageKey) clearStored(storageKey)
+    onComplete(finalRounds)
   }
 
   function start() {
@@ -188,9 +212,13 @@ export default function BlockRunner({
           min="0"
           inputMode="numeric"
           value={finalRounds}
-          onChange={(e) => setFinalRounds(Number(e.target.value) || 0)}
+          onChange={(e) => {
+            const next = Number(e.target.value) || 0
+            setFinalRounds(next)
+            if (storageKey) writeStored(storageKey, { finished: true, roundsDone: next })
+          }}
         />
-        <button type="button" className="btn-primary" onClick={() => onComplete(finalRounds)}>
+        <button type="button" className="btn-primary" onClick={validate}>
           Valider
         </button>
       </div>
