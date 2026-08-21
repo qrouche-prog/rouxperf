@@ -478,7 +478,8 @@ export default function SessionRunnerPage() {
 
   // Garde l'écran allumé pendant la séance (Wake Lock, si supporté)
   useEffect(() => {
-    const active = phase === 'exercise' || phase === 'resting' || phase === 'effort' || phase === 'list'
+    const active =
+      phase === 'exercise' || phase === 'resting' || phase === 'effort' || phase === 'list' || phase === 'block'
     async function acquire() {
       if (!active || !('wakeLock' in navigator)) return
       try {
@@ -1121,6 +1122,7 @@ export default function SessionRunnerPage() {
           intervalSeconds={first.block_interval_seconds}
           rounds={first.block_rounds}
           members={members}
+          storageKey={`rouxperf-block-${weekNumber}-${dayNumber}-${first.block_id}`}
           onCancel={() => setPhase('list')}
           onComplete={(rounds) => submitBlock(selectedExerciseIndex, rounds)}
         />
