@@ -179,13 +179,17 @@ export default function PreferencesStep({ onNext, onBack, initial, submitLabel =
         </div>
       </fieldset>
 
-      <label htmlFor="injuriesLimitations">Informations supplémentaires (optionnel)</label>
+      <label htmlFor="injuriesLimitations">Blessures ou limitations physiques (optionnel)</label>
+      <p className="eyebrow">
+        Uniquement des contraintes physiques à respecter dans le programme — pas tes objectifs ni tes préférences,
+        déjà couverts plus tôt.
+      </p>
       <textarea
         id="injuriesLimitations"
         value={injuriesLimitations}
         onChange={(e) => setInjuriesLimitations(e.target.value)}
         rows={3}
-        placeholder="Blessures, limitations, contraintes d'horaire, préférences d'exercices… tout ce qui peut aider à personnaliser ton programme."
+        placeholder="Ex. douleur au genou droit, hernie discale L4-L5, épaule sensible en surélévation…"
       />
 
       {error && <p role="alert">{error}</p>}

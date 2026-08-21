@@ -136,13 +136,35 @@ function programSchema(exerciseIds: string[]) {
 function validateProgramStructure(
   structure: any,
   validExerciseIds: Set<string>,
-  options: { sameDayCombining: string }
+  options: {
+    sameDayCombining: string
+    totalSessions?: number
+    expectedModalityCounts?: Record<string, number>
+  }
 ): string | null {
   if (!structure || !Array.isArray(structure.weeks) || structure.weeks.length === 0) {
     return 'aucune semaine générée'
   }
   for (const week of structure.weeks) {
     if (!Array.isArray(week.days) || week.days.length === 0) return 'jours manquants'
+
+    // Le prompt demande explicitement un nombre de séances et une répartition
+    // par modalité précis — ne fait pas confiance au modèle pour les
+    // respecter sur plusieurs semaines, on le vérifie déterministiquement.
+    if (options.totalSessions != null && week.days.length !== options.totalSessions) {
+      return `nombre de séances incohérent (semaine ${week.week_number ?? '?'} : ${week.days.length} au lieu de ${options.totalSessions})`
+    }
+    if (options.expectedModalityCounts) {
+      const modalityCounts: Record<string, number> = {}
+      for (const day of week.days) {
+        modalityCounts[day.modality] = (modalityCounts[day.modality] ?? 0) + 1
+      }
+      for (const [modality, expected] of Object.entries(options.expectedModalityCounts)) {
+        if ((modalityCounts[modality] ?? 0) !== expected) {
+          return `répartition par modalité incohérente (semaine ${week.week_number ?? '?'} : "${modality}" ${modalityCounts[modality] ?? 0}× au lieu de ${expected}×)`
+        }
+      }
+    }
 
     const daysByWeekday: Record<number, any[]> = {}
     for (const day of week.days) {
@@ -244,10 +266,16 @@ Adapte concrètement la programmation à l'objectif (goal_type) :
 - "muscle_gain" (prise de muscle) : hypertrophie — 8 à 12 répétitions, volume suffisant par groupe musculaire, repos modérés (60-120 s), split cohérent avec la fréquence.
 - "strength" (force) : mouvements poly-articulaires lourds en priorité, 3 à 6 répétitions, repos longs (2-4 min).
 - "endurance" : résistance musculaire (répétitions élevées, circuits) et travail cardio régulier.
-- "recomposition" / "hybrid" : combine renforcement musculaire et conditionnement cardio dans la semaine.
+- "recomposition" / "hybrid" : combine renforcement musculaire (hypertrophie, 8-12 répétitions, repos modérés) et conditionnement cardio régulier dans la semaine. Le dosage entre les deux dépend de focus_areas (voir ci-dessous) : sans signal supplémentaire, équilibre les deux également.
 - "general_fitness" : programme équilibré et varié (force, tronc, mobilité, un peu de cardio).
 
+Le goal_type ne suffit pas toujours à capter l'intention réelle — croise-le avec focus_areas (des aspects secondaires à travailler, en plus de l'objectif principal) :
+- si focus_areas contient "weight_loss" (même quand goal_type est "recomposition", "hybrid" ou autre), applique EN PLUS les principes de densité du bloc "weight_loss" ci-dessus (repos courts, supersets/circuits, cardio systématique) sur la part musculation du programme, plutôt que de traiter ce cas comme une hypertrophie classique ;
+- si focus_areas contient "muscle_gain" alors que goal_type n'est pas déjà "muscle_gain", pondère la part musculation vers un travail d'hypertrophie (8-12 répétitions, volume par groupe musculaire) sur les groupes ciblés, sans pour autant abandonner ce que demande goal_type par ailleurs.
+
 Sécurité et pathologies (prioritaire) : croise systématiquement le champ "contraindications" de chaque exercice avec les blessures, limitations et la situation particulière de l'utilisateur, et n'inclus JAMAIS un exercice dont une contre-indication correspond à une zone à risque. En cas de doute, choisis une variante plus sûre.
+
+Rythme de perte de poids et échéances (prioritaire, même esprit que les contre-indications physiques) : si le prompt utilisateur indique un rythme de perte de poids visé au-delà d'environ 1 kg/semaine, ou une échéance trop proche pour l'atteindre sainement, NE conçois PAS un programme visant à forcer ce rythme (pas de déficit extrême, pas de volume/densité excessifs pour "rattraper" le temps). Construis plutôt la progression la plus sûre et cohérente possible sur la durée du programme, et indique clairement dans le champ "notes" du premier exercice de la première séance que l'échéance ou le rythme demandé n'est pas réaliste de façon saine, avec l'estimation réaliste fournie dans le prompt si elle est présente.
 
 Pour choisir chaque exercice, deux options :
 1. Un exercice de la bibliothèque fournie, référencé par son exercise_id exact —
@@ -479,8 +507,22 @@ Deno.serve(async (req: Request) => {
         return pref.mode === 'integrated' ? sum : sum + (pref.frequency ?? 0)
       }, 0)
 
+      // Attendu par modalité pour la validation déterministe post-génération
+      // (le prompt seul ne garantit pas fiablement le respect des fréquences
+      // demandées sur un programme de plusieurs semaines) : une entrée par
+      // domaine non "integrated", modality = "strength" pour la musculation.
+      const expectedModalityCounts: Record<string, number> = {}
+      for (const [area, pref] of Object.entries(focusAreaPreferences) as [string, any][]) {
+        if (area !== 'strength' && pref.mode === 'integrated') continue
+        const modality = area === 'strength' ? 'strength' : area
+        expectedModalityCounts[modality] = (expectedModalityCounts[modality] ?? 0) + (pref.frequency ?? 0)
+      }
+
       const scheduleLines = Object.entries(focusAreaPreferences).map(([area, pref]: [string, any]) => {
         const label = area === 'strength' ? 'Musculation' : (FOCUS_AREA_LABELS[area] ?? area)
+        // pref.mode n'a pas de sens pour "strength" (rien ne peut s'y
+        // "intégrer" en amont) : l'absence de mode y retombe intentionnellement
+        // sur "dédiée(s)", pas un oubli de valeur par défaut.
         const modeText =
           pref.mode === 'integrated'
             ? "intégré à l'intérieur des séances de musculation existantes (échauffement, finisher ou superset), sans créer de séance séparée"
@@ -569,8 +611,32 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
           ? `\n\nCe bloc de ${WEEKS_COUNT} semaines est un mésocycle qui sera répété ${blocks} fois pour couvrir ${durationMonths} mois d'entraînement, avec une montée progressive de la charge à chaque répétition (la répétition et l'augmentation entre blocs sont gérées automatiquement après ta génération). Conçois donc une progression cohérente et logique à l'intérieur de ces 4 semaines.`
           : ''
 
+      // Calculé en code plutôt que laissé à l'arithmétique de dates du modèle
+      // (peu fiable) : signale explicitement un rythme de perte/prise de
+      // poids visé au-delà de ~1 kg/semaine, ou une échéance déjà dépassée /
+      // tombant avant la fin du programme — le system prompt sait alors qu'il
+      // ne doit pas essayer de "rattraper" une échéance irréaliste.
+      let targetRealismNote = ''
+      if (goal.target_date) {
+        const programDurationDays = WEEKS_COUNT * blocks * 7
+        const daysUntilTarget = Math.round((new Date(goal.target_date).getTime() - Date.now()) / 86400000)
+        const weeksUntilTarget = daysUntilTarget / 7
+        if (goal.target_weight_kg && measurement.weight_kg && weeksUntilTarget > 0) {
+          const weightDeltaKg = Math.abs(measurement.weight_kg - goal.target_weight_kg)
+          const ratePerWeek = weightDeltaKg / weeksUntilTarget
+          if (ratePerWeek > 1) {
+            targetRealismNote += ` Attention : cela représente un rythme d'environ ${ratePerWeek.toFixed(1)} kg/semaine, au-delà d'un rythme sain (généralement 0,5 à 1 kg/semaine) — ne cherche pas à forcer ce rythme, vise une progression réaliste et sûre.`
+          }
+        }
+        if (daysUntilTarget <= 0) {
+          targetRealismNote += ` Cette échéance est déjà passée ou tombe aujourd'hui — traite-la comme indicative seulement, sans t'y adapter littéralement.`
+        } else if (daysUntilTarget < programDurationDays) {
+          targetRealismNote += ` Cette échéance tombe avant la fin des ${Math.round(programDurationDays / 7)} semaines du programme (dans ${daysUntilTarget} jour${daysUntilTarget > 1 ? 's' : ''}) — priorise une progression sûre et cohérente plutôt que de tout concentrer avant cette date.`
+        }
+      }
+
       const targetSection = goal.target_date
-        ? `\n\nL'utilisateur vise une échéance au ${goal.target_date}${goal.target_weight_kg ? ` avec un poids cible de ${goal.target_weight_kg} kg` : ''} — oriente la progression et l'intensité pour l'amener au mieux à cette date.`
+        ? `\n\nL'utilisateur vise une échéance au ${goal.target_date}${goal.target_weight_kg ? ` avec un poids cible de ${goal.target_weight_kg} kg` : ''} — oriente la progression et l'intensité pour l'amener au mieux à cette date.${targetRealismNote}`
         : ''
 
       // Demande d'ajustement Premium en attente : à prendre en compte en
@@ -665,7 +731,11 @@ ${JSON.stringify(
         throw new Error('Réponse du modèle mal formée.')
       }
 
-      const validationError = validateProgramStructure(structure, new Set(exerciseIds), { sameDayCombining })
+      const validationError = validateProgramStructure(structure, new Set(exerciseIds), {
+        sameDayCombining,
+        totalSessions,
+        expectedModalityCounts,
+      })
       if (validationError) {
         throw new Error(`Programme invalide : ${validationError}`)
       }
@@ -675,7 +745,7 @@ ${JSON.stringify(
       const finalValidationError = validateProgramStructure(
         structure,
         new Set([...exerciseIds, ...structure.weeks.flatMap((w: any) => w.days.flatMap((d: any) => d.exercises.map((e: any) => e.exercise_id)))]),
-        { sameDayCombining }
+        { sameDayCombining, totalSessions, expectedModalityCounts }
       )
       if (finalValidationError) {
         throw new Error(`Programme invalide après résolution des exercices personnalisés : ${finalValidationError}`)
