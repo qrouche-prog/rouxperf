@@ -8,6 +8,8 @@ import ExerciseLoop from '../components/ExerciseLoop'
 import ExerciseAttribution from '../components/ExerciseAttribution'
 import Icon from '../components/onboarding/icons/Icon'
 import ExerciseAlternatives from '../components/ExerciseAlternatives'
+import BlockRunner from '../components/BlockRunner'
+import { groupDayExercises, isBlockExercise, firstIndexOfBlock, blockLabel } from '../lib/workoutBlocks'
 
 function parseTargetReps(repsText) {
   const match = String(repsText ?? '').match(/\d+/)
@@ -98,6 +100,10 @@ function fmtPace(sec) {
 
 // Libellé d'une série réalisée dans le résumé, selon sa nature.
 function setSummary(e, ex, running) {
+  if (ex.block_id) {
+    const n = e.reps ?? 0
+    return `${n} tour${n > 1 ? 's' : ''} complété${n > 1 ? 's' : ''}${e.note ? ` · ${e.note}` : ''}`
+  }
   if (e.metric_kind === 'effort_s') return `${e.metric_value}s d'effort${e.note ? ` · ${e.note}` : ''}`
   const note = e.note ? ` · ${e.note}` : ''
   const parts = []
@@ -204,8 +210,17 @@ export default function SessionRunnerPage() {
   const days = withStableDayNumbers(week?.days ?? [])
   const day = days.find((d) => d.day_number === Number(dayNumber))
 
-  // Nombre effectif de séries d'un exercice (gère les intervalles course "Nx…").
-  const setCount = (ex) => setsOf(ex, exercisesById[ex.exercise_id], day?.modality)
+  // Nombre effectif de "séries" d'un exercice (gère les intervalles course
+  // "Nx…" et les blocs AMRAP/EMOM, comptés comme UNE seule série sur le
+  // premier exercice du bloc — les suivants comptent pour 0 pour ne pas
+  // fausser la progression, ils sont gérés ensemble via le minuteur de bloc).
+  const setCount = (ex) => {
+    if (ex.block_id) {
+      const firstIdx = day.exercises.findIndex((e) => e.block_id === ex.block_id)
+      return day.exercises.indexOf(ex) === firstIdx ? 1 : 0
+    }
+    return setsOf(ex, exercisesById[ex.exercise_id], day?.modality)
+  }
 
   function syncEntries(next) {
     entriesRef.current = next
@@ -257,6 +272,12 @@ export default function SessionRunnerPage() {
       const ex = target.exercises[e]
       for (let s = 0; s < setCount(ex); s += 1) {
         if (!entriesRef.current[`${e}-${s}`]) {
+          if (isBlockExercise(ex)) {
+            selectedExRef.current = e
+            setSelectedExerciseIndex(e)
+            setPhase('block')
+            return true
+          }
           const sameExercise = e === selectedExRef.current
           selectedExRef.current = e
           setSelectedExerciseIndex(e)
@@ -277,6 +298,13 @@ export default function SessionRunnerPage() {
   function openExercise(dayArg, exIdx) {
     const target = dayArg || day
     const ex = target.exercises[exIdx]
+    if (isBlockExercise(ex)) {
+      const firstIdx = firstIndexOfBlock(target.exercises, ex.block_id)
+      selectedExRef.current = firstIdx
+      setSelectedExerciseIndex(firstIdx)
+      setPhase('block')
+      return
+    }
     let setIdx = 0
     for (let s = 0; s < setCount(ex); s += 1) {
       if (!entriesRef.current[`${exIdx}-${s}`]) {
@@ -685,6 +713,30 @@ export default function SessionRunnerPage() {
     loadFieldsFor(day, selectedExerciseIndex, nextSet, { sameExercise: true })
   }
 
+  // Termine un bloc AMRAP/EMOM : enregistre un unique résultat (nombre de
+  // tours/rounds complétés) sur le premier exercice du bloc, comme une série
+  // classique — c'est ce que setCount()/allDone() attendent pour ce bloc.
+  function submitBlock(exIdx, roundsCompleted) {
+    const entry = {
+      reps: roundsCompleted,
+      weight_kg: '',
+      note: '',
+      metric_kind: null,
+      metric_value: null,
+      distance_km: null,
+    }
+    const key = `${exIdx}-0`
+    const updated = { ...entriesRef.current, [key]: entry }
+    syncEntries(updated)
+    persistSet(exIdx, 0, entry)
+    if (allDone(updated)) {
+      setFinalPercent(100)
+      setPhase('summary')
+      return
+    }
+    setPhase('list')
+  }
+
   // Démarre le chrono d'effort d'une série chronométrée.
   function startEffort(seconds, exIdx, setIdx) {
     effortTargetRef.current = { exIdx, setIdx, seconds }
@@ -967,18 +1019,26 @@ export default function SessionRunnerPage() {
         </div>
 
         <div className="card session-summary">
-          {day.exercises.map((ex, i) => {
+          {groupDayExercises(day.exercises).map((item) => {
+            const i = item.index
+            const ex = day.exercises[i]
             const det = exercisesById[ex.exercise_id]
             const total = setCount(ex)
             const doneCount = countCompleted(entries, i, total)
+            const label = item.type === 'block' ? blockLabel(ex) : (det?.name ?? 'Exercice')
             return (
               <div key={i} className="session-summary-exo">
                 <div className="session-summary-exo-head">
-                  <strong>{det?.name ?? 'Exercice'}</strong>
+                  <strong>{label}</strong>
                   <span className={`eyebrow${doneCount === total ? ' session-summary-done' : ''}`}>
-                    {doneCount}/{total} séries
+                    {doneCount}/{total}{item.type === 'block' ? '' : ' séries'}
                   </span>
                 </div>
+                {item.type === 'block' && (
+                  <p className="eyebrow">
+                    {item.members.map(({ exercise: e }) => exercisesById[e.exercise_id]?.name ?? 'Exercice').join(' · ')}
+                  </p>
+                )}
                 <ul className="session-summary-sets">
                   {Array.from({ length: total }).map((_, s) => {
                     const e = entries[`${i}-${s}`]
@@ -1039,6 +1099,44 @@ export default function SessionRunnerPage() {
     )
   }
 
+  // ---- Écran : bloc de conditionnement (AMRAP/EMOM) ----
+  if (phase === 'block') {
+    if (selectedExerciseIndex == null || !day.exercises[selectedExerciseIndex]) return null
+    const first = day.exercises[selectedExerciseIndex]
+    const members = day.exercises
+      .filter((e) => e.block_id === first.block_id)
+      .map((e) => ({ name: exercisesById[e.exercise_id]?.name ?? 'Exercice', reps: e.reps }))
+    const blockDone = Boolean(entries[`${selectedExerciseIndex}-0`])
+    return (
+      <main className="session-run">
+        <div className="session-runner-header">
+          <button type="button" className="link-button" onClick={() => setPhase('list')}>
+            ‹ Exercices
+          </button>
+          <span className="eyebrow">{overallPercent}%</span>
+        </div>
+        <BlockRunner
+          format={first.block_format}
+          timeCapSeconds={first.block_time_cap_seconds}
+          intervalSeconds={first.block_interval_seconds}
+          rounds={first.block_rounds}
+          members={members}
+          onCancel={() => setPhase('list')}
+          onComplete={(rounds) => submitBlock(selectedExerciseIndex, rounds)}
+        />
+        {blockDone && (
+          <button
+            type="button"
+            className="link-button session-reset-link"
+            onClick={() => resetExercise(selectedExerciseIndex)}
+          >
+            Réinitialiser ce bloc
+          </button>
+        )}
+      </main>
+    )
+  }
+
   // ---- Écran : liste (libre) ----
   if (phase === 'list') {
     return (
@@ -1066,11 +1164,29 @@ export default function SessionRunnerPage() {
         <p className="session-list-hint">Lance la séance, ou choisis directement un exercice.</p>
 
         <div className="session-exercise-list">
-          {day.exercises.map((exercise, i) => {
-            const details = exercisesById[exercise.exercise_id]
+          {groupDayExercises(day.exercises).map((item) => {
+            const i = item.index
+            const exercise = day.exercises[i]
             const total = setCount(exercise)
             const completed = countCompleted(entries, i, total)
             const done = completed === total
+            if (item.type === 'block') {
+              return (
+                <button key={i} type="button" className="session-exercise-card" onClick={() => openExercise(day, i)}>
+                  <span className={`session-status-badge${done ? ' session-status-done' : ''}`}>
+                    <Icon name={done ? 'check' : 'bolt'} size={16} />
+                  </span>
+                  <span className="session-exercise-info">
+                    <strong>{blockLabel(exercise)}</strong>
+                    <span className="eyebrow">
+                      {item.members.map(({ exercise: e }) => exercisesById[e.exercise_id]?.name ?? 'Exercice').join(' · ')}
+                    </span>
+                  </span>
+                  <span className="session-exercise-chevron">›</span>
+                </button>
+              )
+            }
+            const details = exercisesById[exercise.exercise_id]
             return (
               <button
                 key={i}

@@ -6,6 +6,7 @@ import { withResolvedDayOfWeek, withStableDayNumbers, programSchedule } from '..
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 import ExerciseAlternatives from '../components/ExerciseAlternatives'
+import { groupDayExercises, blockLabel } from '../lib/workoutBlocks'
 
 const SITUATION_LABELS = {
   pregnant: 'grossesse',
@@ -306,7 +307,24 @@ export default function ProgramPage() {
               )}
               {expandedDay === dayKey && (
                 <ul className="program-exos">
-                  {day.exercises.map((ex, i) => {
+                  {groupDayExercises(day.exercises).map((item) => {
+                    if (item.type === 'block') {
+                      const first = day.exercises[item.index]
+                      return (
+                        <li key={item.index} className="program-exo">
+                          <div className="program-exo-head">
+                            <span className="program-exo-name">{blockLabel(first)}</span>
+                          </div>
+                          <p className="eyebrow">
+                            {item.members
+                              .map(({ exercise: e }) => exercisesById[e.exercise_id]?.name ?? 'Exercice')
+                              .join(' · ')}
+                          </p>
+                        </li>
+                      )
+                    }
+                    const i = item.index
+                    const ex = day.exercises[i]
                     const det = exercisesById[ex.exercise_id]
                     return (
                       <li key={i} className="program-exo">

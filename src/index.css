@@ -1235,6 +1235,54 @@ a.btn-secondary {
   animation: ember-pulse 1.5s ease-in-out infinite;
 }
 
+.block-runner {
+  text-align: center;
+  padding: 32px 24px;
+}
+.block-runner-round {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--iron);
+}
+.block-runner-countdown {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 3.5rem;
+  color: var(--flame-3);
+  margin: 4px 0 16px;
+}
+.block-runner-movements {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.block-runner-movements li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.block-runner .btn-primary,
+.block-runner .btn-secondary {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+.block-runner input[type='number'] {
+  margin: 0 auto 16px;
+  max-width: 140px;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
 .session-complete {
   text-align: center;
   margin-top: 60px;

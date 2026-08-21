@@ -71,6 +71,11 @@ const EQUIPMENT_TIERS: Record<string, string[]> = {
 
 const CUSTOM_EXERCISE_SENTINEL = 'custom'
 
+// Formats de bloc de conditionnement supportés par le lanceur de séance —
+// "straight" = série classique (défaut), sinon un bloc AMRAP/EMOM regroupant
+// plusieurs exercices consécutifs partageant le même block_id.
+const BLOCK_FORMATS = ['straight', 'amrap', 'emom']
+
 function exerciseInputSchema(exerciseIds: string[]) {
   return {
     type: 'object',
@@ -82,6 +87,11 @@ function exerciseInputSchema(exerciseIds: string[]) {
       reps: { type: 'string' },
       rest_seconds: { type: 'integer' },
       notes: { type: 'string' },
+      block_format: { type: 'string', enum: BLOCK_FORMATS },
+      block_id: { type: 'string' },
+      block_time_cap_seconds: { type: 'integer' },
+      block_interval_seconds: { type: 'integer' },
+      block_rounds: { type: 'integer' },
     },
     required: [
       'exercise_id',
@@ -91,6 +101,11 @@ function exerciseInputSchema(exerciseIds: string[]) {
       'reps',
       'rest_seconds',
       'notes',
+      'block_format',
+      'block_id',
+      'block_time_cap_seconds',
+      'block_interval_seconds',
+      'block_rounds',
     ],
     additionalProperties: false,
   }
@@ -218,6 +233,57 @@ function validateProgramStructure(
         ) {
           return 'temps de repos invalide'
         }
+        if (!BLOCK_FORMATS.includes(exercise.block_format)) {
+          return `format de bloc invalide (${exercise.block_format})`
+        }
+        if (exercise.block_format !== 'straight' && !String(exercise.block_id ?? '').trim()) {
+          return 'block_id manquant pour un exercice en bloc AMRAP/EMOM'
+        }
+        if (
+          exercise.block_format === 'amrap' &&
+          (!Number.isInteger(exercise.block_time_cap_seconds) ||
+            exercise.block_time_cap_seconds < 60 ||
+            exercise.block_time_cap_seconds > 3600)
+        ) {
+          return 'durée AMRAP invalide (block_time_cap_seconds)'
+        }
+        if (
+          exercise.block_format === 'emom' &&
+          (!Number.isInteger(exercise.block_interval_seconds) ||
+            exercise.block_interval_seconds < 10 ||
+            exercise.block_interval_seconds > 300 ||
+            !Number.isInteger(exercise.block_rounds) ||
+            exercise.block_rounds < 2 ||
+            exercise.block_rounds > 60)
+        ) {
+          return 'paramètres EMOM invalides (block_interval_seconds / block_rounds)'
+        }
+      }
+
+      // Cohérence des blocs AMRAP/EMOM : un même block_id doit toujours porter
+      // le même format, et ses exercices doivent être consécutifs dans le
+      // tableau (le lanceur de séance regroupe par contiguïté, pas par id seul).
+      const blockFormatById: Record<string, string> = {}
+      const blockIndexRanges: Record<string, { first: number; last: number; count: number }> = {}
+      for (let idx = 0; idx < day.exercises.length; idx += 1) {
+        const exercise = day.exercises[idx]
+        const bId = exercise.block_id
+        if (!bId) continue
+        if (blockFormatById[bId] == null) {
+          blockFormatById[bId] = exercise.block_format
+        } else if (blockFormatById[bId] !== exercise.block_format) {
+          return `format incohérent au sein du bloc "${bId}"`
+        }
+        if (!blockIndexRanges[bId]) blockIndexRanges[bId] = { first: idx, last: idx, count: 1 }
+        else {
+          blockIndexRanges[bId].last = idx
+          blockIndexRanges[bId].count += 1
+        }
+      }
+      for (const [bId, range] of Object.entries(blockIndexRanges)) {
+        if (range.last - range.first + 1 !== range.count) {
+          return `bloc "${bId}" non contigu`
+        }
       }
     }
   }
@@ -265,7 +331,7 @@ Adapte concrètement la programmation à l'objectif (goal_type) :
 - "weight_loss" (perte de poids) : vise une dépense énergétique élevée — séances plutôt full-body, densité élevée (supersets ou circuits), temps de repos courts entre exercices de force. Termine SYSTÉMATIQUEMENT chaque séance de musculation par un finisher de 8 à 15 minutes, en variant les deux formats suivants d'une séance à l'autre plutôt que de répéter toujours le même :
   a) gainage/abdominaux complémentaires (2-4 exercices core additionnels) ;
   b) un bloc de conditionnement varié type AMRAP (autant de tours que possible dans un temps donné, ex. 12 minutes) ou EMOM (un enchaînement à répéter au début de chaque minute, le temps restant de la minute sert de repos), mêlant 3 à 5 mouvements différents (ex. squats, fentes, burpees, mountain climbers, corde à sauter, kettlebell swings, rameur) à une intensité modérée à soutenue — PAS uniquement des intervalles très haute intensité (HIIT) répétés à l'identique semaine après semaine : varie les mouvements, la structure (AMRAP/EMOM/circuit) et l'intensité perçue.
-  Pour représenter un bloc AMRAP/EMOM avec les champs disponibles (pas de champ dédié à un "format" de séance) : liste chaque mouvement du tour comme un exercice séparé, avec sets=1, reps=le nombre de répétitions prescrites pour ce mouvement dans un tour (ou une durée si le mouvement est chronométré, ex. "30s"), rest_seconds=0, et précise dans le champ "notes" du premier mouvement du bloc le format complet et lisible pour l'utilisateur (ex. "AMRAP 12 min : enchaîne ces mouvements en boucle, note le nombre de tours complétés" ou "EMOM 10 min : à chaque nouvelle minute, réalise ces répétitions puis récupère le temps restant").
+  Pour représenter un bloc AMRAP/EMOM, utilise les champs block_* prévus à cet effet (le lanceur de séance affiche un vrai minuteur dédié pour ces blocs — ne mets JAMAIS ces informations dans "notes") : liste chaque mouvement du bloc comme un exercice séparé et CONSÉCUTIF dans le tableau "exercises" (jamais entrecoupé d'un autre exercice), avec sets=1, reps=le nombre de répétitions prescrites pour ce mouvement à chaque tour/round (ou une durée si le mouvement est chronométré, ex. "30s"), rest_seconds=0 ; block_format="amrap" ou "emom" sur CHAQUE exercice du bloc ; block_id=un identifiant court partagé par tous les exercices de ce bloc (ex. "b1"), unique par bloc dans la séance. Pour un bloc "amrap" : renseigne block_time_cap_seconds (durée totale en secondes, ex. 720 pour 12 minutes) ; block_interval_seconds et block_rounds valent 0. Pour un bloc "emom" : renseigne block_interval_seconds (durée d'un round, généralement 60) et block_rounds (nombre total de rounds/minutes, ex. 10) ; block_time_cap_seconds vaut 0. Pour tout exercice hors bloc (séries classiques) : block_format="straight", block_id="", et les trois champs numériques block_* valent 0.
   Sur le reste de la semaine, intègre aussi du cardio continu à faible/moyen impact (marche rapide inclinée, montée d'escaliers, vélo, elliptique, rameur) pour varier les stimuli — ne fais pas reposer tout le volet cardio sur des intervalles intenses. Ne te limite pas à de la musculation classique.
 - "muscle_gain" (prise de muscle) : hypertrophie — 8 à 12 répétitions, volume suffisant par groupe musculaire, repos modérés (60-120 s), split cohérent avec la fréquence.
 - "strength" (force) : mouvements poly-articulaires lourds en priorité, 3 à 6 répétitions, repos longs (2-4 min).
@@ -296,6 +362,15 @@ Pour choisir chaque exercice, deux options :
    pour ce type de travail à faible risque technique — jamais pour remplacer un
    mouvement de force qui existe déjà dans la bibliothèque. Quand exercise_id
    n'est pas "custom", laisse custom_name et custom_instructions vides ("").
+
+Chaque exercice porte aussi des champs block_* (block_format, block_id,
+block_time_cap_seconds, block_interval_seconds, block_rounds) qui pilotent
+l'affichage d'un vrai minuteur dans le lanceur de séance. Par défaut, pour un
+exercice en séries classiques (l'immense majorité des cas) : block_format=
+"straight", block_id="", et les trois champs numériques valent 0. Utilise
+"amrap"/"emom" uniquement pour les blocs de conditionnement décrits dans le
+bloc "weight_loss" ci-dessous et dans les autres goal_type où un tel
+finisher a du sens — jamais pour un exercice de musculation classique.
 
 Le profil contient aussi des aspects à travailler (focus_areas), une éventuelle
 compétition à venir (upcoming_events, event_date) et des sports pour lesquels
