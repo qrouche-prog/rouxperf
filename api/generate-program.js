@@ -184,7 +184,15 @@ export default async function handler(req, res) {
       return
     }
 
-    await supabase.from('profiles').update({ onboarding_completed_at: new Date().toISOString() }).eq('user_id', user.id)
+    const { error: onboardingError } = await supabase
+      .from('profiles')
+      .update({ onboarding_completed_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+    if (onboardingError) {
+      console.error('generate-program: échec marquage onboarding_completed_at (mock)', onboardingError)
+      res.status(500).json({ error: "Impossible de finaliser l'inscription. Réessaie." })
+      return
+    }
     res.status(200).json({ program })
     return
   }
@@ -206,8 +214,19 @@ export default async function handler(req, res) {
   // Marque l'onboarding comme terminé dès la demande plutôt qu'à la fin de la
   // génération réelle : l'utilisateur a fini son profil, l'approbation puis
   // la génération sont des étapes asynchrones — pas de raison de le bloquer
-  // sur l'écran de génération en attendant.
-  await supabase.from('profiles').update({ onboarding_completed_at: new Date().toISOString() }).eq('user_id', user.id)
+  // sur l'écran de génération en attendant. Vérifié explicitement : un échec
+  // silencieux ici laisse RequireOnboarding renvoyer indéfiniment vers la
+  // première étape (onboarding_completed_at jamais marqué).
+  const { error: onboardingError } = await supabase
+    .from('profiles')
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+  if (onboardingError) {
+    console.error('generate-program: échec marquage onboarding_completed_at', onboardingError)
+    await supabase.from('user_programs').delete().eq('id', program.id)
+    res.status(500).json({ error: "Impossible de finaliser l'inscription. Réessaie." })
+    return
+  }
 
   const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL
   if (adminEmail) {

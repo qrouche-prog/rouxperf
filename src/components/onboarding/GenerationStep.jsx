@@ -35,22 +35,15 @@ export default function GenerationStep({ onBack }) {
     navigate('/dashboard', { replace: true })
   }
 
+  // Anime jusqu'à 95% pendant que la requête est en vol, sans jamais
+  // déclencher la redirection toute seule : la navigation n'a lieu qu'une
+  // fois la réponse serveur effectivement reçue (voir handleGenerate), pour
+  // ne jamais partir vers /dashboard avant que onboarding_completed_at soit
+  // réellement écrit en base (sinon RequireOnboarding renvoie en boucle sur
+  // la première étape).
   function startProgressAnimation() {
     progressTimer.current = setInterval(() => {
-      setProgress((p) => {
-        const next = Math.min(PROGRESS_CAP, p + PROGRESS_STEP)
-        if (next >= PROGRESS_CAP) {
-          // Ne pas attendre la fin réelle de la génération (30-90s) : on
-          // relâche l'utilisateur sur le tableau de bord dès que la barre
-          // atteint 95%, pour qu'il ne reste pas bloqué sur cet écran et ne
-          // soit pas tenté de rafraîchir/relancer une génération en double
-          // pendant que celle-ci tourne encore en arrière-plan. Le tableau
-          // de bord prend le relais pour prévenir quand c'est vraiment prêt.
-          stopProgressAnimation()
-          proceedToDashboard()
-        }
-        return next
-      })
+      setProgress((p) => Math.min(PROGRESS_CAP, p + PROGRESS_STEP))
     }, PROGRESS_TICK_MS)
   }
 
@@ -83,16 +76,12 @@ export default function GenerationStep({ onBack }) {
       return
     }
 
-    const body = await response.json()
-
-    if (body.program?.status === 'active') {
-      // Mode mock : déjà prêt, pas besoin d'attendre l'animation.
-      stopProgressAnimation()
-      setProgress(100)
-      setTimeout(() => proceedToDashboard(), 400)
-    }
-    // Sinon (status "generating"), l'animation déjà lancée continue seule
-    // jusqu'à 95% puis redirige — la génération se termine en arrière-plan.
+    // La requête a réussi (mock déjà "active", ou réel "pending_approval") :
+    // onboarding_completed_at est déjà écrit côté serveur à ce stade, on peut
+    // rafraîchir le profil et naviguer en toute sécurité.
+    stopProgressAnimation()
+    setProgress(100)
+    setTimeout(() => proceedToDashboard(), 400)
   }
 
   const isLoading = status === 'loading'
