@@ -6,7 +6,7 @@ import { withResolvedDayOfWeek, withStableDayNumbers, programSchedule } from '..
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 import ExerciseAlternatives from '../components/ExerciseAlternatives'
-import { groupDayExercises, blockLabel, blockExplainer } from '../lib/workoutBlocks'
+import { groupDayExercises, blockLabel, blockExplainer, isWarmupExercise } from '../lib/workoutBlocks'
 
 const SITUATION_LABELS = {
   pregnant: 'grossesse',
@@ -331,6 +331,7 @@ export default function ProgramPage() {
                     return (
                       <li key={i} className="program-exo">
                         <div className="program-exo-head">
+                          {isWarmupExercise(ex) && <span className="program-exo-block-tag">🔸 Échauffement</span>}
                           <span className="program-exo-name">{det?.name ?? 'Exercice'}</span>
                         </div>
                         <ExerciseAlternatives

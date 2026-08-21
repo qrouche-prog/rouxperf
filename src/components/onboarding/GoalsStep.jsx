@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 
+// "hybrid" retiré de la liste : traité de façon strictement identique à
+// "recomposition" côté génération (même règle de programmation dans le
+// system prompt) — les deux proposer comme choix distincts n'apportait que
+// de la confusion. "hybrid" reste une valeur backend valide (anciens profils).
 const GOAL_TYPES = [
   { value: 'weight_loss', label: 'Perte de poids' },
   { value: 'muscle_gain', label: 'Prise de muscle' },
@@ -9,7 +13,6 @@ const GOAL_TYPES = [
   { value: 'endurance', label: 'Endurance' },
   { value: 'general_fitness', label: 'Forme générale' },
   { value: 'recomposition', label: 'Recomposition corporelle' },
-  { value: 'hybrid', label: 'Hybride' },
 ]
 
 const DURATIONS = [

@@ -3,14 +3,18 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import SelectableCardGrid from './SelectableCardGrid'
 
+// Liste resserrée : "Endurance aérobie" et "Capacité anaérobie" ont été
+// fusionnées dans "Cardio" / "Explosivité" respectivement (recouvrement quasi
+// total côté génération, aucune règle distincte) ; "Force" retirée (case sans
+// aucun effet — la fréquence de musculation a déjà sa propre ligne dédiée) ;
+// "Mobilité" retirée (l'app ne proposait qu'un exemple vague de 12 min sans
+// vraie structure) — remplacée par un échauffement systématique et adapté à
+// chaque séance, généré automatiquement, plutôt qu'un choix à part qui ne
+// tenait pas ses promesses.
 const FOCUS_AREAS = [
   { value: 'cardio', label: 'Cardio', icon: 'heart' },
   { value: 'running', label: 'Course à pied', icon: 'run' },
-  { value: 'aerobic', label: 'Endurance aérobie', icon: 'lungs' },
-  { value: 'anaerobic', label: 'Capacité anaérobie', icon: 'bolt' },
-  { value: 'strength', label: 'Force', icon: 'dumbbell' },
-  { value: 'explosiveness', label: 'Explosivité / plyométrie', icon: 'jump' },
-  { value: 'mobility', label: 'Mobilité', icon: 'stretch' },
+  { value: 'explosiveness', label: 'Explosivité / puissance', icon: 'jump' },
   { value: 'weight_loss', label: 'Perte de poids', icon: 'scale' },
   { value: 'muscle_gain', label: 'Prise de muscle', icon: 'bicep' },
 ]
@@ -18,7 +22,7 @@ const FOCUS_AREAS = [
 // Domaines pour lesquels ça a du sens de demander une fréquence dédiée et un
 // mode d'intégration — la force est la base du programme et perte de poids /
 // prise de muscle sont des objectifs, pas des séances à planifier en soi.
-const SCHEDULABLE_FOCUS_AREAS = new Set(['cardio', 'running', 'aerobic', 'anaerobic', 'explosiveness', 'mobility'])
+const SCHEDULABLE_FOCUS_AREAS = new Set(['cardio', 'running', 'explosiveness'])
 
 const INTEGRATION_MODES = [
   { value: 'separate', label: 'Séances dédiées, séparées de la musculation' },

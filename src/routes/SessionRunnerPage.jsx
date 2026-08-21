@@ -9,7 +9,14 @@ import ExerciseAttribution from '../components/ExerciseAttribution'
 import Icon from '../components/onboarding/icons/Icon'
 import ExerciseAlternatives from '../components/ExerciseAlternatives'
 import BlockRunner from '../components/BlockRunner'
-import { groupDayExercises, isBlockExercise, firstIndexOfBlock, blockLabel, blockExplainer } from '../lib/workoutBlocks'
+import {
+  groupDayExercises,
+  isBlockExercise,
+  isWarmupExercise,
+  firstIndexOfBlock,
+  blockLabel,
+  blockExplainer,
+} from '../lib/workoutBlocks'
 
 function parseTargetReps(repsText) {
   const match = String(repsText ?? '').match(/\d+/)
@@ -215,7 +222,10 @@ export default function SessionRunnerPage() {
   // premier exercice du bloc — les suivants comptent pour 0 pour ne pas
   // fausser la progression, ils sont gérés ensemble via le minuteur de bloc).
   const setCount = (ex) => {
-    if (ex.block_id) {
+    // Seul un vrai bloc AMRAP/EMOM se compte comme UNE série combinée ;
+    // l'échauffement (block_format="warmup") garde ses vraies séries — sinon
+    // ses mouvements suivants perdraient leur suivi individuel.
+    if (isBlockExercise(ex)) {
       const firstIdx = day.exercises.findIndex((e) => e.block_id === ex.block_id)
       return day.exercises.indexOf(ex) === firstIdx ? 1 : 0
     }
@@ -1029,6 +1039,7 @@ export default function SessionRunnerPage() {
             const label = item.type === 'block' ? blockLabel(ex) : (det?.name ?? 'Exercice')
             return (
               <div key={i} className="session-summary-exo">
+                {isWarmupExercise(ex) && <span className="session-block-tag">🔸 Échauffement</span>}
                 <div className="session-summary-exo-head">
                   <strong>{label}</strong>
                   <span className={`eyebrow${doneCount === total ? ' session-summary-done' : ''}`}>
@@ -1210,6 +1221,7 @@ export default function SessionRunnerPage() {
                   <Icon name={done ? 'check' : 'bolt'} size={16} />
                 </span>
                 <span className="session-exercise-info">
+                  {isWarmupExercise(exercise) && <span className="session-block-tag">🔸 Échauffement</span>}
                   <strong>{details?.name ?? 'Exercice'}</strong>
                   <span className="eyebrow">
                     {completed} / {total} séries
@@ -1308,6 +1320,7 @@ export default function SessionRunnerPage() {
         <p className="eyebrow">
           Exercice {selectedExerciseIndex + 1}/{day.exercises.length} · {completed}/{total} séries
         </p>
+        {isWarmupExercise(exercise) && <span className="session-block-tag">🔸 Échauffement</span>}
         <h2 className="session-exo-name">{details?.name ?? 'Exercice'}</h2>
 
         {media && (

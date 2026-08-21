@@ -4090,7 +4090,7 @@ details.settings-section h2 {
 .program-exo-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
 }
 .program-exo-name {
@@ -4102,9 +4102,6 @@ details.settings-section h2 {
   background: var(--accent-soft);
   border: 1px solid var(--accent-soft-border);
   border-radius: 10px;
-}
-.program-exo-block .program-exo-head {
-  justify-content: flex-start;
 }
 .program-exo-block-movements {
   margin: 4px 0 0;

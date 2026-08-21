@@ -44,12 +44,15 @@ function buildWearableSection(acts: any[]): string {
 
 const WEEKS_COUNT = 4
 
+// aerobic/anaerobic/mobility conservés pour d'anciens profils qui les
+// auraient encore sélectionnés (retirés du picker, mais valeurs backend
+// toujours valides) — plus proposés aux nouveaux utilisateurs.
 const FOCUS_AREA_LABELS: Record<string, string> = {
   cardio: 'Cardio',
   running: 'Course à pied',
   aerobic: 'Endurance aérobie',
   anaerobic: 'Capacité anaérobie',
-  explosiveness: 'Explosivité / plyométrie',
+  explosiveness: 'Explosivité / puissance',
   mobility: 'Mobilité',
 }
 
@@ -71,10 +74,13 @@ const EQUIPMENT_TIERS: Record<string, string[]> = {
 
 const CUSTOM_EXERCISE_SENTINEL = 'custom'
 
-// Formats de bloc de conditionnement supportés par le lanceur de séance —
-// "straight" = série classique (défaut), sinon un bloc AMRAP/EMOM regroupant
-// plusieurs exercices consécutifs partageant le même block_id.
-const BLOCK_FORMATS = ['straight', 'amrap', 'emom']
+// Formats de bloc supportés par le lanceur de séance — "straight" = série
+// classique (défaut). "amrap"/"emom" regroupent plusieurs exercices
+// consécutifs partageant le même block_id derrière un minuteur dédié.
+// "warmup" regroupe l'échauffement en tête de séance pour l'affichage (une
+// seule carte "Échauffement"), mais chaque mouvement garde ses vraies
+// séries/répétitions — pas de minuteur, logué normalement comme un exercice.
+const BLOCK_FORMATS = ['straight', 'amrap', 'emom', 'warmup']
 
 function exerciseInputSchema(exerciseIds: string[]) {
   return {
@@ -317,15 +323,16 @@ Respecte strictement les blessures et limitations indiquées par l'utilisateur :
 Adapte le volume, l'intensité et la complexité technique au niveau d'expérience indiqué.
 Prévois une progression cohérente d'une semaine à l'autre (charge, volume ou intensité perçue), indiquée dans "notes".
 
-Structure de chaque séance de musculation :
-1. un ou deux exercices poly-articulaires principaux adaptés au niveau ;
-2. deux à trois accessoires ciblés pour équilibrer le corps ;
-3. au moins un exercice core (tronc/abdos) dans la majorité des séances ;
-4. finisher/conditionnement — SYSTÉMATIQUE si goal_type="weight_loss" ou focus_areas contient "weight_loss" (détail ci-dessous).
+Structure de CHAQUE séance, y compris cardio/course :
+1. échauffement court (5-8 min, 2-4 mouvements) adapté au contenu de la séance — ex. mobilité hanches/chevilles avant jambes, épaules/thoracique avant haut du corps poussée/tirée, activation dynamique des jambes avant course/cardio. Mouvements de la bibliothèque (category "mobility" en priorité), avec leurs vraies sets/reps/rest_seconds — regroupe-les en tête du tableau "exercises" avec block_format="warmup" et un block_id partagé par tous les mouvements de cet échauffement (même mécanique que pour un bloc AMRAP/EMOM, mais SANS minuteur : chaque mouvement garde ses propres sets/reps réels, jamais sets=1 forcé).
+2. un ou deux exercices poly-articulaires principaux adaptés au niveau (séances de musculation) ;
+3. deux à trois accessoires ciblés pour équilibrer le corps ;
+4. au moins un exercice core (tronc/abdos) dans la majorité des séances de musculation ;
+5. finisher/conditionnement — SYSTÉMATIQUE si goal_type="weight_loss" ou focus_areas contient "weight_loss" (détail ci-dessous).
 Équilibre les schémas moteurs (pousser/tirer, genou/hanche) sur la semaine, varie les exercices d'une séance à l'autre.
 
 Adapte la programmation à goal_type :
-- "weight_loss" : dépense énergétique élevée — full-body, densité élevée (supersets/circuits), repos courts. Finisher SYSTÉMATIQUE de 8-15 min en fin de séance, en alternant : (a) gainage/abdos complémentaires, ou (b) bloc AMRAP/EMOM de 3-5 mouvements variés (squats, burpees, mountain climbers, corde à sauter, kettlebell swings…) à intensité modérée-soutenue — jamais le même HIIT répété identique chaque semaine. Pour un bloc AMRAP/EMOM (jamais dans "notes") : mouvements consécutifs dans "exercises", sets=1, reps=répétitions par tour, rest_seconds=0, block_format="amrap"/"emom" sur chacun, block_id partagé. AMRAP → block_time_cap_seconds uniquement (ex. 720 pour 12 min). EMOM → block_interval_seconds (ex. 60) + block_rounds uniquement. Exercices hors bloc (l'immense majorité) : n'écris AUCUN champ block_*. Intègre aussi du cardio continu faible/moyen impact (marche inclinée, escaliers, vélo, elliptique, rameur) ailleurs dans la semaine.
+- "weight_loss" : dépense énergétique élevée — full-body, densité élevée (supersets/circuits), repos courts. Finisher SYSTÉMATIQUE de 8-15 min en fin de séance, en alternant : (a) gainage/abdos complémentaires, ou (b) bloc AMRAP/EMOM de 3-5 mouvements variés (squats, burpees, mountain climbers, corde à sauter, kettlebell swings…) à intensité modérée-soutenue — jamais le même HIIT répété identique chaque semaine. Pour un bloc AMRAP/EMOM (jamais dans "notes") : mouvements consécutifs dans "exercises", sets=1, reps=répétitions par tour, rest_seconds=0, block_format="amrap"/"emom" sur chacun, block_id partagé. AMRAP → block_time_cap_seconds uniquement (ex. 720 pour 12 min). EMOM → block_interval_seconds (ex. 60) + block_rounds uniquement. Exercices hors bloc AMRAP/EMOM et hors échauffement (l'immense majorité) : n'écris AUCUN champ block_*. Intègre aussi du cardio continu faible/moyen impact (marche inclinée, escaliers, vélo, elliptique, rameur) ailleurs dans la semaine.
 - "muscle_gain" : hypertrophie, 8-12 reps, volume par groupe, repos 60-120s, split cohérent avec la fréquence.
 - "strength" : poly-articulaires lourds, 3-6 reps, repos 2-4 min.
 - "endurance" : répétitions élevées/circuits + cardio régulier.

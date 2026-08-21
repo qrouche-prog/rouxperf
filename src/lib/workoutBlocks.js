@@ -1,11 +1,22 @@
+export function isBlockExercise(exercise) {
+  return Boolean(exercise?.block_id) && (exercise.block_format === 'amrap' || exercise.block_format === 'emom')
+}
+
+export function isWarmupExercise(exercise) {
+  return exercise?.block_format === 'warmup'
+}
+
 // Regroupe les exercices d'une séance en éléments affichables : un exercice
-// classique reste un élément seul, les exercices consécutifs qui partagent un
-// même block_id (bloc AMRAP/EMOM) sont regroupés en un seul élément "block".
+// classique — et un mouvement d'échauffement, suivi individuellement, voir
+// isWarmupExercise — reste un élément seul ; seuls les exercices consécutifs
+// d'un même bloc AMRAP/EMOM (isBlockExercise) sont regroupés en un élément
+// "block" avec un total combiné (ils sont comptés comme UNE seule série,
+// contrairement à l'échauffement qui garde ses vraies séries/répétitions).
 export function groupDayExercises(exercises) {
   const items = []
   const seen = new Set()
   exercises.forEach((exercise, index) => {
-    if (exercise.block_id) {
+    if (isBlockExercise(exercise)) {
       if (seen.has(exercise.block_id)) return
       seen.add(exercise.block_id)
       const members = exercises
@@ -17,10 +28,6 @@ export function groupDayExercises(exercises) {
     }
   })
   return items
-}
-
-export function isBlockExercise(exercise) {
-  return Boolean(exercise?.block_id) && (exercise.block_format === 'amrap' || exercise.block_format === 'emom')
 }
 
 export function firstIndexOfBlock(exercises, blockId) {
