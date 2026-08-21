@@ -1045,6 +1045,33 @@ a.btn-secondary {
   letter-spacing: normal;
   color: var(--ink);
 }
+.session-exercise-card-block {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft-border);
+}
+
+.session-block-tag,
+.program-exo-block-tag {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+  border: 1px solid var(--accent-soft-border);
+  margin-bottom: 2px;
+}
+.program-exo-block-tag {
+  background: var(--surface);
+}
+.session-block-intro {
+  text-align: center;
+  margin: 16px 0 0;
+}
 
 .session-exercise-info {
   flex: 1;
@@ -1238,6 +1265,11 @@ a.btn-secondary {
 .block-runner {
   text-align: center;
   padding: 32px 24px;
+}
+.block-runner-explainer {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--iron);
 }
 .block-runner-round {
   margin: 0;
@@ -4063,6 +4095,21 @@ details.settings-section h2 {
 }
 .program-exo-name {
   min-width: 0;
+}
+
+.program-exo-block {
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-border);
+  border-radius: 10px;
+}
+.program-exo-block .program-exo-head {
+  justify-content: flex-start;
+}
+.program-exo-block-movements {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--iron);
 }
 
 .notes-list {

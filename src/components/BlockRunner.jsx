@@ -73,6 +73,7 @@ export default function BlockRunner({
   intervalSeconds,
   rounds,
   members,
+  explainer,
   storageKey,
   onComplete,
   onCancel,
@@ -230,6 +231,7 @@ export default function BlockRunner({
       <p className="eyebrow">
         {format === 'amrap' ? `AMRAP · ${Math.round(timeCapSeconds / 60)} min` : `EMOM · ${rounds} × ${intervalSeconds}s`}
       </p>
+      {explainer && !running && <p className="block-runner-explainer">{explainer}</p>}
 
       {format === 'emom' && running && (
         <p className="block-runner-round">

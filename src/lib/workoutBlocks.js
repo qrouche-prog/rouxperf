@@ -38,3 +38,15 @@ export function blockLabel(exercise) {
   }
   return ''
 }
+
+// Explication en clair du principe du bloc, pour un utilisateur qui ne
+// connaît pas le vocabulaire CrossFit (AMRAP/EMOM).
+export function blockExplainer(exercise) {
+  if (exercise.block_format === 'amrap') {
+    return 'Enchaîne ces mouvements en boucle, sans repos entre eux, et note le nombre de tours complétés avant la fin du temps imparti.'
+  }
+  if (exercise.block_format === 'emom') {
+    return 'À chaque nouvelle minute, réalise ces mouvements puis récupère sur le temps restant de la minute.'
+  }
+  return ''
+}

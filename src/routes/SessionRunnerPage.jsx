@@ -9,7 +9,7 @@ import ExerciseAttribution from '../components/ExerciseAttribution'
 import Icon from '../components/onboarding/icons/Icon'
 import ExerciseAlternatives from '../components/ExerciseAlternatives'
 import BlockRunner from '../components/BlockRunner'
-import { groupDayExercises, isBlockExercise, firstIndexOfBlock, blockLabel } from '../lib/workoutBlocks'
+import { groupDayExercises, isBlockExercise, firstIndexOfBlock, blockLabel, blockExplainer } from '../lib/workoutBlocks'
 
 function parseTargetReps(repsText) {
   const match = String(repsText ?? '').match(/\d+/)
@@ -1116,12 +1116,16 @@ export default function SessionRunnerPage() {
           </button>
           <span className="eyebrow">{overallPercent}%</span>
         </div>
+        <p className="session-block-intro">
+          <span className="session-block-tag">🔥 Finisher</span> — dernière partie de la séance
+        </p>
         <BlockRunner
           format={first.block_format}
           timeCapSeconds={first.block_time_cap_seconds}
           intervalSeconds={first.block_interval_seconds}
           rounds={first.block_rounds}
           members={members}
+          explainer={blockExplainer(first)}
           storageKey={`rouxperf-block-${weekNumber}-${dayNumber}-${first.block_id}`}
           onCancel={() => setPhase('list')}
           onComplete={(rounds) => submitBlock(selectedExerciseIndex, rounds)}
@@ -1174,11 +1178,17 @@ export default function SessionRunnerPage() {
             const done = completed === total
             if (item.type === 'block') {
               return (
-                <button key={i} type="button" className="session-exercise-card" onClick={() => openExercise(day, i)}>
+                <button
+                  key={i}
+                  type="button"
+                  className="session-exercise-card session-exercise-card-block"
+                  onClick={() => openExercise(day, i)}
+                >
                   <span className={`session-status-badge${done ? ' session-status-done' : ''}`}>
                     <Icon name={done ? 'check' : 'bolt'} size={16} />
                   </span>
                   <span className="session-exercise-info">
+                    <span className="session-block-tag">🔥 Finisher</span>
                     <strong>{blockLabel(exercise)}</strong>
                     <span className="eyebrow">
                       {item.members.map(({ exercise: e }) => exercisesById[e.exercise_id]?.name ?? 'Exercice').join(' · ')}
