@@ -575,8 +575,12 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
         ? `\n\nPrécisions libres de l'utilisateur sur ses sports/objectifs : ${trainingProfile.other_sport_notes}`
         : ''
 
+      // Champ libre côté formulaire ("informations supplémentaires") : peut
+      // contenir une vraie blessure, une simple préférence, une contrainte
+      // d'horaire, ou un mélange des trois. Ne force pas une lecture
+      // "blessure" sur tout le texte — laisse le modèle distinguer.
       const injuriesSection = trainingProfile.injuries_limitations
-        ? `\n\nBLESSURES / LIMITATIONS déclarées par l'utilisateur (priorité de sécurité absolue, au même titre que les contre-indications) : ${trainingProfile.injuries_limitations}. Exclus tout exercice susceptible d'aggraver ces zones et propose des variantes plus sûres ; en cas de doute, abstiens-toi.`
+        ? `\n\nInformations supplémentaires libres de l'utilisateur : "${trainingProfile.injuries_limitations}". Interprète ce texte avec discernement selon son contenu réel, phrase par phrase si besoin : toute partie qui décrit une douleur, une blessure ou une limitation physique doit être appliquée avec la même priorité de sécurité absolue que les contre-indications (exclus tout exercice susceptible de l'aggraver, propose des variantes plus sûres, abstiens-toi en cas de doute) ; toute autre partie (préférence, contrainte d'horaire, objectif, contexte général) doit simplement enrichir la personnalisation du programme, sans lui appliquer une restriction de sécurité qui n'a pas lieu d'être.`
         : ''
 
       const runningPref = focusAreaPreferences.running
