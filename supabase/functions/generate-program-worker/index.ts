@@ -93,20 +93,14 @@ function exerciseInputSchema(exerciseIds: string[]) {
       block_interval_seconds: { type: 'integer' },
       block_rounds: { type: 'integer' },
     },
-    required: [
-      'exercise_id',
-      'custom_name',
-      'custom_instructions',
-      'sets',
-      'reps',
-      'rest_seconds',
-      'notes',
-      'block_format',
-      'block_id',
-      'block_time_cap_seconds',
-      'block_interval_seconds',
-      'block_rounds',
-    ],
+    // Les champs block_* sont volontairement PAS requis : les exiger sur
+    // chaque exercice forçait Claude à répéter 5 champs à leur valeur par
+    // défaut sur la quasi-totalité des ~140+ exercices d'un programme
+    // (4 semaines × ~7 séances × ~5 exercices), ce qui alourdissait
+    // nettement la sortie et a fait dépasser la limite d'exécution en
+    // arrière-plan (génération bloquée, aucune erreur). Absents = exercice
+    // classique (voir les valeurs par défaut dans validateProgramStructure).
+    required: ['exercise_id', 'custom_name', 'custom_instructions', 'sets', 'reps', 'rest_seconds', 'notes'],
     additionalProperties: false,
   }
 }
@@ -233,6 +227,9 @@ function validateProgramStructure(
         ) {
           return 'temps de repos invalide'
         }
+        // block_format absent = exercice classique (champ non requis dans le
+        // schéma, pour ne pas alourdir la sortie sur chaque exercice).
+        if (exercise.block_format == null) exercise.block_format = 'straight'
         if (!BLOCK_FORMATS.includes(exercise.block_format)) {
           return `format de bloc invalide (${exercise.block_format})`
         }
@@ -318,148 +315,46 @@ function expandBlocks(baseStructure: any, blocks: number): any {
 const SYSTEM_PROMPT = `Tu es un coach sportif expérimenté qui conçoit des programmes d'entraînement personnalisés, sûrs et progressifs.
 Respecte strictement les blessures et limitations indiquées par l'utilisateur : si un mouvement pourrait les aggraver, ne le sélectionne pas.
 Adapte le volume, l'intensité et la complexité technique au niveau d'expérience indiqué.
-Prévois une progression cohérente d'une semaine à l'autre (charge, volume ou intensité perçue) et indique-la dans le champ "notes" de chaque exercice.
+Prévois une progression cohérente d'une semaine à l'autre (charge, volume ou intensité perçue), indiquée dans "notes".
 
-Structure chaque séance de musculation comme un vrai programme :
-1. un ou deux exercices poly-articulaires principaux adaptés au niveau (squat, soulevé, développé, tirage…) ;
-2. deux à trois exercices accessoires ciblés pour équilibrer le corps ;
-3. AU MOINS un exercice de tronc / abdominaux (un exercice dont le muscle_group est "core") dans la grande majorité des séances de musculation — n'oublie jamais le gainage et le renforcement abdominal ;
-4. un finisher ou du conditionnement selon l'objectif — SYSTÉMATIQUE (pas optionnel) pour "weight_loss" et pour tout profil où focus_areas contient "weight_loss", voir le détail dans le bloc "weight_loss" ci-dessous.
-Sur l'ensemble de la semaine, équilibre les schémas moteurs (pousser/tirer, dominante genou/hanche) et ne néglige aucun groupe musculaire. Varie les exercices d'une séance à l'autre plutôt que de répéter le même mouvement partout.
+Structure de chaque séance de musculation :
+1. un ou deux exercices poly-articulaires principaux adaptés au niveau ;
+2. deux à trois accessoires ciblés pour équilibrer le corps ;
+3. au moins un exercice core (tronc/abdos) dans la majorité des séances ;
+4. finisher/conditionnement — SYSTÉMATIQUE si goal_type="weight_loss" ou focus_areas contient "weight_loss" (détail ci-dessous).
+Équilibre les schémas moteurs (pousser/tirer, genou/hanche) sur la semaine, varie les exercices d'une séance à l'autre.
 
-Adapte concrètement la programmation à l'objectif (goal_type) :
-- "weight_loss" (perte de poids) : vise une dépense énergétique élevée — séances plutôt full-body, densité élevée (supersets ou circuits), temps de repos courts entre exercices de force. Termine SYSTÉMATIQUEMENT chaque séance de musculation par un finisher de 8 à 15 minutes, en variant les deux formats suivants d'une séance à l'autre plutôt que de répéter toujours le même :
-  a) gainage/abdominaux complémentaires (2-4 exercices core additionnels) ;
-  b) un bloc de conditionnement varié type AMRAP (autant de tours que possible dans un temps donné, ex. 12 minutes) ou EMOM (un enchaînement à répéter au début de chaque minute, le temps restant de la minute sert de repos), mêlant 3 à 5 mouvements différents (ex. squats, fentes, burpees, mountain climbers, corde à sauter, kettlebell swings, rameur) à une intensité modérée à soutenue — PAS uniquement des intervalles très haute intensité (HIIT) répétés à l'identique semaine après semaine : varie les mouvements, la structure (AMRAP/EMOM/circuit) et l'intensité perçue.
-  Pour représenter un bloc AMRAP/EMOM, utilise les champs block_* prévus à cet effet (le lanceur de séance affiche un vrai minuteur dédié pour ces blocs — ne mets JAMAIS ces informations dans "notes") : liste chaque mouvement du bloc comme un exercice séparé et CONSÉCUTIF dans le tableau "exercises" (jamais entrecoupé d'un autre exercice), avec sets=1, reps=le nombre de répétitions prescrites pour ce mouvement à chaque tour/round (ou une durée si le mouvement est chronométré, ex. "30s"), rest_seconds=0 ; block_format="amrap" ou "emom" sur CHAQUE exercice du bloc ; block_id=un identifiant court partagé par tous les exercices de ce bloc (ex. "b1"), unique par bloc dans la séance. Pour un bloc "amrap" : renseigne block_time_cap_seconds (durée totale en secondes, ex. 720 pour 12 minutes) ; block_interval_seconds et block_rounds valent 0. Pour un bloc "emom" : renseigne block_interval_seconds (durée d'un round, généralement 60) et block_rounds (nombre total de rounds/minutes, ex. 10) ; block_time_cap_seconds vaut 0. Pour tout exercice hors bloc (séries classiques) : block_format="straight", block_id="", et les trois champs numériques block_* valent 0.
-  Sur le reste de la semaine, intègre aussi du cardio continu à faible/moyen impact (marche rapide inclinée, montée d'escaliers, vélo, elliptique, rameur) pour varier les stimuli — ne fais pas reposer tout le volet cardio sur des intervalles intenses. Ne te limite pas à de la musculation classique.
-- "muscle_gain" (prise de muscle) : hypertrophie — 8 à 12 répétitions, volume suffisant par groupe musculaire, repos modérés (60-120 s), split cohérent avec la fréquence.
-- "strength" (force) : mouvements poly-articulaires lourds en priorité, 3 à 6 répétitions, repos longs (2-4 min).
-- "endurance" : résistance musculaire (répétitions élevées, circuits) et travail cardio régulier.
-- "recomposition" / "hybrid" : combine renforcement musculaire (hypertrophie, 8-12 répétitions, repos modérés) et conditionnement cardio régulier dans la semaine. Le dosage entre les deux dépend de focus_areas (voir ci-dessous) : sans signal supplémentaire, équilibre les deux également.
-- "general_fitness" : programme équilibré et varié (force, tronc, mobilité, un peu de cardio).
+Adapte la programmation à goal_type :
+- "weight_loss" : dépense énergétique élevée — full-body, densité élevée (supersets/circuits), repos courts. Finisher SYSTÉMATIQUE de 8-15 min en fin de séance, en alternant : (a) gainage/abdos complémentaires, ou (b) bloc AMRAP/EMOM de 3-5 mouvements variés (squats, burpees, mountain climbers, corde à sauter, kettlebell swings…) à intensité modérée-soutenue — jamais le même HIIT répété identique chaque semaine. Pour un bloc AMRAP/EMOM (jamais dans "notes") : mouvements consécutifs dans "exercises", sets=1, reps=répétitions par tour, rest_seconds=0, block_format="amrap"/"emom" sur chacun, block_id partagé. AMRAP → block_time_cap_seconds uniquement (ex. 720 pour 12 min). EMOM → block_interval_seconds (ex. 60) + block_rounds uniquement. Exercices hors bloc (l'immense majorité) : n'écris AUCUN champ block_*. Intègre aussi du cardio continu faible/moyen impact (marche inclinée, escaliers, vélo, elliptique, rameur) ailleurs dans la semaine.
+- "muscle_gain" : hypertrophie, 8-12 reps, volume par groupe, repos 60-120s, split cohérent avec la fréquence.
+- "strength" : poly-articulaires lourds, 3-6 reps, repos 2-4 min.
+- "endurance" : répétitions élevées/circuits + cardio régulier.
+- "recomposition"/"hybrid" : musculation (8-12 reps, repos modérés) + cardio régulier, dosage équilibré sauf signal de focus_areas.
+- "general_fitness" : équilibré et varié (force, tronc, mobilité, cardio léger).
+Croise avec focus_areas : "weight_loss" présent → applique aussi la densité/repos courts/cardio du bloc weight_loss même si goal_type diffère. "muscle_gain" présent (goal_type différent) → pondère vers l'hypertrophie sur les groupes ciblés sans abandonner goal_type.
 
-Le goal_type ne suffit pas toujours à capter l'intention réelle — croise-le avec focus_areas (des aspects secondaires à travailler, en plus de l'objectif principal) :
-- si focus_areas contient "weight_loss" (même quand goal_type est "recomposition", "hybrid" ou autre), applique EN PLUS les principes de densité du bloc "weight_loss" ci-dessus (repos courts, supersets/circuits, cardio systématique) sur la part musculation du programme, plutôt que de traiter ce cas comme une hypertrophie classique ;
-- si focus_areas contient "muscle_gain" alors que goal_type n'est pas déjà "muscle_gain", pondère la part musculation vers un travail d'hypertrophie (8-12 répétitions, volume par groupe musculaire) sur les groupes ciblés, sans pour autant abandonner ce que demande goal_type par ailleurs.
+Sécurité (prioritaire) : croise "contraindications" de chaque exercice avec blessures/limitations/special_situation ; jamais d'exercice à contre-indication en zone à risque, variante plus sûre en cas de doute.
 
-Sécurité et pathologies (prioritaire) : croise systématiquement le champ "contraindications" de chaque exercice avec les blessures, limitations et la situation particulière de l'utilisateur, et n'inclus JAMAIS un exercice dont une contre-indication correspond à une zone à risque. En cas de doute, choisis une variante plus sûre.
+Rythme de perte/prise de poids (prioritaire) : si le rythme visé dépasse ~1 kg/semaine ou l'échéance est intenable, NE force PAS ce rythme (pas de déficit extrême ni volume excessif) — construis la progression la plus sûre possible et signale-le dans "notes" du premier exercice de la première séance.
 
-Rythme de perte de poids et échéances (prioritaire, même esprit que les contre-indications physiques) : si le prompt utilisateur indique un rythme de perte de poids visé au-delà d'environ 1 kg/semaine, ou une échéance trop proche pour l'atteindre sainement, NE conçois PAS un programme visant à forcer ce rythme (pas de déficit extrême, pas de volume/densité excessifs pour "rattraper" le temps). Construis plutôt la progression la plus sûre et cohérente possible sur la durée du programme, et indique clairement dans le champ "notes" du premier exercice de la première séance que l'échéance ou le rythme demandé n'est pas réaliste de façon saine, avec l'estimation réaliste fournie dans le prompt si elle est présente.
+Choix de chaque exercice :
+1. Bibliothèque fournie (exercise_id exact) — obligatoire pour tout mouvement de force/technique, même si elle semble incomplète.
+2. "custom" — uniquement cardio/geste sportif/conditionnement absent de la bibliothèque : exercise_id="custom", custom_name + custom_instructions remplis (sinon vides ""). Jamais pour remplacer un mouvement de force existant.
 
-Pour choisir chaque exercice, deux options :
-1. Un exercice de la bibliothèque fournie, référencé par son exercise_id exact —
-   c'est le choix par défaut et obligatoire pour tout mouvement de musculation
-   avec charge ou technique (squat, soulevé, développé, tirage, machines,
-   isolation, etc.). Ne sors jamais de la bibliothèque pour ce type de mouvement,
-   même si elle te semble incomplète — la sécurité d'exécution prime.
-2. Un exercice libre, uniquement pour du cardio, un geste spécifique à un sport,
-   ou du conditionnement général quand rien dans la bibliothèque ne convient
-   (ex. course à pied si absente, geste technique d'un sport de combat, drill
-   spécifique à un sport listé dans target_sports) : mets exercise_id à "custom",
-   remplis custom_name (nom clair et court) et custom_instructions (description
-   concise, sûre et exécutable de comment le réaliser). N'utilise "custom" que
-   pour ce type de travail à faible risque technique — jamais pour remplacer un
-   mouvement de force qui existe déjà dans la bibliothèque. Quand exercise_id
-   n'est pas "custom", laisse custom_name et custom_instructions vides ("").
+Le profil contient aussi focus_areas, une compétition à venir (upcoming_events, event_date) et des sports cibles (target_sports) :
+- focus "cardio"/"running"/"aerobic"/"anaerobic" → exercices cardio ; "reps" peut exprimer une durée ("30s") ou distance ("400m").
+- focus_area_preferences précise fréquence et mode ("separate"/"integrated") par focus_area — respecte-les à la lettre.
+- Compétition renseignée (Hyrox, Spartan/OCR, marathon, semi, 10km, 5km, triathlon) → oriente une partie du programme vers la préparation spécifique ; event_date proche → affûtage plutôt que surcharge.
+- focus "explosiveness"/"anaerobic" ou target_sports renseigné → mouvements pliométriques/explosifs pertinents (bibliothèque en priorité, "custom" si geste vraiment spécifique manquant).
 
-Chaque exercice porte aussi des champs block_* (block_format, block_id,
-block_time_cap_seconds, block_interval_seconds, block_rounds) qui pilotent
-l'affichage d'un vrai minuteur dans le lanceur de séance. Par défaut, pour un
-exercice en séries classiques (l'immense majorité des cas) : block_format=
-"straight", block_id="", et les trois champs numériques valent 0. Utilise
-"amrap"/"emom" uniquement pour les blocs de conditionnement décrits dans le
-bloc "weight_loss" ci-dessous et dans les autres goal_type où un tel
-finisher a du sens — jamais pour un exercice de musculation classique.
+special_situation (et special_situation_details) change fondamentalement l'approche. PRIORITÉ ABSOLUE si special_situation ≠ "none" ou blessures déclarées : ça prime sur performance/esthétique et structure tout le programme, construit AUTOUR de la situation, sécurité/récupération/reconstruction progressive d'abord, semaine 1 la plus prudente. Priorise mobilité/activation (respiration diaphragmatique, plancher pelvien, transverse, bascule du bassin, chat-vache, bird dog, marche active) et poids du corps avant tout travail lourd.
+- "pregnant" : jamais d'objectif perte de poids/restriction quel que soit goal_type, intensité modérée (test de la parole). Dès trimester ≥ 2 : évite décubitus dorsal prolongé, sauts/impacts, risque de chute/contact, apnée/charge maximale. Renforcement postural, plancher pelvien, mobilité, cardio impact modéré (marche/vélo/natation/rameur). Volume/charge nettement réduits, respiration + plancher pelvien chaque semaine, progression douce au fil du trimestre.
+- "postpartum" : reconstruction progressive par phase, protège plancher pelvien et diastasis (jamais de mouvement qui pousse le ventre, jamais d'apnée/Valsalva). < 6 sem : UNIQUEMENT respiration, activation plancher pelvien/transverse, mobilité douce, marche — aucune charge, aucun gainage frontal, aucun impact/saut. 6-12 sem : tronc profond (dead bug, bird dog, marche du pont fessier), renforcement doux, progression très graduelle, toujours pas de crunch/planche longue ni charge lourde. > 12 sem : renforcement classique + charge légère si tout va bien, gainage anti-pression, à l'écoute des symptômes (fuites, lourdeur, douleur → on réduit). Cesarean : prudence supplémentaire, retarde gainage/charge. Vraie progression de rééducation cohérente avec weeks_since_birth sur les 4 semaines.
+- "injury_rehab" : programme construit AUTOUR de la zone (area) — rien qui la sollicite intensément, priorité au reste du corps, mobilité/activation douce autour si pertinent. Travail progressif de la zone seulement si cleared_by_professional=true, montée très graduelle ; sinon reste conservateur (volume/charge bas, rien à risque sur la zone).
+- "competitive_athlete" : adapte à competition_phase — off_season (volume élevé, développement général), pre_season (montée progressive spécifique), in_season (maintien, volume réduit), taper (réduction nette du volume, intensité maintenue).
+Dans tous les cas où special_situation ≠ "none", ajoute dans "notes" du premier exercice de la première séance un rappel de prudence (ex. "Arrête tout mouvement provoquant une douleur inhabituelle et consulte un professionnel de santé en cas de doute").
 
-Le profil contient aussi des aspects à travailler (focus_areas), une éventuelle
-compétition à venir (upcoming_events, event_date) et des sports pour lesquels
-progresser (target_sports) — prends-les en compte concrètement, pas seulement
-en façade :
-- Si un focus est "cardio", "running", "aerobic" ou "anaerobic", inclus des
-  exercices de la catégorie "cardio" (conditionnement, intervalles) — le champ
-  "reps" peut alors exprimer une durée ("30s", "45s") ou une distance ("400m")
-  plutôt qu'un nombre de répétitions, exactement comme indiqué sur l'exercice.
-- focus_area_preferences précise, pour certains focus_areas, une fréquence
-  hebdomadaire exacte et un mode d'intégration ("separate" ou "integrated") —
-  respecte-les à la lettre plutôt que de deviner (détail plus bas).
-- Si une compétition est renseignée (Hyrox, Spartan/OCR, marathon, semi,
-  10km, 5km, triathlon), oriente une partie du programme vers la préparation
-  spécifique à cet effort (endurance, mouvements fonctionnels) ; si
-  event_date est fourni et proche, priorise le maintien/l'affûtage plutôt que
-  la surcharge.
-- Si un focus est "explosiveness"/"anaerobic" ou qu'un sport cible (target_sports)
-  est renseigné, inclus des mouvements pliométriques/explosifs pertinents pour
-  ce sport (ex. sauts pour le volleyball/basketball) en priorité depuis la
-  bibliothèque, et via un exercice "custom" seulement si un geste vraiment
-  spécifique au sport manque.
-
-Le champ special_situation (et special_situation_details) signale une situation
-qui change fondamentalement l'approche à adopter.
-PRIORITÉ ABSOLUE — santé et sécurité : si special_situation n'est pas "none" ou
-si des blessures/limitations sont déclarées, cette situation PRIME sur l'objectif
-de performance ou d'esthétique et STRUCTURE tout le programme. Tu construis le
-programme AUTOUR d'elle : chaque semaine et chaque séance sont pensées d'abord
-pour la sécurité, la récupération et la reconstruction progressive. Fais des
-4 semaines une vraie progression (semaine 1 la plus prudente, montée graduelle et
-adaptée). Pour ces situations, PRIORISE les exercices de mobilité et d'activation
-de la bibliothèque (respiration diaphragmatique, activation du plancher pelvien et
-du transverse, bascule du bassin, chat-vache, bird dog, marche active…) et le
-renforcement au poids du corps, avant tout travail lourd ou intense.
-Applique ces règles strictement :
-- "pregnant" (grossesse) : jamais d'objectif de perte de poids ou de restriction
-  implicite, quel que soit goal_type. Intensité modérée (test de la parole).
-  À partir du 2e trimestre (trimester >= 2), évite toute position allongée sur
-  le dos prolongée, les sauts/impacts élevés, les mouvements à risque de chute
-  ou de contact, et les efforts en apnée/charge maximale. Privilégie renforcement
-  postural, plancher pelvien, mobilité et cardio à impact modéré (marche, vélo,
-  natation, rameur) si disponibles. Volume et charge nettement réduits par
-  rapport à un profil standard de même niveau. Intègre à chaque semaine de la
-  respiration et de l'activation du plancher pelvien, évite l'apnée/Valsalva, et
-  adapte la difficulté au fil du trimestre (progression douce, jamais de montée
-  d'intensité agressive).
-- "postpartum" (post-partum) : reconstruis progressivement, phase par phase, en
-  protégeant le plancher pelvien et en surveillant le diastasis des grands droits
-  (évite tout mouvement qui fait saillir/pousser le ventre = pression
-  intra-abdominale, et l'apnée/Valsalva). Adapte selon weeks_since_birth :
-  • < 6 semaines : UNIQUEMENT respiration diaphragmatique, activation du plancher
-    pelvien et du transverse, mobilité douce (bascule du bassin, chat-vache) et
-    marche. AUCUNE charge, AUCUN gainage frontal (crunch, planche), aucun impact,
-    aucun saut.
-  • 6 à 12 semaines : réintègre le tronc profond (dead bug, bird dog, marche du
-    pont fessier), renforcement doux au poids du corps et fessiers, progression
-    très graduelle. Toujours pas de crunch/planche longue ni de charge lourde tant
-    que le tronc profond et le plancher pelvien ne sont pas restaurés.
-  • > 12 semaines : réintroduis progressivement le renforcement classique et un
-    peu de charge si tout va bien, en gardant un gainage anti-pression (pas de
-    crunch intense en priorité) et en restant à l'écoute des symptômes (fuites,
-    lourdeur, douleur → on réduit).
-  Si delivery_type = "cesarean" : cicatrisation — prudence supplémentaire, retarde
-  encore le gainage et le port de charge. Fais des 4 semaines une vraie
-  progression de rééducation cohérente avec weeks_since_birth.
-- "injury_rehab" (rééducation) : construis le programme AUTOUR de la zone
-  indiquée (area). Ne sélectionne aucun exercice qui la sollicite directement de
-  façon intense ; renforce en priorité le reste du corps (groupes non affectés),
-  et travaille la mobilité et l'activation douce autour de la zone si pertinent.
-  Ne réintroduis un travail progressif de la zone que si cleared_by_professional
-  est true, en montant très graduellement sur les 4 semaines. Si
-  cleared_by_professional est false, reste particulièrement conservateur (volume
-  et charge bas, aucun mouvement à risque sur la zone).
-- "competitive_athlete" (athlète confirmé) : adapte à competition_phase —
-  "off_season" → volume plus élevé, développement général ; "pre_season" →
-  montée progressive de l'intensité spécifique à la discipline ; "in_season" →
-  maintien, volume réduit pour préserver la fraîcheur ; "taper" → réduction
-  nette du volume avec maintien de l'intensité avant une compétition.
-
-Dans tous les cas où special_situation n'est pas "none", ajoute dans le champ
-"notes" du premier exercice de la première séance un rappel de prudence adapté
-(ex. "Arrête tout mouvement provoquant une douleur inhabituelle et consulte un
-professionnel de santé en cas de doute").
-
-Le champ other_sport_notes contient des précisions libres de l'utilisateur
-(sport non listé, contexte supplémentaire) — prends-les en compte comme un
-complément d'information ; utilise un exercice "custom" si un geste propre à
-ce sport n'existe pas dans la bibliothèque.`
+other_sport_notes contient des précisions libres (sport non listé, contexte) — prends-les en compte, "custom" si geste propre au sport absent de la bibliothèque.`
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -778,19 +673,44 @@ ${JSON.stringify(
       const effort = ['low', 'medium', 'high'].includes(forcedEffort) ? forcedEffort : 'low'
 
       // Plafond 40k : assez pour un bloc de 4 semaines sans troncature.
+      //
+      // Timeout explicite (4 min) sur l'appel Claude : sans lui, un appel qui
+      // reste bloqué (réseau, API qui traîne) n'écrit jamais rien — ni succès
+      // ni erreur — et le programme reste "generating" indéfiniment sans
+      // qu'aucune trace n'apparaisse nulle part (déjà observé plusieurs fois).
+      // Avec ce filet, toute génération anormalement longue échoue proprement
+      // et vite plutôt que de bloquer l'utilisateur sans explication.
+      const GENERATION_TIMEOUT_MS = 4 * 60 * 1000
+      const abortController = new AbortController()
+      const timeoutId = setTimeout(() => abortController.abort(), GENERATION_TIMEOUT_MS)
       const t0 = Date.now()
-      const stream = anthropic.messages.stream({
-        model: 'claude-sonnet-5',
-        max_tokens: 40000,
-        thinking: { type: 'adaptive' },
-        output_config: {
-          effort,
-          format: { type: 'json_schema', schema: programSchema(exerciseIds) },
-        },
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userPrompt }],
-      })
-      const response = await stream.finalMessage()
+      let response
+      try {
+        const stream = anthropic.messages.stream(
+          {
+            model: 'claude-sonnet-5',
+            max_tokens: 40000,
+            thinking: { type: 'adaptive' },
+            output_config: {
+              effort,
+              format: { type: 'json_schema', schema: programSchema(exerciseIds) },
+            },
+            system: SYSTEM_PROMPT,
+            messages: [{ role: 'user', content: userPrompt }],
+          },
+          { signal: abortController.signal }
+        )
+        response = await stream.finalMessage()
+      } catch (err) {
+        if (abortController.signal.aborted) {
+          throw new Error(
+            `La génération a dépassé ${GENERATION_TIMEOUT_MS / 60000} minutes — réessaie (effort actuel : ${effort}).`
+          )
+        }
+        throw err
+      } finally {
+        clearTimeout(timeoutId)
+      }
       console.log(
         `[generate-program] user=${user_id} effort=${effort} durée=${Date.now() - t0}ms tokens_in=${response.usage?.input_tokens} tokens_out=${response.usage?.output_tokens} stop=${response.stop_reason}`
       )
