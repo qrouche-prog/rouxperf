@@ -112,16 +112,16 @@ function exerciseInputSchema(exerciseIds: string[]) {
 }
 
 // Schéma d'UNE semaine (la génération se fait semaine par semaine, voir
-// runGeneration) — minItems/maxItems=1 contraint explicitement le modèle à
-// ne renvoyer que la semaine demandée, pas tout le mésocycle d'un coup.
+// runGeneration). minItems/maxItems ne sont PAS supportés par l'API Anthropic
+// pour un type "array" en sortie structurée (testé : 400 invalid_request_error)
+// — la contrainte "une seule semaine" passe donc uniquement par l'instruction
+// explicite du prompt, avec une vérification défensive après coup côté code.
 function programSchema(exerciseIds: string[]) {
   return {
     type: 'object',
     properties: {
       weeks: {
         type: 'array',
-        minItems: 1,
-        maxItems: 1,
         items: {
           type: 'object',
           properties: {
@@ -247,24 +247,43 @@ function validateProgramStructure(
         if (exercise.block_format !== 'straight' && !String(exercise.block_id ?? '').trim()) {
           return 'block_id manquant pour un exercice en bloc AMRAP/EMOM'
         }
-        if (
-          exercise.block_format === 'amrap' &&
-          (!Number.isInteger(exercise.block_time_cap_seconds) ||
+        if (exercise.block_format === 'amrap') {
+          // Tolère une confusion minutes/secondes fréquente du modèle
+          // (ex. écrit 12 en pensant "12 minutes" au lieu de 720 secondes) :
+          // convertit plutôt que de rejeter toute la génération pour ça.
+          if (
+            Number.isInteger(exercise.block_time_cap_seconds) &&
+            exercise.block_time_cap_seconds >= 1 &&
+            exercise.block_time_cap_seconds < 60
+          ) {
+            exercise.block_time_cap_seconds *= 60
+          }
+          if (
+            !Number.isInteger(exercise.block_time_cap_seconds) ||
             exercise.block_time_cap_seconds < 60 ||
-            exercise.block_time_cap_seconds > 3600)
-        ) {
-          return 'durée AMRAP invalide (block_time_cap_seconds)'
+            exercise.block_time_cap_seconds > 3600
+          ) {
+            return `durée AMRAP invalide (block_time_cap_seconds=${JSON.stringify(exercise.block_time_cap_seconds)})`
+          }
         }
-        if (
-          exercise.block_format === 'emom' &&
-          (!Number.isInteger(exercise.block_interval_seconds) ||
+        if (exercise.block_format === 'emom') {
+          if (
+            Number.isInteger(exercise.block_interval_seconds) &&
+            exercise.block_interval_seconds >= 1 &&
+            exercise.block_interval_seconds < 10
+          ) {
+            exercise.block_interval_seconds *= 60
+          }
+          if (
+            !Number.isInteger(exercise.block_interval_seconds) ||
             exercise.block_interval_seconds < 10 ||
             exercise.block_interval_seconds > 300 ||
             !Number.isInteger(exercise.block_rounds) ||
             exercise.block_rounds < 2 ||
-            exercise.block_rounds > 60)
-        ) {
-          return 'paramètres EMOM invalides (block_interval_seconds / block_rounds)'
+            exercise.block_rounds > 60
+          ) {
+            return `paramètres EMOM invalides (block_interval_seconds=${JSON.stringify(exercise.block_interval_seconds)}, block_rounds=${JSON.stringify(exercise.block_rounds)})`
+          }
         }
       }
 
@@ -356,7 +375,7 @@ Structure de CHAQUE séance, y compris cardio/course :
 Équilibre les schémas moteurs (pousser/tirer, genou/hanche) sur la semaine, varie les exercices d'une séance à l'autre.
 
 Adapte la programmation à goal_type :
-- "weight_loss" : dépense énergétique élevée — full-body, densité élevée (supersets/circuits), repos courts. Finisher SYSTÉMATIQUE de 8-15 min en fin de séance, en alternant : (a) gainage/abdos complémentaires, ou (b) bloc AMRAP/EMOM de 3-5 mouvements variés (squats, burpees, mountain climbers, corde à sauter, kettlebell swings…) à intensité modérée-soutenue — jamais le même HIIT répété identique chaque semaine. Pour un bloc AMRAP/EMOM (jamais dans "notes") : mouvements consécutifs dans "exercises", sets=1, reps=répétitions par tour, rest_seconds=0, block_format="amrap"/"emom" sur chacun, block_id partagé. AMRAP → block_time_cap_seconds uniquement (ex. 720 pour 12 min). EMOM → block_interval_seconds (ex. 60) + block_rounds uniquement. Exercices hors bloc AMRAP/EMOM et hors échauffement (l'immense majorité) : n'écris AUCUN champ block_*. Intègre aussi du cardio continu faible/moyen impact (marche inclinée, escaliers, vélo, elliptique, rameur) ailleurs dans la semaine.
+- "weight_loss" : dépense énergétique élevée — full-body, densité élevée (supersets/circuits), repos courts. Finisher SYSTÉMATIQUE de 8-15 min en fin de séance, en alternant : (a) gainage/abdos complémentaires, ou (b) bloc AMRAP/EMOM de 3-5 mouvements variés (squats, burpees, mountain climbers, corde à sauter, kettlebell swings…) à intensité modérée-soutenue — jamais le même HIIT répété identique chaque semaine. Pour un bloc AMRAP/EMOM (jamais dans "notes") : mouvements consécutifs dans "exercises", sets=1, reps=répétitions par tour, rest_seconds=0, block_format="amrap"/"emom" sur chacun, block_id partagé. AMRAP → block_time_cap_seconds uniquement, TOUJOURS EN SECONDES (ex. 12 min = 720, jamais 12). EMOM → block_interval_seconds EN SECONDES (ex. 60, pas 1) + block_rounds uniquement. Exercices hors bloc AMRAP/EMOM et hors échauffement (l'immense majorité) : n'écris AUCUN champ block_*. Intègre aussi du cardio continu faible/moyen impact (marche inclinée, escaliers, vélo, elliptique, rameur) ailleurs dans la semaine.
 - "muscle_gain" : hypertrophie, 8-12 reps, volume par groupe, repos 60-120s, split cohérent avec la fréquence.
 - "strength" : poly-articulaires lourds, 3-6 reps, repos 2-4 min.
 - "endurance" : répétitions élevées/circuits + cardio régulier.
@@ -451,13 +470,25 @@ Deno.serve(async (req: Request) => {
 
   const { data: program } = await supabase
     .from('user_programs')
-    .select('id, status')
+    .select('id, status, structure')
     .eq('id', program_id)
     .eq('user_id', user_id)
     .maybeSingle()
 
-  if (!program || program.status !== 'generating') {
-    return new Response(JSON.stringify({ error: 'Programme introuvable ou déjà traité' }), { status: 409 })
+  // Semaines déjà générées (structure peut être partielle : voir le
+  // mécanisme d'auto-enchaînement plus bas). week_number <= WEEKS_COUNT
+  // reste valable même après expandBlocks (qui duplique les semaines de
+  // base sans jamais toucher aux 4 premières), donc ce compte fonctionne
+  // qu'on soit avant ou après la répétition du mésocycle.
+  const existingWeeks: any[] = Array.isArray(program?.structure?.weeks) ? program.structure.weeks : []
+  const baseWeeksDone = existingWeeks.filter((w: any) => w.week_number <= WEEKS_COUNT).length
+
+  const canContinue =
+    program && (program.status === 'generating' || (program.status === 'active' && baseWeeksDone < WEEKS_COUNT))
+  if (!canContinue) {
+    return new Response(JSON.stringify({ error: 'Programme introuvable, déjà complet ou déjà traité' }), {
+      status: 409,
+    })
   }
 
   async function runGeneration() {
@@ -695,21 +726,21 @@ Règles à respecter dans tous les cas : jamais plus de 2 séances sur le même 
       // reste possible depuis l'admin (forcedEffort) pour comparer.
       const effort = ['low', 'medium', 'high'].includes(forcedEffort) ? forcedEffort : 'low'
 
-      // Génération SEMAINE PAR SEMAINE plutôt qu'en un seul appel pour les
-      // 4 semaines : chaque appel est ~4x plus petit (donc plus rapide et
-      // bien moins exposé au blocage silencieux observé sur de gros appels —
-      // probablement un timeout d'infrastructure sur la requête HTTP
-      // individuelle, pas sur la durée totale de la fonction). Bénéfice
-      // supplémentaire : la semaine 1 est sauvegardée et rendue active dès
-      // qu'elle est prête, sans attendre les 4 semaines pour être utilisable.
-      const allWeeks: any[] = []
-      for (let weekNum = 1; weekNum <= WEEKS_COUNT; weekNum += 1) {
-        const recapSection =
-          weekNum > 1
-            ? `\n\nVoici la semaine précédente (semaine ${weekNum - 1}), pour assurer une progression cohérente d'une semaine à l'autre — garde la même structure de jours/modalités sauf besoin réel de changement, fais évoluer charge/volume/intensité perçue, et indique cette progression dans "notes" :\n${recapWeek(allWeeks[allWeeks.length - 1])}`
-            : ''
+      // Génération d'UNE SEULE semaine par invocation, plutôt que les 4 dans
+      // le même waitUntil : les tests ont montré qu'un plafond de durée
+      // s'applique à l'invocation ENTIÈRE, pas à chaque appel Claude pris
+      // isolément (la semaine 1 et 2 passaient systématiquement, la semaine 3
+      // mourait sans trace même en 90s par appel). Chaque invocation ne fait
+      // donc qu'une semaine, sauvegarde, puis se redéclenche elle-même en
+      // FRAÎCHE invocation pour la suivante — avec son propre budget
+      // d'exécution complet plutôt que ce qui reste du budget courant.
+      const weekNum = baseWeeksDone + 1
+      const recapSection =
+        weekNum > 1
+          ? `\n\nVoici la semaine précédente (semaine ${weekNum - 1}), pour assurer une progression cohérente d'une semaine à l'autre — garde la même structure de jours/modalités sauf besoin réel de changement, fais évoluer charge/volume/intensité perçue, et indique cette progression dans "notes" :\n${recapWeek(existingWeeks[existingWeeks.length - 1])}`
+          : ''
 
-        const userPrompt = `Génère UNIQUEMENT la semaine ${weekNum} sur ${WEEKS_COUNT} d'un programme d'entraînement (les autres semaines sont générées séparément, une par une) — le champ week_number de cette semaine doit valoir ${weekNum}. Cette semaine compte ${totalSessions} séance(s), d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
+      const userPrompt = `Génère UNIQUEMENT la semaine ${weekNum} sur ${WEEKS_COUNT} d'un programme d'entraînement (les autres semaines sont générées séparément, une par une) — le champ week_number de cette semaine doit valoir ${weekNum}. Cette semaine compte ${totalSessions} séance(s), d'une durée cible de ${trainingProfile.session_duration_minutes} minutes chacune.
 
 Profil utilisateur :
 ${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}${trailSection}${daySection}${durationSection}${targetSection}${situationSection}${injuriesSection}${otherSportSection}${wearableSection}${adjustmentSection}${recapSection}
@@ -717,109 +748,119 @@ ${JSON.stringify(promptSnapshot, null, 2)}${schedulingSection}${runningSection}$
 Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "custom" uniquement pour du cardio/sport/conditionnement absent de cette liste, jamais pour un mouvement de musculation) :
 ${exerciseCatalogText}`
 
-        // Timeout explicite par semaine : sans lui, un appel qui reste bloqué
-        // n'écrit jamais rien et le programme reste "generating" sans trace.
-        // Plus court qu'avant (90s vs 4min) car chaque appel est désormais
-        // ~4x plus petit.
-        const GENERATION_TIMEOUT_MS = 90 * 1000
-        const abortController = new AbortController()
-        const timeoutId = setTimeout(() => abortController.abort(), GENERATION_TIMEOUT_MS)
-        const t0 = Date.now()
-        let response
-        try {
-          const stream = anthropic.messages.stream(
-            {
-              model: 'claude-sonnet-5',
-              max_tokens: 12000,
-              thinking: { type: 'adaptive' },
-              output_config: {
-                effort,
-                format: { type: 'json_schema', schema: programSchema(exerciseIds) },
-              },
-              system: SYSTEM_PROMPT,
-              messages: [{ role: 'user', content: userPrompt }],
+      // Timeout explicite : sans lui, un appel qui reste bloqué n'écrit
+      // jamais rien et le programme reste "generating" sans trace.
+      const GENERATION_TIMEOUT_MS = 90 * 1000
+      const abortController = new AbortController()
+      const timeoutId = setTimeout(() => abortController.abort(), GENERATION_TIMEOUT_MS)
+      const t0 = Date.now()
+      let response
+      try {
+        const stream = anthropic.messages.stream(
+          {
+            model: 'claude-sonnet-5',
+            max_tokens: 12000,
+            thinking: { type: 'adaptive' },
+            output_config: {
+              effort,
+              format: { type: 'json_schema', schema: programSchema(exerciseIds) },
             },
-            { signal: abortController.signal }
-          )
-          response = await stream.finalMessage()
-        } catch (err) {
-          if (abortController.signal.aborted) {
-            throw new Error(
-              `Semaine ${weekNum} : génération au-delà de ${GENERATION_TIMEOUT_MS / 1000}s — réessaie.`
-            )
-          }
-          throw err
-        } finally {
-          clearTimeout(timeoutId)
-        }
-        console.log(
-          `[generate-program] user=${user_id} week=${weekNum}/${WEEKS_COUNT} effort=${effort} durée=${Date.now() - t0}ms tokens_in=${response.usage?.input_tokens} tokens_out=${response.usage?.output_tokens} stop=${response.stop_reason}`
+            system: SYSTEM_PROMPT,
+            messages: [{ role: 'user', content: userPrompt }],
+          },
+          { signal: abortController.signal }
         )
-
-        if (response.stop_reason === 'refusal') {
-          throw new Error(`Le modèle n'a pas pu générer la semaine ${weekNum} pour ce profil.`)
+        response = await stream.finalMessage()
+      } catch (err) {
+        if (abortController.signal.aborted) {
+          throw new Error(`Semaine ${weekNum} : génération au-delà de ${GENERATION_TIMEOUT_MS / 1000}s — réessaie.`)
         }
-        if (response.stop_reason === 'max_tokens') {
-          throw new Error(`La génération de la semaine ${weekNum} a été tronquée, réessaie.`)
-        }
+        throw err
+      } finally {
+        clearTimeout(timeoutId)
+      }
+      console.log(
+        `[generate-program] user=${user_id} week=${weekNum}/${WEEKS_COUNT} effort=${effort} durée=${Date.now() - t0}ms tokens_in=${response.usage?.input_tokens} tokens_out=${response.usage?.output_tokens} stop=${response.stop_reason}`
+      )
 
-        const textBlock = response.content.find((block: any) => block.type === 'text')
-        if (!textBlock) {
-          throw new Error(`Réponse du modèle invalide (semaine ${weekNum}).`)
-        }
-
-        let weekStructure
-        try {
-          weekStructure = JSON.parse((textBlock as any).text)
-        } catch {
-          throw new Error(`Réponse du modèle mal formée (semaine ${weekNum}).`)
-        }
-
-        if (!Array.isArray(weekStructure.weeks) || weekStructure.weeks.length !== 1) {
-          throw new Error(`Semaine ${weekNum} : nombre de semaines inattendu dans la réponse.`)
-        }
-
-        let validationError = validateProgramStructure(weekStructure, validExerciseIdSet, {
-          sameDayCombining,
-          totalSessions,
-          expectedModalityCounts,
-        })
-        if (validationError) {
-          throw new Error(`Semaine ${weekNum} invalide : ${validationError}`)
-        }
-
-        weekStructure = await resolveCustomExercises(weekStructure)
-
-        const resolvedIds = new Set([
-          ...exerciseIds,
-          ...weekStructure.weeks.flatMap((w: any) => w.days.flatMap((d: any) => d.exercises.map((e: any) => e.exercise_id))),
-        ])
-        validationError = validateProgramStructure(weekStructure, resolvedIds, {
-          sameDayCombining,
-          totalSessions,
-          expectedModalityCounts,
-        })
-        if (validationError) {
-          throw new Error(`Semaine ${weekNum} invalide après résolution des exercices personnalisés : ${validationError}`)
-        }
-
-        const generatedWeek = weekStructure.weeks[0]
-        generatedWeek.week_number = weekNum
-        allWeeks.push(generatedWeek)
-
-        // Sauvegarde incrémentale : dès la semaine 1, le programme passe
-        // "active" et devient utilisable — pas besoin d'attendre les 4
-        // semaines. Si une semaine suivante échoue, ce qui est déjà
-        // sauvegardé reste utilisable (voir le catch plus bas).
-        await supabase
-          .from('user_programs')
-          .update({ status: 'active', structure: { weeks: allWeeks }, generation_prompt_snapshot: promptSnapshot })
-          .eq('id', program_id)
+      if (response.stop_reason === 'refusal') {
+        throw new Error(`Le modèle n'a pas pu générer la semaine ${weekNum} pour ce profil.`)
+      }
+      if (response.stop_reason === 'max_tokens') {
+        throw new Error(`La génération de la semaine ${weekNum} a été tronquée, réessaie.`)
       }
 
-      // Répète le mésocycle de 4 semaines pour couvrir la durée choisie, avec
-      // une directive de progression de charge à chaque bloc — pur calcul
-      // local, pas d'appel supplémentaire au modèle.
+      const textBlock = response.content.find((block: any) => block.type === 'text')
+      if (!textBlock) {
+        throw new Error(`Réponse du modèle invalide (semaine ${weekNum}).`)
+      }
+
+      let weekStructure
+      try {
+        weekStructure = JSON.parse((textBlock as any).text)
+      } catch {
+        throw new Error(`Réponse du modèle mal formée (semaine ${weekNum}).`)
+      }
+
+      if (!Array.isArray(weekStructure.weeks) || weekStructure.weeks.length !== 1) {
+        throw new Error(`Semaine ${weekNum} : nombre de semaines inattendu dans la réponse.`)
+      }
+
+      let validationError = validateProgramStructure(weekStructure, validExerciseIdSet, {
+        sameDayCombining,
+        totalSessions,
+        expectedModalityCounts,
+      })
+      if (validationError) {
+        throw new Error(`Semaine ${weekNum} invalide : ${validationError}`)
+      }
+
+      weekStructure = await resolveCustomExercises(weekStructure)
+
+      const resolvedIds = new Set([
+        ...exerciseIds,
+        ...weekStructure.weeks.flatMap((w: any) => w.days.flatMap((d: any) => d.exercises.map((e: any) => e.exercise_id))),
+      ])
+      validationError = validateProgramStructure(weekStructure, resolvedIds, {
+        sameDayCombining,
+        totalSessions,
+        expectedModalityCounts,
+      })
+      if (validationError) {
+        throw new Error(`Semaine ${weekNum} invalide après résolution des exercices personnalisés : ${validationError}`)
+      }
+
+      const generatedWeek = weekStructure.weeks[0]
+      generatedWeek.week_number = weekNum
+      const allWeeks = [...existingWeeks, generatedWeek]
+
+      // Sauvegarde : dès la semaine 1, le programme passe "active" et devient
+      // utilisable — pas besoin d'attendre les 4 semaines.
+      await supabase
+        .from('user_programs')
+        .update({ status: 'active', structure: { weeks: allWeeks }, generation_prompt_snapshot: promptSnapshot })
+        .eq('id', program_id)
+
+      if (weekNum < WEEKS_COUNT) {
+        // Redéclenche une invocation FRAÎCHE pour la semaine suivante plutôt
+        // que de continuer une boucle dans ce même waitUntil (voir plus haut
+        // pourquoi). Best-effort : si cet appel échoue à partir, le filet de
+        // sécurité pg_cron (watchdog des programmes actifs incomplets) reprend.
+        const selfUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/generate-program-worker`
+        await fetch(selfUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ program_id, user_id, effort: forcedEffort }),
+        }).catch(() => {})
+        return
+      }
+
+      // Dernière semaine : répète le mésocycle pour couvrir la durée choisie
+      // (pur calcul local, pas d'appel supplémentaire au modèle), puis
+      // finalise (ajustement appliqué, onboarding terminé).
       if (blocks > 1) {
         const expanded = expandBlocks({ weeks: allWeeks }, blocks)
         await supabase.from('user_programs').update({ structure: expanded }).eq('id', program_id)
