@@ -3946,6 +3946,17 @@ details.settings-section h2 {
   margin: 0;
 }
 
+.session-exo-coach-note,
+.program-exo-coach-note {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-border);
+  border-radius: 8px;
+  color: var(--accent-soft-fg, var(--accent));
+  font-size: 0.85rem;
+}
+
 .session-exo-media {
   max-height: 150px;
   overflow: hidden;

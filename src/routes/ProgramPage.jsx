@@ -334,6 +334,7 @@ export default function ProgramPage() {
                           {isWarmupExercise(ex) && <span className="program-exo-block-tag">🔸 Échauffement</span>}
                           <span className="program-exo-name">{det?.name ?? 'Exercice'}</span>
                         </div>
+                        {ex.notes && <p className="program-exo-coach-note">💬 {ex.notes}</p>}
                         <ExerciseAlternatives
                           exercisesById={exercisesById}
                           details={det}

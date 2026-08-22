@@ -1323,6 +1323,8 @@ export default function SessionRunnerPage() {
         {isWarmupExercise(exercise) && <span className="session-block-tag">🔸 Échauffement</span>}
         <h2 className="session-exo-name">{details?.name ?? 'Exercice'}</h2>
 
+        {exercise.notes && <p className="session-exo-coach-note">💬 {exercise.notes}</p>}
+
         {media && (
           <div className="session-exo-media">
             <ExerciseLoop media={media} label={details?.name ?? 'Exercice'} />
