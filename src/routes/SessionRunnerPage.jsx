@@ -13,6 +13,9 @@ import {
   groupDayExercises,
   isBlockExercise,
   isWarmupExercise,
+  isIntensificationExercise,
+  intensificationLabel,
+  blockPartnerNames,
   firstIndexOfBlock,
   blockLabel,
   blockExplainer,
@@ -1040,6 +1043,9 @@ export default function SessionRunnerPage() {
             return (
               <div key={i} className="session-summary-exo">
                 {isWarmupExercise(ex) && <span className="session-block-tag">🔸 Échauffement</span>}
+                {isIntensificationExercise(ex) && (
+                  <span className="session-block-tag">{intensificationLabel(ex)}</span>
+                )}
                 <div className="session-summary-exo-head">
                   <strong>{label}</strong>
                   <span className={`eyebrow${doneCount === total ? ' session-summary-done' : ''}`}>
@@ -1222,6 +1228,9 @@ export default function SessionRunnerPage() {
                 </span>
                 <span className="session-exercise-info">
                   {isWarmupExercise(exercise) && <span className="session-block-tag">🔸 Échauffement</span>}
+                  {isIntensificationExercise(exercise) && (
+                    <span className="session-block-tag">{intensificationLabel(exercise)}</span>
+                  )}
                   <strong>{details?.name ?? 'Exercice'}</strong>
                   <span className="eyebrow">
                     {completed} / {total} séries
@@ -1321,7 +1330,14 @@ export default function SessionRunnerPage() {
           Exercice {selectedExerciseIndex + 1}/{day.exercises.length} · {completed}/{total} séries
         </p>
         {isWarmupExercise(exercise) && <span className="session-block-tag">🔸 Échauffement</span>}
+        {isIntensificationExercise(exercise) && (
+          <span className="session-block-tag">{intensificationLabel(exercise)}</span>
+        )}
         <h2 className="session-exo-name">{details?.name ?? 'Exercice'}</h2>
+        {isIntensificationExercise(exercise) &&
+          blockPartnerNames(exercisesById, day.exercises, exercise).length > 0 && (
+            <p className="eyebrow">avec : {blockPartnerNames(exercisesById, day.exercises, exercise).join(', ')}</p>
+          )}
 
         {exercise.notes && <p className="session-exo-coach-note">💬 {exercise.notes}</p>}
 

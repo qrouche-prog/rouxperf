@@ -77,10 +77,10 @@ const CUSTOM_EXERCISE_SENTINEL = 'custom'
 // Formats de bloc supportés par le lanceur de séance — "straight" = série
 // classique (défaut). "amrap"/"emom" regroupent plusieurs exercices
 // consécutifs partageant le même block_id derrière un minuteur dédié.
-// "warmup" regroupe l'échauffement en tête de séance pour l'affichage (une
-// seule carte "Échauffement"), mais chaque mouvement garde ses vraies
-// séries/répétitions — pas de minuteur, logué normalement comme un exercice.
-const BLOCK_FORMATS = ['straight', 'amrap', 'emom', 'warmup']
+// "warmup"/"superset"/"triset" regroupent aussi des exercices consécutifs par
+// block_id, mais SANS minuteur : chaque mouvement garde ses vraies
+// séries/répétitions, logué normalement (pas sets=1 forcé comme AMRAP/EMOM).
+const BLOCK_FORMATS = ['straight', 'amrap', 'emom', 'warmup', 'superset', 'triset']
 
 function exerciseInputSchema(exerciseIds: string[]) {
   return {
@@ -366,13 +366,19 @@ Respecte strictement les blessures et limitations indiquées par l'utilisateur :
 Adapte le volume, l'intensité et la complexité technique au niveau d'expérience indiqué.
 Prévois une progression cohérente d'une semaine à l'autre : fais évoluer charge et/ou répétitions dans "notes" pour les mouvements de force (ex. "+2.5kg vs semaine précédente"), augmente légèrement répétitions/durée pour cardio-gainage-accessoires. Sur au moins un exercice principal, envisage aussi d'augmenter le nombre de séries en semaine 3-4 plutôt que de le garder strictement identique sur les 4 semaines — la charge progressive ne passe pas que par reps/poids. Garde un format cohérent pour "reps" d'une semaine à l'autre sur un même exercice (ne passe pas d'une fourchette "6-8" à un chiffre unique "9" sans raison).
 
-Structure de CHAQUE séance, y compris cardio/course :
-1. échauffement court (5-8 min, 2-4 mouvements) adapté au contenu de la séance — ex. mobilité hanches/chevilles avant jambes, épaules/thoracique avant haut du corps poussée/tirée, activation dynamique des jambes avant course/cardio. Mouvements de la bibliothèque (category "mobility" en priorité), avec leurs vraies sets/reps/rest_seconds — regroupe-les en tête du tableau "exercises" avec block_format="warmup" et un block_id partagé par tous les mouvements de cet échauffement (même mécanique que pour un bloc AMRAP/EMOM, mais SANS minuteur : chaque mouvement garde ses propres sets/reps réels, jamais sets=1 forcé).
-2. un ou deux exercices poly-articulaires principaux adaptés au niveau (séances de musculation) ;
-3. deux à trois accessoires ciblés pour équilibrer le corps ;
-4. au moins un exercice core (tronc/abdos) dans la majorité des séances de musculation ;
-5. finisher/conditionnement — SYSTÉMATIQUE si goal_type="weight_loss" ou focus_areas contient "weight_loss" (détail ci-dessous).
-Équilibre les schémas moteurs (pousser/tirer, genou/hanche) sur la semaine, varie les exercices d'une séance à l'autre.
+Structure des séances CARDIO/COURSE : échauffement court (5-8 min, 2-4 mouvements) adapté au contenu — activation dynamique avant course/cardio. Mouvements de la bibliothèque (category "mobility" en priorité), avec leurs vraies sets/reps/rest_seconds, en tête de "exercises" avec block_format="warmup" et un block_id partagé (mouvements consécutifs, SANS minuteur : chaque mouvement garde ses propres sets/reps, jamais sets=1 forcé).
+
+Structure des séances de MUSCULATION — PAS d'échauffement/mobilité dédié en tête (l'utilisateur s'échauffe sur son premier mouvement) : va directement au contenu utile.
+1. un ou deux poly-articulaires principaux adaptés au niveau ;
+2. accessoires pour équilibrer le corps — nombre total d'exercices selon le niveau : débutant ~5-6, intermédiaire ~7-8, avancé ~8-10+, cohérent avec session_duration_minutes ;
+3. au moins un exercice core (tronc/abdos) dans la majorité des séances ;
+4. finisher/conditionnement — SYSTÉMATIQUE si goal_type="weight_loss" ou focus_areas contient "weight_loss" (détail ci-dessous).
+Couvre RÉELLEMENT tous les groupes/mouvements pertinents pour le type de séance (ex. "Push" = pecs+épaules+triceps ; "Haut du corps" = pousser ET tirer) — jamais un groupe laissé de côté par manque de temps, ajuste plutôt le nombre de séries pour tenir dans session_duration_minutes. Équilibre pousser/tirer et genou/hanche sur la semaine, varie les exercices d'une séance à l'autre plutôt que de répéter le même mouvement partout.
+
+Techniques d'intensification (surtout intermédiaire/avancé, sur accessoires/isolation, pas les compounds lourds) :
+- Superset/triset (2-3 exercices enchaînés sans repos, un seul repos après le groupe) : exercices consécutifs dans "exercises", block_format="superset" (2 exercices) ou "triset" (3), block_id partagé, sets/reps réels sur chaque exercice ; rest_seconds=0 sauf le DERNIER du groupe qui porte le vrai repos avant le tour suivant.
+- Dropset : pas de champ dédié, décris-le dans "notes" de l'exercice concerné (ex. "Dropset dernière série : -20-25% de charge dès l'échec, enchaîne sans repos, répète 1-2 fois.").
+Sur tout exercice classique (l'immense majorité), n'écris aucun champ block_*.
 
 Adapte la programmation à goal_type :
 - "weight_loss" : dépense énergétique élevée — full-body, densité élevée (supersets/circuits), repos courts. Finisher SYSTÉMATIQUE de 8-15 min en fin de séance, en alternant : (a) gainage/abdos complémentaires, ou (b) bloc AMRAP/EMOM de 3-5 mouvements variés (squats, burpees, mountain climbers, corde à sauter, kettlebell swings…) à intensité modérée-soutenue — jamais le même HIIT répété identique chaque semaine. Pour un bloc AMRAP/EMOM (jamais dans "notes") : mouvements consécutifs dans "exercises", sets=1, reps=répétitions par tour, rest_seconds=0, block_format="amrap"/"emom" sur chacun, block_id partagé. AMRAP → block_time_cap_seconds uniquement, TOUJOURS EN SECONDES (ex. 12 min = 720, jamais 12). EMOM → block_interval_seconds EN SECONDES (ex. 60, pas 1) + block_rounds uniquement. Exercices hors bloc AMRAP/EMOM et hors échauffement (l'immense majorité) : n'écris AUCUN champ block_*. Intègre aussi du cardio continu faible/moyen impact (marche inclinée, escaliers, vélo, elliptique, rameur) ailleurs dans la semaine.

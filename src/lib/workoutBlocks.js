@@ -6,6 +6,26 @@ export function isWarmupExercise(exercise) {
   return exercise?.block_format === 'warmup'
 }
 
+export function isIntensificationExercise(exercise) {
+  return exercise?.block_format === 'superset' || exercise?.block_format === 'triset'
+}
+
+export function intensificationLabel(exercise) {
+  if (exercise?.block_format === 'superset') return '⚡ Superset'
+  if (exercise?.block_format === 'triset') return '⚡ Triset'
+  return ''
+}
+
+// Noms des autres exercices partageant le même block_id (superset/triset),
+// pour afficher "avec : Rowing barre" à côté de l'exercice en cours.
+export function blockPartnerNames(exercisesById, dayExercises, exercise) {
+  if (!exercise?.block_id) return []
+  return dayExercises
+    .filter((e) => e.block_id === exercise.block_id && e !== exercise)
+    .map((e) => exercisesById[e.exercise_id]?.name)
+    .filter(Boolean)
+}
+
 // Regroupe les exercices d'une séance en éléments affichables : un exercice
 // classique — et un mouvement d'échauffement, suivi individuellement, voir
 // isWarmupExercise — reste un élément seul ; seuls les exercices consécutifs

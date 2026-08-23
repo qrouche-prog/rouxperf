@@ -6,7 +6,15 @@ import { withResolvedDayOfWeek, withStableDayNumbers, programSchedule } from '..
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 import ExerciseAlternatives from '../components/ExerciseAlternatives'
-import { groupDayExercises, blockLabel, blockExplainer, isWarmupExercise } from '../lib/workoutBlocks'
+import {
+  groupDayExercises,
+  blockLabel,
+  blockExplainer,
+  isWarmupExercise,
+  isIntensificationExercise,
+  intensificationLabel,
+  blockPartnerNames,
+} from '../lib/workoutBlocks'
 
 const SITUATION_LABELS = {
   pregnant: 'grossesse',
@@ -332,8 +340,14 @@ export default function ProgramPage() {
                       <li key={i} className="program-exo">
                         <div className="program-exo-head">
                           {isWarmupExercise(ex) && <span className="program-exo-block-tag">🔸 Échauffement</span>}
+                          {isIntensificationExercise(ex) && (
+                            <span className="program-exo-block-tag">{intensificationLabel(ex)}</span>
+                          )}
                           <span className="program-exo-name">{det?.name ?? 'Exercice'}</span>
                         </div>
+                        {isIntensificationExercise(ex) && blockPartnerNames(exercisesById, day.exercises, ex).length > 0 && (
+                          <p className="eyebrow">avec : {blockPartnerNames(exercisesById, day.exercises, ex).join(', ')}</p>
+                        )}
                         {ex.notes && <p className="program-exo-coach-note">💬 {ex.notes}</p>}
                         <ExerciseAlternatives
                           exercisesById={exercisesById}
