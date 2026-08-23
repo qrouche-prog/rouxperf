@@ -18,24 +18,10 @@ export function isSupersetExercise(exercise) {
   return Boolean(exercise?.block_id) && (exercise.block_format === 'superset' || exercise.block_format === 'triset')
 }
 
-export function isIntensificationExercise(exercise) {
-  return isSupersetExercise(exercise)
-}
-
 export function intensificationLabel(exercise) {
   if (exercise?.block_format === 'superset') return '⚡ Superset'
   if (exercise?.block_format === 'triset') return '⚡ Triset'
   return ''
-}
-
-// Noms des autres exercices partageant le même block_id (superset/triset),
-// pour afficher "avec : Rowing barre" à côté de l'exercice en cours.
-export function blockPartnerNames(exercisesById, dayExercises, exercise) {
-  if (!exercise?.block_id) return []
-  return dayExercises
-    .filter((e) => e.block_id === exercise.block_id && e !== exercise)
-    .map((e) => exercisesById[e.exercise_id]?.name)
-    .filter(Boolean)
 }
 
 // Les membres (exercice + index dans la séance) d'un même block_id, dans l'ordre.

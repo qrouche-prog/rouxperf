@@ -14,9 +14,7 @@ import {
   isBlockExercise,
   isWarmupExercise,
   isSupersetExercise,
-  isIntensificationExercise,
   intensificationLabel,
-  blockPartnerNames,
   blockMembers,
   firstIndexOfBlock,
   blockLabel,
@@ -187,7 +185,8 @@ export default function SessionRunnerPage() {
   const [entries, setEntries] = useState({})
   const [carryoverByExercise, setCarryoverByExercise] = useState({})
 
-  const [phase, setPhase] = useState('exercise') // exercise | list | resting | effort | summary
+  const [phase, setPhase] = useState('exercise') // exercise | superset | list | resting | effort | summary
+  const [supersetWeights, setSupersetWeights] = useState({}) // exIdx -> poids (kg) saisi pour le tour affiché
   const [selectedExerciseIndex, setSelectedExerciseIndex] = useState(null)
   const [activeSetIndex, setActiveSetIndex] = useState(0)
   const [editingDoneSet, setEditingDoneSet] = useState(false)
@@ -254,22 +253,6 @@ export default function SessionRunnerPage() {
     return null
   }
 
-  // Après avoir logué une série d'un membre de superset/triset : enchaîne sans
-  // repos vers le membre suivant du même tour, ou — une fois le dernier membre
-  // du tour validé — vers le tour suivant du premier membre, avec le vrai repos.
-  function nextSupersetStep(entriesMap, exIdx, roundIdx) {
-    const ex = day.exercises[exIdx]
-    const members = blockMembers(day.exercises, ex.block_id)
-    const pos = members.findIndex((m) => m.index === exIdx)
-    if (pos === -1) return null
-    if (pos < members.length - 1) {
-      return { exIdx: members[pos + 1].index, setIdx: roundIdx, rest: 0 }
-    }
-    const totalRounds = Math.max(...members.map((m) => setCount(m.exercise)))
-    if (roundIdx + 1 >= totalRounds) return { done: true }
-    return { exIdx: members[0].index, setIdx: roundIdx + 1, rest: ex.rest_seconds || 0 }
-  }
-
   function syncEntries(next) {
     entriesRef.current = next
     setEntries(next)
@@ -311,6 +294,18 @@ export default function SessionRunnerPage() {
     setDistanceKm('')
   }
 
+  // Charge les poids affichés pour un tour de superset/triset — un champ par
+  // membre du bloc, tous affichés et validés ensemble.
+  function loadSupersetFieldsFor(dayArg, blockId, roundIdx) {
+    const members = blockMembers(dayArg.exercises, blockId)
+    const weights = {}
+    for (const { exercise: me, index: mi } of members) {
+      const existing = entriesRef.current[`${mi}-${roundIdx}`]
+      weights[mi] = existing?.weight_kg != null ? String(existing.weight_kg) : carryoverFor(me.exercise_id, roundIdx)
+    }
+    setSupersetWeights(weights)
+  }
+
   // Ouvre la série à faire courante (1er exercice, 1re série non complétés).
   // Renvoie true si une série reste à faire, false si la séance est terminée.
   function openCurrent(dayArg) {
@@ -328,13 +323,13 @@ export default function SessionRunnerPage() {
           }
           if (isSupersetExercise(ex)) {
             const t = nextBlockTarget(entriesRef.current, ex.block_id) || { exIdx: e, setIdx: s }
-            const sameExercise = t.exIdx === selectedExRef.current
-            selectedExRef.current = t.exIdx
-            setSelectedExerciseIndex(t.exIdx)
+            const anchorIdx = firstIndexOfBlock(target.exercises, ex.block_id)
+            selectedExRef.current = anchorIdx
+            setSelectedExerciseIndex(anchorIdx)
             setActiveSetIndex(t.setIdx)
             setEditingDoneSet(false)
-            loadFieldsFor(target, t.exIdx, t.setIdx, { sameExercise })
-            setPhase('exercise')
+            loadSupersetFieldsFor(target, ex.block_id, t.setIdx)
+            setPhase('superset')
             return true
           }
           const sameExercise = e === selectedExRef.current
@@ -366,12 +361,13 @@ export default function SessionRunnerPage() {
     }
     if (isSupersetExercise(ex)) {
       const t = nextBlockTarget(entriesRef.current, ex.block_id) || { exIdx, setIdx: 0 }
-      selectedExRef.current = t.exIdx
-      setSelectedExerciseIndex(t.exIdx)
+      const anchorIdx = firstIndexOfBlock(target.exercises, ex.block_id)
+      selectedExRef.current = anchorIdx
+      setSelectedExerciseIndex(anchorIdx)
       setActiveSetIndex(t.setIdx)
       setEditingDoneSet(false)
-      loadFieldsFor(target, t.exIdx, t.setIdx, { sameExercise: false })
-      setPhase('exercise')
+      loadSupersetFieldsFor(target, ex.block_id, t.setIdx)
+      setPhase('superset')
       return
     }
     let setIdx = 0
@@ -551,7 +547,12 @@ export default function SessionRunnerPage() {
   // Garde l'écran allumé pendant la séance (Wake Lock, si supporté)
   useEffect(() => {
     const active =
-      phase === 'exercise' || phase === 'resting' || phase === 'effort' || phase === 'list' || phase === 'block'
+      phase === 'exercise' ||
+      phase === 'superset' ||
+      phase === 'resting' ||
+      phase === 'effort' ||
+      phase === 'list' ||
+      phase === 'block'
     async function acquire() {
       if (!active || !('wakeLock' in navigator)) return
       try {
@@ -690,6 +691,17 @@ export default function SessionRunnerPage() {
       setPhase('list')
       return
     }
+    if (isSupersetExercise(ex)) {
+      const t = nextBlockTarget(entriesRef.current, ex.block_id)
+      if (!t) {
+        setPhase('list')
+        return
+      }
+      setActiveSetIndex(t.setIdx)
+      loadSupersetFieldsFor(day, ex.block_id, t.setIdx)
+      setPhase('superset')
+      return
+    }
     for (let s = 0; s < setCount(ex); s += 1) {
       if (!entriesRef.current[`${exIdx}-${s}`]) {
         setSelectedExerciseIndex(exIdx)
@@ -763,27 +775,6 @@ export default function SessionRunnerPage() {
       return
     }
 
-    // Superset/triset : enchaîne réellement les membres du bloc (sans repos
-    // entre eux), tour par tour, plutôt que de finir un exercice avant l'autre.
-    if (isSupersetExercise(exercise)) {
-      const step = nextSupersetStep(updated, selectedExerciseIndex, idx)
-      if (!step || step.done) {
-        setPhase('list')
-        return
-      }
-      selectedExRef.current = step.exIdx
-      setSelectedExerciseIndex(step.exIdx)
-      if (step.rest > 0) {
-        const nextDet = exercisesById[day.exercises[step.exIdx].exercise_id]
-        startRest(step.rest, `${nextDet?.name ?? 'Exercice'} · série ${step.setIdx + 1}`)
-        return
-      }
-      setActiveSetIndex(step.setIdx)
-      setEditingDoneSet(false)
-      loadFieldsFor(day, step.exIdx, step.setIdx, { sameExercise: false })
-      return
-    }
-
     // Exercice terminé → retour à la LISTE (l'utilisateur choisit la suite).
     if (exNowDone) {
       setPhase('list')
@@ -805,6 +796,54 @@ export default function SessionRunnerPage() {
     }
     setActiveSetIndex(nextSet)
     loadFieldsFor(day, selectedExerciseIndex, nextSet, { sameExercise: true })
+  }
+
+  // Valide en une fois le tour affiché d'un superset/triset : tous les
+  // membres sont enregistrés ensemble (les exercices sont affichés côte à
+  // côte, un seul bouton pour le tour entier), puis on enchaîne — repos
+  // (celui du dernier membre) avant le tour suivant, ou retour à la liste
+  // si le bloc est terminé.
+  function submitSupersetRound(blockId, roundIdx) {
+    const members = blockMembers(day.exercises, blockId)
+    const anchorIdx = members[0]?.index
+    const wasDone = Boolean(entriesRef.current[`${anchorIdx}-${roundIdx}`])
+    const updated = { ...entriesRef.current }
+    for (const { exercise: me, index: mi } of members) {
+      updated[`${mi}-${roundIdx}`] = {
+        reps: parseTargetReps(me.reps),
+        weight_kg: supersetWeights[mi] ?? '',
+        note: '',
+        metric_kind: null,
+        metric_value: null,
+        distance_km: null,
+      }
+    }
+    syncEntries(updated)
+    for (const { index: mi } of members) persistSet(mi, roundIdx, updated[`${mi}-${roundIdx}`])
+    setEditingDoneSet(false)
+
+    if (allDone(updated)) {
+      setFinalPercent(100)
+      setPhase('summary')
+      return
+    }
+    if (wasDone) {
+      setPhase('list')
+      return
+    }
+    const nextTarget = nextBlockTarget(updated, blockId)
+    if (!nextTarget) {
+      setPhase('list')
+      return
+    }
+    const last = members[members.length - 1].exercise
+    const rest = last.rest_seconds || 0
+    setActiveSetIndex(nextTarget.setIdx)
+    if (rest > 0) {
+      startRest(rest, `Superset · tour ${nextTarget.setIdx + 1}`)
+      return
+    }
+    loadSupersetFieldsFor(day, blockId, nextTarget.setIdx)
   }
 
   // Termine un bloc AMRAP/EMOM : enregistre un unique résultat (nombre de
@@ -1233,6 +1272,126 @@ export default function SessionRunnerPage() {
     )
   }
 
+  // ---- Écran : superset/triset (exercices affichés ensemble) ----
+  if (phase === 'superset') {
+    if (selectedExerciseIndex == null || !day.exercises[selectedExerciseIndex]) return null
+    const anchor = day.exercises[selectedExerciseIndex]
+    const members = blockMembers(day.exercises, anchor.block_id)
+    const totalRounds = Math.max(1, ...members.map((m) => setCount(m.exercise)))
+    const roundIdx = activeSetIndex
+    const roundDone = members.every(({ index: mi }) => Boolean(entries[`${mi}-${roundIdx}`]))
+    const last = members[members.length - 1]?.exercise
+    const restLabel = restLabelFor(last?.rest_seconds)
+
+    function tapRound(r) {
+      setActiveSetIndex(r)
+      setEditingDoneSet(false)
+      loadSupersetFieldsFor(day, anchor.block_id, r)
+    }
+
+    function onSupersetSubmit(e) {
+      e.preventDefault()
+      submitSupersetRound(anchor.block_id, roundIdx)
+    }
+
+    return (
+      <main className="session-run">
+        <div className="session-runner-header">
+          <button type="button" className="link-button" onClick={() => setPhase('list')}>
+            ‹ Exercices
+          </button>
+          <span className="eyebrow session-save-state">
+            {saveState === 'saving' ? 'Enregistrement…' : saveState === 'saved' ? 'Enregistré ✓' : saveState === 'error' ? '⚠ non enregistré' : `${overallPercent}%`}
+          </span>
+        </div>
+
+        <div className="week-progress-bar session-run-bar">
+          <div className="week-progress-fill" style={{ width: `${overallPercent}%` }} />
+        </div>
+
+        <div className="card session-exo-card">
+          <p className="eyebrow">
+            {intensificationLabel(anchor)} · tour {roundIdx + 1}/{totalRounds} · repos {restLabel}
+          </p>
+
+          <div className="set-chips" role="tablist" aria-label="Tours">
+            {Array.from({ length: totalRounds }).map((_, r) => {
+              const isDone = members.every(({ index: mi }) => Boolean(entries[`${mi}-${r}`]))
+              const isActive = r === roundIdx
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  className={`set-chip${isDone ? ' set-chip-done' : ''}${isActive ? ' set-chip-active' : ''}`}
+                  onClick={() => tapRound(r)}
+                  aria-label={`Tour ${r + 1}${isDone ? ', complété' : ''}`}
+                >
+                  {isDone ? <Icon name="check" size={14} /> : r + 1}
+                </button>
+              )
+            })}
+          </div>
+
+          <form className="superset-round" onSubmit={onSupersetSubmit}>
+            <div className="superset-members">
+              {members.map(({ exercise: me, index: mi }) => {
+                const mDet = exercisesById[me.exercise_id]
+                const mMedia = mediaForSlug(mDet?.illustration_slug)
+                return (
+                  <div key={mi} className="superset-member">
+                    <h3 className="session-exo-name">{mDet?.name ?? 'Exercice'}</h3>
+                    <p className="eyebrow">objectif {me.reps} reps</p>
+
+                    {mMedia && (
+                      <div className="session-exo-media">
+                        <ExerciseLoop media={mMedia} label={mDet?.name ?? 'Exercice'} />
+                        <ExerciseAttribution media={mMedia} />
+                      </div>
+                    )}
+
+                    <label htmlFor={`superset-weight-${mi}`}>Poids (kg)</label>
+                    <input
+                      id={`superset-weight-${mi}`}
+                      type="number"
+                      inputMode="decimal"
+                      step="0.5"
+                      value={supersetWeights[mi] ?? ''}
+                      onChange={(e) => setSupersetWeights((w) => ({ ...w, [mi]: e.target.value }))}
+                      autoComplete="off"
+                    />
+
+                    {me.notes && <p className="session-exo-coach-note">💬 {me.notes}</p>}
+
+                    {mDet?.instructions && (
+                      <details className="session-exo-instructions">
+                        <summary>Consignes</summary>
+                        <p>{mDet.instructions}</p>
+                      </details>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <button type="submit" className="btn-primary">
+              {roundDone ? `Mettre à jour le tour ${roundIdx + 1}` : `Valider la série ${roundIdx + 1}`}
+            </button>
+          </form>
+
+          {roundDone && (
+            <button
+              type="button"
+              className="link-button session-reset-link"
+              onClick={() => setPhase('list')}
+            >
+              Retour aux exercices
+            </button>
+          )}
+        </div>
+      </main>
+    )
+  }
+
   // ---- Écran : bloc de conditionnement (AMRAP/EMOM) ----
   if (phase === 'block') {
     if (selectedExerciseIndex == null || !day.exercises[selectedExerciseIndex]) return null
@@ -1369,9 +1528,6 @@ export default function SessionRunnerPage() {
                 </span>
                 <span className="session-exercise-info">
                   {isWarmupExercise(exercise) && <span className="session-block-tag">🔸 Échauffement</span>}
-                  {isIntensificationExercise(exercise) && (
-                    <span className="session-block-tag">{intensificationLabel(exercise)}</span>
-                  )}
                   <strong>{details?.name ?? 'Exercice'}</strong>
                   <span className="eyebrow">
                     {completed} / {total} séries
@@ -1471,14 +1627,7 @@ export default function SessionRunnerPage() {
           Exercice {selectedExerciseIndex + 1}/{day.exercises.length} · {completed}/{total} séries
         </p>
         {isWarmupExercise(exercise) && <span className="session-block-tag">🔸 Échauffement</span>}
-        {isIntensificationExercise(exercise) && (
-          <span className="session-block-tag">{intensificationLabel(exercise)}</span>
-        )}
         <h2 className="session-exo-name">{details?.name ?? 'Exercice'}</h2>
-        {isIntensificationExercise(exercise) &&
-          blockPartnerNames(exercisesById, day.exercises, exercise).length > 0 && (
-            <p className="eyebrow">avec : {blockPartnerNames(exercisesById, day.exercises, exercise).join(', ')}</p>
-          )}
 
         {exercise.notes && <p className="session-exo-coach-note">💬 {exercise.notes}</p>}
 

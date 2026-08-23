@@ -4193,6 +4193,42 @@ details.settings-section h2 {
   gap: 8px;
 }
 
+/* Superset/triset : exercices affichés côte à côte, validés ensemble */
+.superset-round {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.superset-members {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.superset-member {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.superset-member .session-exo-name {
+  font-size: 1rem;
+}
+
+.superset-member label {
+  font-size: 0.8rem;
+  color: var(--iron);
+}
+
+.superset-member input[type='number'] {
+  width: 100%;
+}
+
 /* Résumé de séance */
 .session-summary {
   display: flex;
