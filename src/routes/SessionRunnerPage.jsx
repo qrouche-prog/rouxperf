@@ -481,14 +481,17 @@ export default function SessionRunnerPage() {
             setRestRemaining(Math.max(0, Math.round((storedRest.end - Date.now()) / 1000)))
             setRestEndAt(storedRest.end)
             setPhase('resting')
-          } else if (hasProgress) {
-            try {
-              localStorage.removeItem(REST_KEY)
-            } catch {
-              // ignore
-            }
-            openCurrent(theDay)
           } else {
+            // Séance déjà commencée (ou pas encore) : on retombe sur la liste
+            // des exercices plutôt que d'ouvrir directement la série en cours
+            // — l'utilisateur choisit où reprendre.
+            if (hasProgress) {
+              try {
+                localStorage.removeItem(REST_KEY)
+              } catch {
+                // ignore
+              }
+            }
             setPhase('list')
           }
           return
