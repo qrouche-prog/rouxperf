@@ -764,8 +764,11 @@ Exercices disponibles (choisis parmi ceux-ci par exercise_id en priorité ; "cus
 ${exerciseCatalogText}`
 
       // Timeout explicite : sans lui, un appel qui reste bloqué n'écrit
-      // jamais rien et le programme reste "generating" sans trace.
-      const GENERATION_TIMEOUT_MS = 90 * 1000
+      // jamais rien et le programme reste "generating" sans trace. Relevé de
+      // 90s à 150s : le prompt renforcé (volume/intensification niveau
+      // avancé) pousse certaines semaines au-delà de 90s alors que chaque
+      // semaine dispose déjà d'une invocation fraîche dédiée (self-chaining).
+      const GENERATION_TIMEOUT_MS = 150 * 1000
       const abortController = new AbortController()
       const timeoutId = setTimeout(() => abortController.abort(), GENERATION_TIMEOUT_MS)
       const t0 = Date.now()
