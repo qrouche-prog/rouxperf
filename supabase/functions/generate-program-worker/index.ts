@@ -77,10 +77,13 @@ const CUSTOM_EXERCISE_SENTINEL = 'custom'
 // Formats de bloc supportés par le lanceur de séance — "straight" = série
 // classique (défaut). "amrap"/"emom" regroupent plusieurs exercices
 // consécutifs partageant le même block_id derrière un minuteur dédié.
-// "warmup"/"superset"/"triset" regroupent aussi des exercices consécutifs par
+// "superset"/"triset" regroupent aussi des exercices consécutifs par
 // block_id, mais SANS minuteur : chaque mouvement garde ses vraies
 // séries/répétitions, logué normalement (pas sets=1 forcé comme AMRAP/EMOM).
-const BLOCK_FORMATS = ['straight', 'amrap', 'emom', 'warmup', 'superset', 'triset']
+// "warmup" volontairement absent : plus aucun bloc d'échauffement/mobilité
+// n'est généré (décision produit) — le frontend garde la capacité de
+// l'afficher pour ne pas casser d'anciens programmes déjà générés avec.
+const BLOCK_FORMATS = ['straight', 'amrap', 'emom', 'superset', 'triset']
 
 function exerciseInputSchema(exerciseIds: string[]) {
   return {
@@ -366,9 +369,9 @@ Respecte strictement les blessures et limitations indiquées par l'utilisateur :
 Adapte le volume, l'intensité et la complexité technique au niveau d'expérience indiqué.
 Prévois une progression cohérente d'une semaine à l'autre : fais évoluer charge et/ou répétitions dans "notes" pour les mouvements de force (ex. "+2.5kg vs semaine précédente"), augmente légèrement répétitions/durée pour cardio-gainage-accessoires. Sur au moins un exercice principal, envisage aussi d'augmenter le nombre de séries en semaine 3-4 plutôt que de le garder strictement identique sur les 4 semaines — la charge progressive ne passe pas que par reps/poids. Garde un format cohérent pour "reps" d'une semaine à l'autre sur un même exercice (ne passe pas d'une fourchette "6-8" à un chiffre unique "9" sans raison).
 
-Structure des séances CARDIO/COURSE : échauffement court (5-8 min, 2-4 mouvements) adapté au contenu — activation dynamique avant course/cardio. Mouvements de la bibliothèque (category "mobility" en priorité), avec leurs vraies sets/reps/rest_seconds, en tête de "exercises" avec block_format="warmup" et un block_id partagé (mouvements consécutifs, SANS minuteur : chaque mouvement garde ses propres sets/reps, jamais sets=1 forcé).
+AUCUN bloc d'échauffement/mobilité dédié en tête de séance, quel que soit le type de séance — jamais de mouvements de mobilité/rotation articulaire en ouverture. Pour une séance cardio/course, si une mise en route a du sens, c'est un simple temps à allure facile en début de séance (ex. "Footing d'échauffement" en exercice cardio classique, jamais un bloc à part) — jamais de mobilité articulaire.
 
-Structure des séances de MUSCULATION — PAS d'échauffement/mobilité dédié en tête (l'utilisateur s'échauffe sur son premier mouvement) : va directement au contenu utile.
+Structure des séances de MUSCULATION — va directement au contenu utile (l'utilisateur s'échauffe sur son premier mouvement) :
 1. un ou deux poly-articulaires principaux adaptés au niveau ;
 2. accessoires pour équilibrer le corps — nombre total d'exercices selon le niveau : débutant ~5-6, intermédiaire ~7-8, avancé ~8-10+, cohérent avec session_duration_minutes ;
 3. au moins un exercice core (tronc/abdos) dans la majorité des séances ;
