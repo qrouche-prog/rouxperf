@@ -4119,6 +4119,17 @@ details.settings-section h2 {
   font-size: 0.9rem;
   color: var(--iron);
 }
+.program-exo-block-member {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.program-exo-block-member + .program-exo-block-member {
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid var(--accent-soft-border);
+}
 
 .notes-list {
   list-style: none;
@@ -4236,6 +4247,21 @@ details.settings-section h2 {
 }
 .session-summary-skipped .session-summary-set-n {
   opacity: 0.5;
+}
+
+.session-summary-block {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.session-summary-block-member {
+  margin-top: 4px;
+}
+.session-summary-block-member + .session-summary-block-member {
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid var(--accent-soft-border);
 }
 
 .session-exo-instructions p {

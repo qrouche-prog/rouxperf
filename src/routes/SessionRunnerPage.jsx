@@ -13,9 +13,11 @@ import {
   groupDayExercises,
   isBlockExercise,
   isWarmupExercise,
+  isSupersetExercise,
   isIntensificationExercise,
   intensificationLabel,
   blockPartnerNames,
+  blockMembers,
   firstIndexOfBlock,
   blockLabel,
   blockExplainer,
@@ -235,6 +237,39 @@ export default function SessionRunnerPage() {
     return setsOf(ex, exercisesById[ex.exercise_id], day?.modality)
   }
 
+  // Pour un superset/triset : la vraie prochaine étape est le tour le moins
+  // avancé (minimum de séries complétées parmi les membres), sur le premier
+  // membre qui n'a pas encore cette série — ça reste correct même si l'app a
+  // été fermée en plein milieu d'un tour (un membre validé, l'autre pas).
+  function nextBlockTarget(entriesMap, blockId) {
+    const members = blockMembers(day.exercises, blockId)
+    if (members.length === 0) return null
+    let round = Infinity
+    for (const { exercise, index } of members) {
+      round = Math.min(round, countCompleted(entriesMap, index, setCount(exercise)))
+    }
+    for (const { index } of members) {
+      if (!entriesMap[`${index}-${round}`]) return { exIdx: index, setIdx: round }
+    }
+    return null
+  }
+
+  // Après avoir logué une série d'un membre de superset/triset : enchaîne sans
+  // repos vers le membre suivant du même tour, ou — une fois le dernier membre
+  // du tour validé — vers le tour suivant du premier membre, avec le vrai repos.
+  function nextSupersetStep(entriesMap, exIdx, roundIdx) {
+    const ex = day.exercises[exIdx]
+    const members = blockMembers(day.exercises, ex.block_id)
+    const pos = members.findIndex((m) => m.index === exIdx)
+    if (pos === -1) return null
+    if (pos < members.length - 1) {
+      return { exIdx: members[pos + 1].index, setIdx: roundIdx, rest: 0 }
+    }
+    const totalRounds = Math.max(...members.map((m) => setCount(m.exercise)))
+    if (roundIdx + 1 >= totalRounds) return { done: true }
+    return { exIdx: members[0].index, setIdx: roundIdx + 1, rest: ex.rest_seconds || 0 }
+  }
+
   function syncEntries(next) {
     entriesRef.current = next
     setEntries(next)
@@ -291,6 +326,17 @@ export default function SessionRunnerPage() {
             setPhase('block')
             return true
           }
+          if (isSupersetExercise(ex)) {
+            const t = nextBlockTarget(entriesRef.current, ex.block_id) || { exIdx: e, setIdx: s }
+            const sameExercise = t.exIdx === selectedExRef.current
+            selectedExRef.current = t.exIdx
+            setSelectedExerciseIndex(t.exIdx)
+            setActiveSetIndex(t.setIdx)
+            setEditingDoneSet(false)
+            loadFieldsFor(target, t.exIdx, t.setIdx, { sameExercise })
+            setPhase('exercise')
+            return true
+          }
           const sameExercise = e === selectedExRef.current
           selectedExRef.current = e
           setSelectedExerciseIndex(e)
@@ -316,6 +362,16 @@ export default function SessionRunnerPage() {
       selectedExRef.current = firstIdx
       setSelectedExerciseIndex(firstIdx)
       setPhase('block')
+      return
+    }
+    if (isSupersetExercise(ex)) {
+      const t = nextBlockTarget(entriesRef.current, ex.block_id) || { exIdx, setIdx: 0 }
+      selectedExRef.current = t.exIdx
+      setSelectedExerciseIndex(t.exIdx)
+      setActiveSetIndex(t.setIdx)
+      setEditingDoneSet(false)
+      loadFieldsFor(target, t.exIdx, t.setIdx, { sameExercise: false })
+      setPhase('exercise')
       return
     }
     let setIdx = 0
@@ -704,6 +760,27 @@ export default function SessionRunnerPage() {
       return
     }
 
+    // Superset/triset : enchaîne réellement les membres du bloc (sans repos
+    // entre eux), tour par tour, plutôt que de finir un exercice avant l'autre.
+    if (isSupersetExercise(exercise)) {
+      const step = nextSupersetStep(updated, selectedExerciseIndex, idx)
+      if (!step || step.done) {
+        setPhase('list')
+        return
+      }
+      selectedExRef.current = step.exIdx
+      setSelectedExerciseIndex(step.exIdx)
+      if (step.rest > 0) {
+        const nextDet = exercisesById[day.exercises[step.exIdx].exercise_id]
+        startRest(step.rest, `${nextDet?.name ?? 'Exercice'} · série ${step.setIdx + 1}`)
+        return
+      }
+      setActiveSetIndex(step.setIdx)
+      setEditingDoneSet(false)
+      loadFieldsFor(day, step.exIdx, step.setIdx, { sameExercise: false })
+      return
+    }
+
     // Exercice terminé → retour à la LISTE (l'utilisateur choisit la suite).
     if (exNowDone) {
       setPhase('list')
@@ -1037,15 +1114,51 @@ export default function SessionRunnerPage() {
             const i = item.index
             const ex = day.exercises[i]
             const det = exercisesById[ex.exercise_id]
+
+            if (item.type === 'block' && isSupersetExercise(ex)) {
+              return (
+                <div key={i} className="session-summary-exo session-summary-block">
+                  <span className="session-block-tag">{intensificationLabel(ex)}</span>
+                  <div className="session-summary-exo-head">
+                    <strong>{blockLabel(ex, item.members)}</strong>
+                  </div>
+                  {item.members.map(({ exercise: me, index: mi }) => {
+                    const mDet = exercisesById[me.exercise_id]
+                    const mTotal = setCount(me)
+                    const mDone = countCompleted(entries, mi, mTotal)
+                    return (
+                      <div key={mi} className="session-summary-block-member">
+                        <p className="eyebrow">
+                          {mDet?.name ?? 'Exercice'} — {mDone}/{mTotal} séries
+                        </p>
+                        <ul className="session-summary-sets">
+                          {Array.from({ length: mTotal }).map((_, s) => {
+                            const e = entries[`${mi}-${s}`]
+                            return (
+                              <li key={s} className={e ? 'session-summary-set' : 'session-summary-set session-summary-skipped'}>
+                                <span className="session-summary-set-n">{s + 1}</span>
+                                {e ? (
+                                  <span>{setSummary(e, me, isRunningExercise(mDet, me.reps, day.modality))}</span>
+                                ) : (
+                                  <span>non réalisée</span>
+                                )}
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            }
+
             const total = setCount(ex)
             const doneCount = countCompleted(entries, i, total)
             const label = item.type === 'block' ? blockLabel(ex) : (det?.name ?? 'Exercice')
             return (
               <div key={i} className="session-summary-exo">
                 {isWarmupExercise(ex) && <span className="session-block-tag">🔸 Échauffement</span>}
-                {isIntensificationExercise(ex) && (
-                  <span className="session-block-tag">{intensificationLabel(ex)}</span>
-                )}
                 <div className="session-summary-exo-head">
                   <strong>{label}</strong>
                   <span className={`eyebrow${doneCount === total ? ' session-summary-done' : ''}`}>
@@ -1193,6 +1306,31 @@ export default function SessionRunnerPage() {
             const total = setCount(exercise)
             const completed = countCompleted(entries, i, total)
             const done = completed === total
+            if (item.type === 'block' && isSupersetExercise(exercise)) {
+              const blockTotal = item.members.reduce((sum, m) => sum + setCount(m.exercise), 0)
+              const blockDone = item.members.reduce((sum, m) => sum + countCompleted(entries, m.index, setCount(m.exercise)), 0)
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  className="session-exercise-card session-exercise-card-block"
+                  onClick={() => openExercise(day, i)}
+                >
+                  <span className={`session-status-badge${blockDone === blockTotal ? ' session-status-done' : ''}`}>
+                    <Icon name={blockDone === blockTotal ? 'check' : 'bolt'} size={16} />
+                  </span>
+                  <span className="session-exercise-info">
+                    <span className="session-block-tag">{intensificationLabel(exercise)}</span>
+                    <strong>{blockLabel(exercise, item.members)}</strong>
+                    <span className="eyebrow">
+                      {item.members.map(({ exercise: e }) => exercisesById[e.exercise_id]?.name ?? 'Exercice').join(' · ')}
+                    </span>
+                    <span className="eyebrow">{blockDone} / {blockTotal} séries</span>
+                  </span>
+                  <span className="session-exercise-chevron">›</span>
+                </button>
+              )
+            }
             if (item.type === 'block') {
               return (
                 <button

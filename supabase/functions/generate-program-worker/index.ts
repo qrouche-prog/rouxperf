@@ -372,14 +372,20 @@ Prévois une progression cohérente d'une semaine à l'autre : fais évoluer cha
 AUCUN bloc d'échauffement/mobilité dédié en tête de séance, quel que soit le type de séance — jamais de mouvements de mobilité/rotation articulaire en ouverture. Pour une séance cardio/course, si une mise en route a du sens, c'est un simple temps à allure facile en début de séance (ex. "Footing d'échauffement" en exercice cardio classique, jamais un bloc à part) — jamais de mobilité articulaire.
 
 Structure des séances de MUSCULATION — va directement au contenu utile (l'utilisateur s'échauffe sur son premier mouvement) :
-1. un ou deux poly-articulaires principaux adaptés au niveau ;
-2. accessoires pour équilibrer le corps — nombre total d'exercices selon le niveau : débutant ~5-6, intermédiaire ~7-8, avancé ~8-10+, cohérent avec session_duration_minutes ;
+1. un ou deux poly-articulaires principaux adaptés au niveau, charge réellement exigeante pour ce niveau (pas de série de confort) ;
+2. accessoires pour équilibrer le corps — nombre total d'exercices selon le niveau : débutant ~5-6, intermédiaire ~8-9, avancé ~10-12, cohérent avec session_duration_minutes (quitte à raccourcir les repos ou densifier via les techniques d'intensification ci-dessous plutôt que de réduire le nombre d'exercices) ;
 3. au moins un exercice core (tronc/abdos) dans la majorité des séances ;
 4. finisher/conditionnement — SYSTÉMATIQUE si goal_type="weight_loss" ou focus_areas contient "weight_loss" (détail ci-dessous).
-Couvre RÉELLEMENT tous les groupes/mouvements pertinents pour le type de séance (ex. "Push" = pecs+épaules+triceps ; "Haut du corps" = pousser ET tirer) — jamais un groupe laissé de côté par manque de temps, ajuste plutôt le nombre de séries pour tenir dans session_duration_minutes. Équilibre pousser/tirer et genou/hanche sur la semaine, varie les exercices d'une séance à l'autre plutôt que de répéter le même mouvement partout.
+Couvre RÉELLEMENT tous les groupes/mouvements pertinents pour le type de séance (ex. "Push" = pecs+épaules+triceps ; "Haut du corps" = pousser ET tirer) — jamais un groupe laissé de côté par manque de temps, ajuste plutôt le nombre de séries pour tenir dans session_duration_minutes. Équilibre pousser/tirer et genou/hanche sur la semaine, varie RÉELLEMENT les exercices d'une séance à l'autre et d'une semaine à l'autre (angle, prise, unilatéral/bilatéral, machine/poids libre/élastique) plutôt que de répéter le même mouvement partout ou de recopier la même sélection chaque semaine.
 
-Techniques d'intensification (surtout intermédiaire/avancé, sur accessoires/isolation, pas les compounds lourds) :
-- Superset/triset (2-3 exercices enchaînés sans repos, un seul repos après le groupe) : exercices consécutifs dans "exercises", block_format="superset" (2 exercices) ou "triset" (3), block_id partagé, sets/reps réels sur chaque exercice ; rest_seconds=0 sauf le DERNIER du groupe qui porte le vrai repos avant le tour suivant.
+Pour un niveau avancé (et intermédiaire dans une moindre mesure), pousse réellement l'intensité et la variété, ne te contente pas d'un enchaînement de séries droites classiques :
+- au moins 2-3 techniques d'intensification par séance (superset/triset/dropset, voir ci-dessous), pas juste "quand ça tombe bien" ;
+- diversifie les schémas de charge dans la séance (pas uniquement 3×10 partout) : mélange plages lourdes/faibles reps sur les poly-articulaires et plages plus hautes/volume sur les accessoires et isolations ;
+- varie les modalités d'un exercice à l'autre (unilatéral, tempo contrôlé/excentrique lent, pause en bas de mouvement, isométrie) plutôt que des séries toutes identiques ;
+- un niveau avancé mérite une séance qui donne l'impression d'un vrai travail — s'il reste du temps dans session_duration_minutes après les points 1-4 ci-dessus, rajoute un exercice ou une technique d'intensification plutôt que de laisser de la marge inutilisée.
+
+Techniques d'intensification (intermédiaire/avancé — utilise-les activement, pas seulement en option, sur accessoires/isolation, pas les compounds lourds) :
+- Superset/triset (2-3 exercices enchaînés sans repos, un seul repos après le groupe) : exercices consécutifs dans "exercises", block_format="superset" (2 exercices) ou "triset" (3), block_id partagé, sets/reps réels sur chaque exercice ; rest_seconds=0 sauf le DERNIER du groupe qui porte le vrai repos avant le tour suivant. Varie les combinaisons d'une séance à l'autre (antagonistes, pré-fatigue, même groupe) plutôt que de toujours coupler les deux mêmes exercices.
 - Dropset : pas de champ dédié, décris-le dans "notes" de l'exercice concerné (ex. "Dropset dernière série : -20-25% de charge dès l'échec, enchaîne sans repos, répète 1-2 fois.").
 Sur tout exercice classique (l'immense majorité), n'écris aucun champ block_*.
 

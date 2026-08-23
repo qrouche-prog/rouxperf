@@ -11,9 +11,8 @@ import {
   blockLabel,
   blockExplainer,
   isWarmupExercise,
-  isIntensificationExercise,
+  isSupersetExercise,
   intensificationLabel,
-  blockPartnerNames,
 } from '../lib/workoutBlocks'
 
 const SITUATION_LABELS = {
@@ -316,6 +315,34 @@ export default function ProgramPage() {
               {expandedDay === dayKey && (
                 <ul className="program-exos">
                   {groupDayExercises(day.exercises).map((item) => {
+                    if (item.type === 'block' && isSupersetExercise(day.exercises[item.index])) {
+                      const first = day.exercises[item.index]
+                      return (
+                        <li key={item.index} className="program-exo program-exo-block">
+                          <div className="program-exo-head">
+                            <span className="program-exo-block-tag">{intensificationLabel(first)}</span>
+                            <span className="program-exo-name">{blockLabel(first, item.members)}</span>
+                          </div>
+                          <p className="eyebrow">{blockExplainer(first)}</p>
+                          {item.members.map(({ exercise: me, index: mi }) => {
+                            const mDet = exercisesById[me.exercise_id]
+                            return (
+                              <div key={mi} className="program-exo-block-member">
+                                <span className="program-exo-name">{mDet?.name ?? 'Exercice'}</span>
+                                {me.notes && <p className="program-exo-coach-note">💬 {me.notes}</p>}
+                                <ExerciseAlternatives
+                                  exercisesById={exercisesById}
+                                  details={mDet}
+                                  equipmentAccess={equipmentAccess}
+                                  swapping={swapping}
+                                  onSwap={(newId) => swapExercise(mDet.id, newId)}
+                                />
+                              </div>
+                            )
+                          })}
+                        </li>
+                      )
+                    }
                     if (item.type === 'block') {
                       const first = day.exercises[item.index]
                       return (
@@ -340,14 +367,8 @@ export default function ProgramPage() {
                       <li key={i} className="program-exo">
                         <div className="program-exo-head">
                           {isWarmupExercise(ex) && <span className="program-exo-block-tag">🔸 Échauffement</span>}
-                          {isIntensificationExercise(ex) && (
-                            <span className="program-exo-block-tag">{intensificationLabel(ex)}</span>
-                          )}
                           <span className="program-exo-name">{det?.name ?? 'Exercice'}</span>
                         </div>
-                        {isIntensificationExercise(ex) && blockPartnerNames(exercisesById, day.exercises, ex).length > 0 && (
-                          <p className="eyebrow">avec : {blockPartnerNames(exercisesById, day.exercises, ex).join(', ')}</p>
-                        )}
                         {ex.notes && <p className="program-exo-coach-note">💬 {ex.notes}</p>}
                         <ExerciseAlternatives
                           exercisesById={exercisesById}
