@@ -34,13 +34,14 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Connexion établie tôt vers Supabase (auth + données) : la poignée de
+         main TLS se fait pendant le téléchargement du JS plutôt qu'après, ce
+         qui raccourcit d'autant la latence perçue à la connexion (Google y
+         compris, qui passe par /auth/v1 de Supabase). -->
+    <link rel="preconnect" href="https://nbyvxuvnlcyofytvmsvl.supabase.co" crossorigin />
+    <!-- Polices : Anton/IBM Plex (marque) + Archivo/Inter (thème rouxperf) en une seule requête -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Polices du système de thèmes rouxperf : Inter (--font-sans) + Archivo (--font-display) -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500&family=Inter:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Archivo:wght@400;500&family=Inter:wght@400;500&display=swap"
       rel="stylesheet"
     />
   </head>
