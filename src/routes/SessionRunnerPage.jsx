@@ -199,6 +199,7 @@ export default function SessionRunnerPage() {
 
   const [weight, setWeight] = useState('')
   const [note, setNote] = useState('')
+  const [noteOpen, setNoteOpen] = useState(false) // champ note replié par défaut, révélé au tap
   const [metricKind, setMetricKind] = useState('pace') // pace | speed | time
   const [metricValue, setMetricValue] = useState('')
   const [distanceKm, setDistanceKm] = useState('')
@@ -271,6 +272,7 @@ export default function SessionRunnerPage() {
     if (existing) {
       setWeight(existing.weight_kg != null ? String(existing.weight_kg) : '')
       setNote(existing.note != null ? String(existing.note) : '')
+      setNoteOpen(Boolean(existing.note))
       setDistanceKm(existing.distance_km != null ? String(existing.distance_km) : '')
       if (existing.metric_kind && existing.metric_kind !== 'effort_s') {
         setMetricKind(existing.metric_kind)
@@ -291,6 +293,7 @@ export default function SessionRunnerPage() {
     else if (!sameExercise) setWeight('') // nouvel exercice sans reprise : on repart vide
     // même exercice sans reprise : on garde le poids déjà saisi
     setNote('')
+    setNoteOpen(false)
     setMetricValue('')
     setDistanceKm('')
   }
@@ -1642,9 +1645,6 @@ export default function SessionRunnerPage() {
       </div>
 
       <div className="card session-exo-card">
-        <p className="eyebrow">
-          {completed}/{total} séries
-        </p>
         {isWarmupExercise(exercise) && <span className="session-block-tag">🔸 Échauffement</span>}
         <h2 className="session-exo-name">{details?.name ?? 'Exercice'}</h2>
 
@@ -1703,9 +1703,9 @@ export default function SessionRunnerPage() {
         ) : isTimeBased ? (
           <div className="set-fill">
             <p className="set-fill-target">
-              Série {fillIdx + 1} · effort <strong>{exercise.reps}</strong> · repos {restLabel}
+              Effort <strong>{exercise.reps}</strong> · repos {restLabel}
             </p>
-            {fillEntry && <p className="set-fill-done">Série {fillIdx + 1} déjà faite ✓</p>}
+            {fillEntry && <p className="set-fill-done">Déjà faite ✓</p>}
             <button
               type="button"
               className="btn-primary"
@@ -1717,7 +1717,7 @@ export default function SessionRunnerPage() {
         ) : (
           <form className="set-fill" onSubmit={onPrimary}>
             <p className="set-fill-target">
-              Série {fillIdx + 1} · objectif <strong>{targetLabel}</strong>
+              Objectif <strong>{targetLabel}</strong>
               {running ? '' : ' reps'} · repos {restLabel}
             </p>
 
@@ -1793,15 +1793,23 @@ export default function SessionRunnerPage() {
               </>
             )}
 
-            <label htmlFor="set-note">Ton ressenti (optionnel)</label>
-            <input
-              id="set-note"
-              type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="ex. bien senti, un peu lourd, gêne au genou…"
-              autoComplete="off"
-            />
+            {noteOpen ? (
+              <>
+                <label htmlFor="set-note">Ton ressenti (optionnel)</label>
+                <input
+                  id="set-note"
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="ex. bien senti, un peu lourd, gêne au genou…"
+                  autoComplete="off"
+                />
+              </>
+            ) : (
+              <button type="button" className="link-button session-note-toggle" onClick={() => setNoteOpen(true)}>
+                + Ajouter un ressenti
+              </button>
+            )}
 
             <button type="submit" className="btn-primary">
               {fillEntry ? `Mettre à jour la série ${fillIdx + 1}` : `Valider la série ${fillIdx + 1}`}
