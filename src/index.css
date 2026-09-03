@@ -1149,6 +1149,25 @@ a.btn-secondary {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+}
+
+.exercise-video-thumb-btn {
+  position: relative;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+}
+
+.exercise-video-play-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .exercise-attribution {
