@@ -249,8 +249,14 @@ export default function SessionRunnerPage() {
     for (const { exercise, index } of members) {
       round = Math.min(round, countCompleted(entriesMap, index, setCount(exercise)))
     }
-    for (const { index } of members) {
-      if (!entriesMap[`${index}-${round}`]) return { exIdx: index, setIdx: round }
+    // round = le nombre de séries déjà complétées par le membre le moins avancé.
+    // Si ce nombre atteint déjà les séries prescrites d'un membre, ce membre a
+    // TERMINÉ — round n'est pas "un tour de plus à faire" pour lui (sinon, une
+    // fois tout le monde à 3/3 séries, on proposait un 4e tour fantôme jamais
+    // affiché dans le total). Ne cherche un membre en attente que parmi ceux
+    // dont ce tour existe encore réellement.
+    for (const { exercise, index } of members) {
+      if (round < setCount(exercise) && !entriesMap[`${index}-${round}`]) return { exIdx: index, setIdx: round }
     }
     return null
   }
