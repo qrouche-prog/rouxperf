@@ -3738,13 +3738,43 @@ details.settings-section h2 {
 }
 
 .activity-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 12px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
+}
+
+.activity-card summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.activity-card[open] summary {
+  margin-bottom: 10px;
+}
+
+.activity-card-detail {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.activity-detail-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.activity-detail-rows li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.9rem;
 }
 
 .activity-emoji {

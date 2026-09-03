@@ -18,6 +18,50 @@ const CHART_METRICS = {
   sessions: { key: 'sessions', label: 'Séances', unit: '' },
 }
 
+function fmtPaceFromSpeed(speedMs) {
+  if (!speedMs || speedMs <= 0) return null
+  const secPerKm = 1000 / speedMs
+  const m = Math.floor(secPerKm / 60)
+  const s = Math.round(secPerKm % 60)
+  return `${m}:${String(s).padStart(2, '0')} /km`
+}
+
+// Sous-ensemble sûr du JSON brut remonté par la montre (intervals.icu) —
+// uniquement les champs dont l'unité/l'interprétation est certaine, pas les
+// 150+ champs bruts (souvent nuls ou trop techniques pour être utiles ici).
+function activityDetailRows(raw, activity) {
+  if (!raw || typeof raw !== 'object') return []
+  const rows = []
+  if (raw.name && raw.name.trim().toLowerCase() !== frActivityLabel(activity.activity_type).toLowerCase()) {
+    rows.push(['Titre', raw.name])
+  }
+  if (raw.description) rows.push(['Description', raw.description])
+  if (raw.moving_time && raw.elapsed_time && raw.elapsed_time !== raw.moving_time) {
+    rows.push(['Temps total (avec pauses)', `${Math.round(raw.elapsed_time / 60)} min`])
+  }
+  const speed = Number(raw.average_speed)
+  if (speed > 0) {
+    const kmh = (speed * 3.6).toFixed(1)
+    const pace = fmtPaceFromSpeed(speed)
+    rows.push(['Vitesse moyenne', pace ? `${kmh} km/h · ${pace}` : `${kmh} km/h`])
+  }
+  const watts = Number(raw.icu_average_watts)
+  if (watts > 0) rows.push(['Puissance moyenne', `${Math.round(watts)} W`])
+  const rpe = raw.icu_rpe ?? raw.perceived_exertion
+  if (rpe != null) rows.push(['RPE (ressenti d\'effort)', `${rpe}/10`])
+  if (raw.feel != null) rows.push(['Ressenti général', `${raw.feel}/5`])
+  const elevLoss = Number(raw.total_elevation_loss)
+  if (elevLoss > 0) rows.push(['Dénivelé négatif', `${Math.round(elevLoss)} m`])
+  const load = Number(raw.icu_training_load)
+  if (load > 0) rows.push(["Charge d'entraînement", Math.round(load)])
+  const temp = Number(raw.average_temp)
+  if (raw.average_temp != null && Number.isFinite(temp)) rows.push(['Température', `${Math.round(temp)}°C`])
+  if (Array.isArray(raw.interval_summary) && raw.interval_summary.length > 0) {
+    rows.push(['Intervalles', raw.interval_summary.join(' · ')])
+  }
+  return rows
+}
+
 const MEASUREMENT_FIELDS = [
   { value: 'weight_kg', label: 'Poids', unit: 'kg' },
   { value: 'body_fat_pct', label: 'Masse grasse', unit: '%' },
@@ -33,6 +77,7 @@ export default function ProgressPage() {
   const [measurements, setMeasurements] = useState([])
   const [activities, setActivities] = useState([])
   const [showAllActivities, setShowAllActivities] = useState(false)
+  const [activityDetails, setActivityDetails] = useState({}) // id -> détail brut (chargé à l'ouverture, pas d'emblée)
   const [insight, setInsight] = useState(null)
   const [insightBusy, setInsightBusy] = useState(false)
   const [insightError, setInsightError] = useState(null)
@@ -79,6 +124,16 @@ export default function ProgressPage() {
       .order('started_at', { ascending: false })
       .limit(120)
     setActivities(data ?? [])
+  }
+
+  // Détail complet chargé à la demande (à l'ouverture de la carte) plutôt
+  // qu'avec la liste : le JSON brut de la montre peut être volumineux et la
+  // plupart des séances ne sont jamais dépliées.
+  async function loadActivityDetail(id) {
+    if (activityDetails[id] !== undefined) return
+    setActivityDetails((prev) => ({ ...prev, [id]: 'loading' }))
+    const { data } = await supabase.from('wearable_activities').select('raw').eq('id', id).single()
+    setActivityDetails((prev) => ({ ...prev, [id]: data?.raw ?? null }))
   }
 
   async function loadMeasurements() {
@@ -292,30 +347,55 @@ export default function ProgressPage() {
             </div>
           )}
           <ul className="activity-cards">
-            {activities.slice(0, showAllActivities ? 40 : 5).map((a) => (
-              <li key={a.id} className="activity-card">
-                <span className="activity-emoji">{activityEmoji(a.activity_type)}</span>
-                <div className="activity-card-body">
-                  <div className="activity-card-top">
-                    <strong>{frActivityLabel(a.activity_type)}</strong>
-                    <span className="eyebrow">
-                      {a.started_at
-                        ? new Date(a.started_at).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })
-                        : ''}
-                    </span>
-                  </div>
-                  <div className="activity-chips">
-                    {a.duration_s ? <span className="activity-chip">{Math.round(a.duration_s / 60)} min</span> : null}
-                    {a.distance_m ? <span className="activity-chip">{(a.distance_m / 1000).toFixed(1)} km</span> : null}
-                    {a.avg_hr ? <span className="activity-chip">❤️ {a.avg_hr}</span> : null}
-                    {a.elevation_gain_m ? (
-                      <span className="activity-chip">↑ {Math.round(a.elevation_gain_m)} m</span>
-                    ) : null}
-                    {a.calories ? <span className="activity-chip">{Math.round(a.calories)} kcal</span> : null}
-                  </div>
-                </div>
-              </li>
-            ))}
+            {activities.slice(0, showAllActivities ? 40 : 5).map((a) => {
+              const raw = activityDetails[a.id]
+              const detailRows = activityDetailRows(raw, a)
+              return (
+                <li key={a.id}>
+                  <details className="activity-card" onToggle={(e) => e.target.open && loadActivityDetail(a.id)}>
+                    <summary>
+                      <span className="activity-emoji">{activityEmoji(a.activity_type)}</span>
+                      <div className="activity-card-body">
+                        <div className="activity-card-top">
+                          <strong>{frActivityLabel(a.activity_type)}</strong>
+                          <span className="eyebrow">
+                            {a.started_at
+                              ? new Date(a.started_at).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })
+                              : ''}
+                          </span>
+                        </div>
+                        <div className="activity-chips">
+                          {a.duration_s ? <span className="activity-chip">{Math.round(a.duration_s / 60)} min</span> : null}
+                          {a.distance_m ? <span className="activity-chip">{(a.distance_m / 1000).toFixed(1)} km</span> : null}
+                          {a.avg_hr ? <span className="activity-chip">❤️ {a.avg_hr}</span> : null}
+                          {a.max_hr ? <span className="activity-chip">❤️max {a.max_hr}</span> : null}
+                          {a.elevation_gain_m ? (
+                            <span className="activity-chip">↑ {Math.round(a.elevation_gain_m)} m</span>
+                          ) : null}
+                          {a.calories ? <span className="activity-chip">{Math.round(a.calories)} kcal</span> : null}
+                        </div>
+                      </div>
+                    </summary>
+                    <div className="activity-card-detail">
+                      {raw === 'loading' ? (
+                        <p className="eyebrow">Chargement…</p>
+                      ) : detailRows.length > 0 ? (
+                        <ul className="activity-detail-rows">
+                          {detailRows.map(([label, value]) => (
+                            <li key={label}>
+                              <span className="eyebrow">{label}</span>
+                              <span>{value}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="eyebrow">Pas d'information supplémentaire pour cette séance.</p>
+                      )}
+                    </div>
+                  </details>
+                </li>
+              )
+            })}
           </ul>
           {activities.length > 5 && (
             <button
