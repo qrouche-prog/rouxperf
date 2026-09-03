@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { withStableDayNumbers, programSchedule } from '../lib/programDays'
 import { mediaForSlug } from '../lib/exerciseMedia'
 import ExerciseLoop from '../components/ExerciseLoop'
+import ExerciseVideo from '../components/ExerciseVideo'
 import ExerciseAttribution from '../components/ExerciseAttribution'
 import Icon from '../components/onboarding/icons/Icon'
 import ExerciseAlternatives from '../components/ExerciseAlternatives'
@@ -399,7 +400,9 @@ export default function SessionRunnerPage() {
           .maybeSingle(),
         supabase
           .from('exercises')
-          .select('id, name, instructions, illustration_slug, category, muscle_group, equipment_required, is_ai_generated'),
+          .select(
+            'id, name, instructions, illustration_slug, category, muscle_group, equipment_required, is_ai_generated, musclewiki_videos'
+          ),
         supabase.from('user_training_profile').select('equipment_access').eq('user_id', user.id).maybeSingle(),
       ])
       if (error) {
@@ -1342,11 +1345,17 @@ export default function SessionRunnerPage() {
                     <h3 className="session-exo-name">{mDet?.name ?? 'Exercice'}</h3>
                     <p className="eyebrow">objectif {me.reps} reps</p>
 
-                    {mMedia && (
+                    {mDet?.musclewiki_videos ? (
                       <div className="session-exo-media">
-                        <ExerciseLoop media={mMedia} label={mDet?.name ?? 'Exercice'} />
-                        <ExerciseAttribution media={mMedia} />
+                        <ExerciseVideo videos={mDet.musclewiki_videos} label={mDet?.name ?? 'Exercice'} />
                       </div>
+                    ) : (
+                      mMedia && (
+                        <div className="session-exo-media">
+                          <ExerciseLoop media={mMedia} label={mDet?.name ?? 'Exercice'} />
+                          <ExerciseAttribution media={mMedia} />
+                        </div>
+                      )
                     )}
 
                     <label htmlFor={`superset-weight-${mi}`}>Poids (kg)</label>
@@ -1631,11 +1640,17 @@ export default function SessionRunnerPage() {
 
         {exercise.notes && <p className="session-exo-coach-note">💬 {exercise.notes}</p>}
 
-        {media && (
+        {details?.musclewiki_videos ? (
           <div className="session-exo-media">
-            <ExerciseLoop media={media} label={details?.name ?? 'Exercice'} />
-            <ExerciseAttribution media={media} />
+            <ExerciseVideo videos={details.musclewiki_videos} label={details?.name ?? 'Exercice'} />
           </div>
+        ) : (
+          media && (
+            <div className="session-exo-media">
+              <ExerciseLoop media={media} label={details?.name ?? 'Exercice'} />
+              <ExerciseAttribution media={media} />
+            </div>
+          )
         )}
 
         <div className="set-chips" role="tablist" aria-label="Séries">

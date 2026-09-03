@@ -1135,6 +1135,22 @@ a.btn-secondary {
   }
 }
 
+.exercise-video {
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 9 / 16;
+  margin: 8px auto 4px;
+  background: var(--card);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.exercise-video-el {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .exercise-attribution {
   text-align: center;
   color: var(--iron);
