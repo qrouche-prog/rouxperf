@@ -4271,11 +4271,28 @@ details.settings-section h2 {
   gap: 16px;
 }
 
+.session-summary-exo summary {
+  cursor: pointer;
+}
+
 .session-summary-exo-head {
-  display: flex;
+  display: inline-flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 10px;
+  width: calc(100% - 20px);
+}
+
+.session-summary-exo[open] summary {
+  margin-bottom: 6px;
+}
+
+.session-summary-block-member summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.session-summary-block-member[open] summary {
   margin-bottom: 6px;
 }
 

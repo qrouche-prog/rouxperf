@@ -1138,6 +1138,17 @@ export default function SessionRunnerPage() {
     setDistanceKm('')
   }
 
+  // Dernière série renseignée d'un exercice (aperçu condensé dans le résumé) —
+  // le détail série par série reste disponible dans le <details>, pas besoin
+  // de tout afficher d'emblée pour confirmer que la séance s'est bien passée.
+  function lastSetSummary(exIdx, total, ex, running) {
+    for (let s = total - 1; s >= 0; s -= 1) {
+      const e = entries[`${exIdx}-${s}`]
+      if (e) return setSummary(e, ex, running)
+    }
+    return null
+  }
+
   // ---- Écran : résumé ----
   if (phase === 'summary') {
     return (
@@ -1171,27 +1182,26 @@ export default function SessionRunnerPage() {
                     const mDet = exercisesById[me.exercise_id]
                     const mTotal = setCount(me)
                     const mDone = countCompleted(entries, mi, mTotal)
+                    const mRunning = isRunningExercise(mDet, me.reps, day.modality)
+                    const mLast = lastSetSummary(mi, mTotal, me, mRunning)
                     return (
-                      <div key={mi} className="session-summary-block-member">
-                        <p className="eyebrow">
+                      <details key={mi} className="session-summary-block-member">
+                        <summary>
                           {mDet?.name ?? 'Exercice'} — {mDone}/{mTotal} séries
-                        </p>
+                          {mLast ? ` · ${mLast}` : ''}
+                        </summary>
                         <ul className="session-summary-sets">
                           {Array.from({ length: mTotal }).map((_, s) => {
                             const e = entries[`${mi}-${s}`]
                             return (
                               <li key={s} className={e ? 'session-summary-set' : 'session-summary-set session-summary-skipped'}>
                                 <span className="session-summary-set-n">{s + 1}</span>
-                                {e ? (
-                                  <span>{setSummary(e, me, isRunningExercise(mDet, me.reps, day.modality))}</span>
-                                ) : (
-                                  <span>non réalisée</span>
-                                )}
+                                {e ? <span>{setSummary(e, me, mRunning)}</span> : <span>non réalisée</span>}
                               </li>
                             )
                           })}
                         </ul>
-                      </div>
+                      </details>
                     )
                   })}
                 </div>
@@ -1201,15 +1211,21 @@ export default function SessionRunnerPage() {
             const total = setCount(ex)
             const doneCount = countCompleted(entries, i, total)
             const label = item.type === 'block' ? blockLabel(ex) : (det?.name ?? 'Exercice')
+            const running = isRunningExercise(det, ex.reps, day.modality)
+            const last = lastSetSummary(i, total, ex, running)
             return (
-              <div key={i} className="session-summary-exo">
-                {isWarmupExercise(ex) && <span className="session-block-tag">🔸 Échauffement</span>}
-                <div className="session-summary-exo-head">
-                  <strong>{label}</strong>
-                  <span className={`eyebrow${doneCount === total ? ' session-summary-done' : ''}`}>
-                    {doneCount}/{total}{item.type === 'block' ? '' : ' séries'}
+              <details key={i} className="session-summary-exo">
+                <summary>
+                  {isWarmupExercise(ex) && <span className="session-block-tag">🔸 Échauffement</span>}
+                  <span className="session-summary-exo-head">
+                    <strong>{label}</strong>
+                    <span className={`eyebrow${doneCount === total ? ' session-summary-done' : ''}`}>
+                      {doneCount}/{total}
+                      {item.type === 'block' ? '' : ' séries'}
+                      {last ? ` · ${last}` : ''}
+                    </span>
                   </span>
-                </div>
+                </summary>
                 {item.type === 'block' && (
                   <p className="eyebrow">
                     {item.members.map(({ exercise: e }) => exercisesById[e.exercise_id]?.name ?? 'Exercice').join(' · ')}
@@ -1221,16 +1237,12 @@ export default function SessionRunnerPage() {
                     return (
                       <li key={s} className={e ? 'session-summary-set' : 'session-summary-set session-summary-skipped'}>
                         <span className="session-summary-set-n">{s + 1}</span>
-                        {e ? (
-                          <span>{setSummary(e, ex, isRunningExercise(det, ex.reps, day.modality))}</span>
-                        ) : (
-                          <span>non réalisée</span>
-                        )}
+                        {e ? <span>{setSummary(e, ex, running)}</span> : <span>non réalisée</span>}
                       </li>
                     )
                   })}
                 </ul>
-              </div>
+              </details>
             )
           })}
         </div>
@@ -1468,8 +1480,6 @@ export default function SessionRunnerPage() {
           </p>
         </div>
 
-        <p className="session-list-hint">Lance la séance, ou choisis directement un exercice.</p>
-
         <div className="session-exercise-list">
           {groupDayExercises(day.exercises).map((item) => {
             const i = item.index
@@ -1633,7 +1643,7 @@ export default function SessionRunnerPage() {
 
       <div className="card session-exo-card">
         <p className="eyebrow">
-          Exercice {selectedExerciseIndex + 1}/{day.exercises.length} · {completed}/{total} séries
+          {completed}/{total} séries
         </p>
         {isWarmupExercise(exercise) && <span className="session-block-tag">🔸 Échauffement</span>}
         <h2 className="session-exo-name">{details?.name ?? 'Exercice'}</h2>
@@ -1783,7 +1793,7 @@ export default function SessionRunnerPage() {
               </>
             )}
 
-            <label htmlFor="set-note">Note / appréciation (optionnel)</label>
+            <label htmlFor="set-note">Ton ressenti (optionnel)</label>
             <input
               id="set-note"
               type="text"
