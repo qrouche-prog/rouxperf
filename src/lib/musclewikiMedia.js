@@ -31,3 +31,29 @@ export function pickMusclewikiVideo(videos) {
   if (!Array.isArray(videos) || videos.length === 0) return null
   return videos.find((v) => v.gender === 'male' && v.angle === 'front') || videos.find((v) => v.angle === 'front') || videos[0]
 }
+
+// Cache mémoire des miniatures (URL og_image -> object URL local), pour de
+// vrai un seul appel API par exercice PAR SESSION D'ONGLET — indépendant du
+// cache HTTP du navigateur (constaté peu fiable ici sur les remontages
+// répétés de l'écran d'exercice à chaque série). Leurs conditions autorisent
+// explicitement la mise en cache des miniatures 24h "on-device" ; ce cache
+// mémoire ne survit pas à la fermeture de l'onglet, donc reste bien en-deçà.
+const thumbCache = new Map()
+
+export async function getMusclewikiThumbnail(ogImageUrl) {
+  if (!ogImageUrl) return null
+  const cached = thumbCache.get(ogImageUrl)
+  if (cached) return cached
+  const token = await getMusclewikiToken()
+  if (!token) return null
+  try {
+    const res = await fetch(`${ogImageUrl}?token=${token}`)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    thumbCache.set(ogImageUrl, objectUrl)
+    return objectUrl
+  } catch {
+    return null
+  }
+}
