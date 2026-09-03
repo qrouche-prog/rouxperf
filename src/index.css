@@ -1135,14 +1135,27 @@ a.btn-secondary {
   }
 }
 
-.exercise-video {
-  width: 100%;
-  max-width: 360px;
+/* Bandeau défilant horizontal des vues vidéo (face / profil, un ou
+   plusieurs exercices) — chaque vignette reste au format vertical (9:16),
+   on fait défiler plutôt que d'empiler verticalement. */
+.exercise-video-strip {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 4px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 2px;
+}
+
+.exercise-video-tile {
+  position: relative;
+  flex: 0 0 auto;
+  width: 150px;
   aspect-ratio: 9 / 16;
-  margin: 8px auto 4px;
   background: var(--card);
   border-radius: 10px;
   overflow: hidden;
+  scroll-snap-align: start;
 }
 
 .exercise-video-el {
@@ -1153,7 +1166,6 @@ a.btn-secondary {
 }
 
 .exercise-video-thumb-btn {
-  position: relative;
   padding: 0;
   border: none;
   cursor: pointer;
@@ -1165,9 +1177,31 @@ a.btn-secondary {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: 1.8rem;
   color: #fff;
   background: rgba(0, 0, 0, 0.25);
+}
+
+.exercise-video-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.exercise-video-fallback .exercise-loop {
+  margin: 0;
+  max-width: 100%;
+}
+
+.exercise-video-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 4px 6px;
+  font-size: 0.68rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  text-align: left;
 }
 
 .exercise-attribution {

@@ -25,11 +25,13 @@ export async function getMusclewikiToken({ force = false } = {}) {
   }
 }
 
-// Choisit une vidéo par défaut (homme, vue de face) parmi le tableau
-// musclewiki_videos stocké sur l'exercice — pas de sélecteur genre/angle en v1.
-export function pickMusclewikiVideo(videos) {
-  if (!Array.isArray(videos) || videos.length === 0) return null
-  return videos.find((v) => v.gender === 'male' && v.angle === 'front') || videos.find((v) => v.angle === 'front') || videos[0]
+// Les angles disponibles (face, profil) pour un genre donné parmi le tableau
+// musclewiki_videos stocké sur l'exercice — pas de sélecteur de genre en v1,
+// homme par défaut, mais les DEUX angles (face + profil) sont affichés.
+export function pickMusclewikiVideos(videos, gender = 'male') {
+  if (!Array.isArray(videos) || videos.length === 0) return []
+  const byGender = videos.filter((v) => v.gender === gender)
+  return byGender.length > 0 ? byGender : videos
 }
 
 // Cache mémoire des miniatures (URL og_image -> object URL local), pour de
