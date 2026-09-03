@@ -1373,6 +1373,13 @@ export default function SessionRunnerPage() {
                       )
                     )}
 
+                    {mDet?.instructions && (
+                      <details className="session-exo-instructions">
+                        <summary>Consignes</summary>
+                        <p>{mDet.instructions}</p>
+                      </details>
+                    )}
+
                     <label htmlFor={`superset-weight-${mi}`}>Poids (kg)</label>
                     <input
                       id={`superset-weight-${mi}`}
@@ -1385,13 +1392,6 @@ export default function SessionRunnerPage() {
                     />
 
                     {me.notes && <p className="session-exo-coach-note">💬 {me.notes}</p>}
-
-                    {mDet?.instructions && (
-                      <details className="session-exo-instructions">
-                        <summary>Consignes</summary>
-                        <p>{mDet.instructions}</p>
-                      </details>
-                    )}
                   </div>
                 )
               })}
@@ -1663,6 +1663,13 @@ export default function SessionRunnerPage() {
           )
         )}
 
+        {details?.instructions && (
+          <details className="session-exo-instructions">
+            <summary>Consignes</summary>
+            <p>{details.instructions}</p>
+          </details>
+        )}
+
         <div className="set-chips" role="tablist" aria-label="Séries">
           {Array.from({ length: total }).map((_, i) => {
             const isDone = Boolean(entries[`${selectedExerciseIndex}-${i}`])
@@ -1815,13 +1822,6 @@ export default function SessionRunnerPage() {
               {fillEntry ? `Mettre à jour la série ${fillIdx + 1}` : `Valider la série ${fillIdx + 1}`}
             </button>
           </form>
-        )}
-
-        {details?.instructions && (
-          <details className="session-exo-instructions">
-            <summary>Consignes</summary>
-            <p>{details.instructions}</p>
-          </details>
         )}
 
         <ExerciseAlternatives
