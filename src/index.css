@@ -1182,16 +1182,6 @@ a.btn-secondary {
   background: rgba(0, 0, 0, 0.25);
 }
 
-.exercise-video-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.exercise-video-fallback .exercise-loop {
-  margin: 0;
-  max-width: 100%;
-}
-
 .exercise-video-caption {
   position: absolute;
   left: 0;
@@ -1209,28 +1199,13 @@ a.btn-secondary {
 }
 
 .exercise-preview-media {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
+  width: 120px;
   margin: 0 auto;
 }
 
-.exercise-info-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 0.95rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+.exercise-info-toggle {
+  display: block;
+  margin: 4px auto 0;
 }
 
 .exercise-info-panel {
