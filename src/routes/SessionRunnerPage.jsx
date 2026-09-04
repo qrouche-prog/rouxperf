@@ -4,9 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { withStableDayNumbers, programSchedule } from '../lib/programDays'
 import { mediaForSlug } from '../lib/exerciseMedia'
-import ExerciseLoop from '../components/ExerciseLoop'
-import ExerciseVideo, { ExerciseVideoGroup } from '../components/ExerciseVideo'
-import ExerciseAttribution from '../components/ExerciseAttribution'
+import ExerciseInfoPanel from '../components/ExerciseInfoPanel'
 import Icon from '../components/onboarding/icons/Icon'
 import ExerciseAlternatives from '../components/ExerciseAlternatives'
 import BlockRunner from '../components/BlockRunner'
@@ -410,7 +408,7 @@ export default function SessionRunnerPage() {
         supabase
           .from('exercises')
           .select(
-            'id, name, instructions, illustration_slug, category, muscle_group, equipment_required, is_ai_generated, musclewiki_videos'
+            'id, name, instructions, illustration_slug, category, muscle_group, equipment_required, is_ai_generated, musclewiki_videos, musclewiki_steps'
           ),
         supabase.from('user_training_profile').select('equipment_access').eq('user_id', user.id).maybeSingle(),
       ])
@@ -1365,12 +1363,13 @@ export default function SessionRunnerPage() {
                     <h3 className="session-exo-name">{mDet?.name ?? 'Exercice'}</h3>
                     <p className="eyebrow">objectif {me.reps} reps</p>
 
-                    {mDet?.instructions && (
-                      <details className="session-exo-instructions">
-                        <summary>Consignes</summary>
-                        <p>{mDet.instructions}</p>
-                      </details>
-                    )}
+                    <ExerciseInfoPanel
+                      media={mediaForSlug(mDet?.illustration_slug)}
+                      name={mDet?.name}
+                      instructions={mDet?.instructions}
+                      steps={mDet?.musclewiki_steps}
+                      videos={mDet?.musclewiki_videos}
+                    />
 
                     <label htmlFor={`superset-weight-${mi}`}>Poids (kg)</label>
                     <input
@@ -1393,17 +1392,6 @@ export default function SessionRunnerPage() {
               {roundDone ? `Mettre à jour le tour ${roundIdx + 1}` : `Valider la série ${roundIdx + 1}`}
             </button>
           </form>
-
-          <ExerciseVideoGroup
-            groups={members.map(({ exercise: me }) => {
-              const mDet = exercisesById[me.exercise_id]
-              return {
-                label: mDet?.name ?? 'Exercice',
-                videos: mDet?.musclewiki_videos,
-                fallbackMedia: mediaForSlug(mDet?.illustration_slug),
-              }
-            })}
-          />
 
           {roundDone && (
             <button
@@ -1653,6 +1641,14 @@ export default function SessionRunnerPage() {
 
         {exercise.notes && <p className="session-exo-coach-note">💬 {exercise.notes}</p>}
 
+        <ExerciseInfoPanel
+          media={media}
+          name={details?.name}
+          instructions={details?.instructions}
+          steps={details?.musclewiki_steps}
+          videos={details?.musclewiki_videos}
+        />
+
         <div className="set-chips" role="tablist" aria-label="Séries">
           {Array.from({ length: total }).map((_, i) => {
             const isDone = Boolean(entries[`${selectedExerciseIndex}-${i}`])
@@ -1805,26 +1801,6 @@ export default function SessionRunnerPage() {
               {fillEntry ? `Mettre à jour la série ${fillIdx + 1}` : `Valider la série ${fillIdx + 1}`}
             </button>
           </form>
-        )}
-
-        {details?.musclewiki_videos ? (
-          <div className="session-exo-media">
-            <ExerciseVideo videos={details.musclewiki_videos} label={details?.name ?? 'Exercice'} />
-          </div>
-        ) : (
-          media && (
-            <div className="session-exo-media">
-              <ExerciseLoop media={media} label={details?.name ?? 'Exercice'} />
-              <ExerciseAttribution media={media} />
-            </div>
-          )
-        )}
-
-        {details?.instructions && (
-          <details className="session-exo-instructions">
-            <summary>Consignes</summary>
-            <p>{details.instructions}</p>
-          </details>
         )}
 
         <ExerciseAlternatives
