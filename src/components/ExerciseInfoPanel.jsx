@@ -16,30 +16,28 @@ export default function ExerciseInfoPanel({ media, name, instructions, steps, vi
   const hasExtra = hasSteps || hasVideos || Boolean(instructions)
   if (!media && !hasExtra) return null
 
+  // Le crédit CC BY-SA de l'illustration (obligatoire, pas décoratif — voir
+  // ExerciseAttribution) n'est plus affiché sous l'image en permanence : il
+  // reste accessible à la demande, dans ce même panneau — jamais supprimé.
   const toggleLabel = open
     ? 'Masquer'
     : hasVideos
       ? 'ⓘ Consignes détaillées + vidéo de démonstration'
       : hasSteps || instructions
         ? 'ⓘ Voir les consignes détaillées'
-        : "ⓘ Plus d'infos sur cet exercice"
+        : 'ⓘ Crédits de l’illustration'
 
   return (
     <div className="exercise-preview">
       {media && (
-        <>
-          <div className="exercise-preview-media">
-            <ExerciseLoop media={media} label={name} />
-          </div>
-          <ExerciseAttribution media={media} />
-        </>
+        <div className="exercise-preview-media">
+          <ExerciseLoop media={media} label={name} />
+        </div>
       )}
 
-      {hasExtra && (
-        <button type="button" className="link-button exercise-info-toggle" onClick={() => setOpen((v) => !v)}>
-          {toggleLabel}
-        </button>
-      )}
+      <button type="button" className="link-button exercise-info-toggle" onClick={() => setOpen((v) => !v)}>
+        {toggleLabel}
+      </button>
 
       {open && (
         <div className="exercise-info-panel">
@@ -53,6 +51,7 @@ export default function ExerciseInfoPanel({ media, name, instructions, steps, vi
             <p className="exercise-info-text">{instructions}</p>
           ) : null}
           {hasVideos && <ExerciseVideo videos={videos} label={name} />}
+          {media && <ExerciseAttribution media={media} />}
         </div>
       )}
     </div>
